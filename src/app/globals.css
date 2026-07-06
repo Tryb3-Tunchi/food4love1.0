@@ -1,0 +1,275 @@
+@import "@fontsource-variable/plus-jakarta-sans";
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ─────────────────────────────────────────────
+   FOOD4LOVE DESIGN TOKENS
+   Warm. Food-first. Never cold. Never black.
+───────────────────────────────────────────── */
+
+@layer base {
+  :root {
+    /* Surfaces */
+    --bg: #fff9f2;
+    --bg-2: #fff5e8;
+    --card: #ffffff;
+    --input: #ffffff;
+
+    /* Borders */
+    --border: #e8ded5;
+    --divider: #f1e8df;
+
+    /* Text */
+    --text-1: #2f241f;
+    --text-2: #6b5e57;
+    --text-3: #9a8e86;
+
+    /* Brand */
+    --accent: #e87428;
+    --accent-h: #d9651c;
+    --accent-l: #ffeee6;
+    --success: #4f8a54;
+    --warning: #ffd966;
+    --danger: #d64545;
+
+    /* Nav (always matches bg in default) */
+    --nav-bg: #ffffff;
+    --nav-border: #e8ded5;
+    --nav-text: #6b5e57;
+    --nav-active: #e87428;
+    --nav-dim: #c4b5ac;
+  }
+
+  /* ── HUNGER MODE — warm dark, not cold black ── */
+  html.hunger {
+    --bg: #2b211c;
+    --bg-2: #3a2d27;
+    --card: #44342d;
+    --input: #3a2d27;
+    --border: #56453c;
+    --divider: #4a3830;
+    --text-1: #f7f2ed;
+    --text-2: #c9b5a8;
+    --text-3: #9a8078;
+    --nav-bg: #2b211c;
+    --nav-border: #56453c;
+    --nav-text: #c9b5a8;
+    --nav-active: #e87428;
+    --nav-dim: #6b5550;
+  }
+
+  * {
+    box-sizing: border-box;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  html {
+    scroll-behavior: smooth;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  body {
+    font-family: "Plus Jakarta Sans Variable", "Plus Jakarta Sans", sans-serif;
+    background: var(--bg);
+    color: var(--text-1);
+    overscroll-behavior: none;
+    transition:
+      background 0.35s ease,
+      color 0.3s ease;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    font-family: "Space Grotesk", sans-serif;
+  }
+
+  /* Safe areas */
+  .safe-bottom {
+    padding-bottom: max(env(safe-area-inset-bottom), 0.75rem);
+  }
+  .scrollbar-none {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .scrollbar-none::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+@layer components {
+  /* ── Card system ── */
+  .f4l-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 1.25rem;
+    box-shadow:
+      0 1px 3px rgba(47, 36, 31, 0.06),
+      0 4px 16px rgba(47, 36, 31, 0.04);
+    transition:
+      transform 0.2s ease,
+      box-shadow 0.2s ease,
+      border-color 0.2s ease;
+  }
+  .f4l-card:hover {
+    transform: translateY(-1px);
+    box-shadow:
+      0 4px 12px rgba(47, 36, 31, 0.1),
+      0 16px 40px rgba(47, 36, 31, 0.06);
+    border-color: rgba(232, 116, 40, 0.2);
+  }
+
+  /* ── Input system ── */
+  .f4l-input {
+    background: var(--input);
+    border: 1px solid var(--border);
+    color: var(--text-1);
+    border-radius: 0.75rem;
+    transition:
+      border-color 0.15s ease,
+      box-shadow 0.15s ease;
+    font-family: "Plus Jakarta Sans Variable", sans-serif;
+  }
+  .f4l-input::placeholder {
+    color: var(--text-3);
+  }
+  .f4l-input:focus {
+    outline: none;
+    border-color: rgba(232, 116, 40, 0.5);
+    box-shadow: 0 0 0 3px rgba(232, 116, 40, 0.12);
+  }
+
+  /* ── Badge ── */
+  .f4l-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    font-size: 0.6875rem;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+    padding: 0.25rem 0.625rem;
+    border-radius: 9999px;
+    white-space: nowrap;
+  }
+  .f4l-badge-accent {
+    background: var(--accent-l);
+    color: var(--accent);
+  }
+  .f4l-badge-success {
+    background: rgba(79, 138, 84, 0.12);
+    color: var(--success);
+  }
+  .f4l-badge-warning {
+    background: rgba(255, 217, 102, 0.25);
+    color: #8b6914;
+  }
+  .f4l-badge-muted {
+    background: var(--divider);
+    color: var(--text-3);
+  }
+
+  /* ── Skeleton ── */
+  .f4l-skeleton {
+    background: linear-gradient(
+      90deg,
+      var(--divider) 0%,
+      var(--border) 50%,
+      var(--divider) 100%
+    );
+    background-size: 200% 100%;
+    animation: shimmer 1.8s linear infinite;
+    border-radius: 0.5rem;
+  }
+
+  /* ── Nav system ── */
+  .f4l-nav {
+    background: var(--nav-bg);
+    border-color: var(--nav-border);
+    transition:
+      background 0.35s ease,
+      border-color 0.35s ease;
+  }
+
+  /* ── Section label ── */
+  .f4l-section-label {
+    font-size: 0.6875rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--text-3);
+  }
+
+  /* ── Gradient text ── */
+  .gradient-text {
+    background: linear-gradient(135deg, #e87428 0%, #f59e0b 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  /* ── Shimmer loading ── */
+  @keyframes shimmer {
+    from {
+      background-position: -200% 0;
+    }
+    to {
+      background-position: 200% 0;
+    }
+  }
+
+  /* ── Driver.js tour ── */
+  .f4l-tour .driver-popover {
+    background: var(--card) !important;
+    border: 1px solid var(--border) !important;
+    border-radius: 16px !important;
+    color: var(--text-1) !important;
+    font-family: "Plus Jakarta Sans Variable", sans-serif !important;
+    box-shadow: 0 8px 40px rgba(232, 116, 40, 0.15) !important;
+  }
+  .f4l-tour .driver-popover-title {
+    color: var(--text-1) !important;
+    font-weight: 700 !important;
+    font-family: "Space Grotesk", sans-serif !important;
+  }
+  .f4l-tour .driver-popover-description {
+    color: var(--text-2) !important;
+  }
+  .f4l-tour .driver-popover-next-btn {
+    background: #e87428 !important;
+    border: none !important;
+    border-radius: 8px !important;
+    color: white !important;
+    font-weight: 600 !important;
+  }
+  .f4l-tour .driver-popover-prev-btn {
+    border: 1px solid var(--border) !important;
+    border-radius: 8px !important;
+    color: var(--text-3) !important;
+    background: transparent !important;
+  }
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+  .font-heading {
+    font-family: "Space Grotesk", sans-serif;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
