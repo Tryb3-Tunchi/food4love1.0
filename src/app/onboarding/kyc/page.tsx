@@ -48,7 +48,7 @@ export default function KYCPage() {
 
   const submit = async (data: { idNumber: string }) => {
     if (!profile || !idDoc || !faceVideo) { toast.error("Please upload all documents"); return; }
-    await submitKYC({ user_id: profile.id, full_name: profile.full_name, id_type: idType as any, id_number: data.idNumber, id_document_url: idDoc, face_video_url: faceVideo });
+    await submitKYC({ user_id: profile.id, full_name: profile.full_name ?? "", id_type: idType as any, id_number: data.idNumber, id_document_url: idDoc, face_video_url: faceVideo });
     updateStore({ kyc_status: "pending" });
     toast.success("Submitted! We will review within 24-48 hours.");
     router.push("/swipe");

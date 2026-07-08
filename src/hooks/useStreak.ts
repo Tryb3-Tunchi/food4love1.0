@@ -60,7 +60,7 @@ export function useStreak(userId: string | null): UseStreakState {
             longest_streak: longestStreak,
             last_swipe_date: today,
             super_likes_available:
-              streak.super_likes_available + superLikeBonus,
+              (streak.super_likes_available ?? 0) + superLikeBonus,
             updated_at: new Date().toISOString(),
           })
           .eq("user_id", userId)

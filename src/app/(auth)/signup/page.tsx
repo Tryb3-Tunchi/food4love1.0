@@ -1,4 +1,5 @@
 "use client";
+import { Suspense } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { signupSchema, SignupInput } from "@/lib/validations";
@@ -26,7 +27,7 @@ const PERKS = [
   "Secure payments and dispute protection",
 ];
 
-export default function SignupPage() {
+function SignupPageContent() {
   const router = useRouter();
   const params = useSearchParams();
   const role = params.get("role") === "cook" ? "cook" : "buyer";
@@ -217,5 +218,19 @@ export default function SignupPage() {
         </motion.div>
       </div>
     </div>
+  );
+}
+
+export default function SignupPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex min-h-screen items-center justify-center bg-cream">
+          <div className="text-sm font-medium text-body">Loading...</div>
+        </div>
+      }
+    >
+      <SignupPageContent />
+    </Suspense>
   );
 }
