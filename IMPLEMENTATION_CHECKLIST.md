@@ -24,7 +24,7 @@
 - [ ] Fix import errors on chat pages (MOCK_CHEFS reference).
 - [ ] Implement `(app)/requests/page.tsx` for cooks to see incoming match requests.
 - [ ] Implement `(app)/likes/page.tsx` for cooks to see who liked them.
-- [ ] Remove `_old_vite_pages/` and `_old_vite_providers/` folders.
+- [ ] Remove legacy migration artifacts once the app-router implementation is fully verified.
 - [ ] Clean up all commented-out imports and debug logs.
 
 **PR Title:** `fix: remove mock data and implement missing app pages`

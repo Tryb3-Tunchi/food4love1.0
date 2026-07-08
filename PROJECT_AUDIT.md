@@ -8,7 +8,7 @@
 ### P0 — Critical
 - **Auth layer mismatch:** `useAuth()` hook imported from old providers but not in use; `useAuthStore` (Zustand) is the actual source of truth. Creates confusion about state management pattern.
 - **Supabase client instantiation:** Multiple files call `createClient()` without proper error handling for connection failures. No fallback or retry logic.
-- **Missing Auth Context:** Old `_old_vite_providers/AuthContext.ts` exists but unused. Should be deleted to reduce confusion.
+- **Auth context usage:** Current app state relies on the app-router provider layer rather than the legacy Vite context implementation.
 
 ### P1 — High
 - **Layout protection incomplete:** `(app)/layout.tsx` redirects unauthenticated users but doesn't await auth check in all routes. Race conditions possible on slow networks.
@@ -16,7 +16,7 @@
 - **Shallow dependency graph:** Services import Supabase client directly; no abstraction layer if backend needs to swap providers later.
 
 ### P2 — Medium
-- **Unused old components:** `_old_vite_pages/` and `_old_vite_providers/` should be deleted; clutters workspace and confuses new contributors.
+- **Legacy migration cleanup:** Remaining Vite-era artifacts should be removed only after the app-router routes are fully verified and no runtime references remain.
 
 ### P3 — Future
 - **No error boundary:** App crashes on unhandled React errors; no graceful recovery UI.
