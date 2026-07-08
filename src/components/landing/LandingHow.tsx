@@ -38,15 +38,15 @@ const STEPS = [
 
 export function LandingHow() {
   return (
-    <section id="how" className="py-24 px-5 bg-warmgray">
-      <div className="mx-auto max-w-5xl">
+    <section id="how" className="bg-surface-muted px-4 py-20 sm:px-6 sm:py-24 lg:px-8">
+      <div className="mx-auto max-w-6xl">
 
         {/* Header */}
         <motion.div
           initial={{ opacity: 0, y: 30 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
-          className="text-center mb-16"
+          className="mb-12 text-center sm:mb-16"
         >
           <span className="inline-block text-sm font-bold text-pepper bg-pepper/10 border border-pepper/20 rounded-full px-4 py-1.5 mb-4">
             How it works
@@ -54,13 +54,13 @@ export function LandingHow() {
           <h2 className="text-display-lg text-ink mb-4 text-balance">
             Four steps to your best meal
           </h2>
-          <p className="text-body text-lg max-w-xl mx-auto">
+          <p className="mx-auto max-w-2xl text-base text-body sm:text-lg">
             From discovery to delivery — the whole process is designed to feel natural, fast, and delicious.
           </p>
         </motion.div>
 
         {/* Steps grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+        <div className="grid grid-cols-1 gap-4 sm:gap-5 md:grid-cols-2">
           {STEPS.map((step, i) => (
             <motion.div
               key={step.number}
@@ -68,7 +68,7 @@ export function LandingHow() {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
               transition={{ delay: i * 0.1 }}
-              className={`relative flex gap-5 rounded-3xl border p-7 bg-white ${step.color} hover:shadow-lift transition-all`}
+              className={`relative flex gap-5 rounded-[1.5rem] border bg-card p-6 transition-all hover:shadow-lift sm:p-7 ${step.color}`}
             >
               <div className="shrink-0">
                 <span className={`text-4xl font-extrabold ${step.numColor} opacity-20 leading-none`}>

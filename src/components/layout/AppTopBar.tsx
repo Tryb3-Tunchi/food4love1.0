@@ -10,12 +10,12 @@ export function AppTopBar() {
   const totalNotifs = unreadMessages + newMatches;
 
   return (
-    <div className="f4l-nav flex shrink-0 items-center justify-between border-b px-4 py-3 md:hidden">
+    <div className="f4l-nav flex shrink-0 items-center justify-between border-b px-4 py-3 lg:hidden">
       <span
         className="text-base font-extrabold tracking-tight"
         style={{ color: "var(--text-1)" }}
       >
-        Food<span style={{ color: "var(--pepper)" }}>4</span>Love
+        Food<span style={{ color: "var(--accent)" }}>4</span>Love
       </span>
 
       <div className="flex items-center gap-2">
@@ -62,7 +62,7 @@ export function AppTopBar() {
           {totalNotifs > 0 && (
             <span
               className="absolute -right-0.5 -top-0.5 flex h-4 w-4 items-center justify-center rounded-full text-[9px] font-bold text-white"
-              style={{ background: "var(--pepper)" }}
+              style={{ background: "var(--accent)" }}
             >
               {totalNotifs > 9 ? "9+" : totalNotifs}
             </span>

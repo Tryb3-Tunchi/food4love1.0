@@ -4,59 +4,60 @@
 @tailwind components;
 @tailwind utilities;
 
-/* ─────────────────────────────────────────────
-   FOOD4LOVE DESIGN TOKENS
-   Warm. Food-first. Never cold. Never black.
-───────────────────────────────────────────── */
-
 @layer base {
   :root {
-    /* Surfaces */
     --bg: #fff9f2;
     --bg-2: #fff5e8;
     --card: #ffffff;
     --input: #ffffff;
-
-    /* Borders */
+    --surface-muted: #f5efe8;
     --border: #e8ded5;
     --divider: #f1e8df;
-
-    /* Text */
     --text-1: #2f241f;
     --text-2: #6b5e57;
     --text-3: #9a8e86;
-
-    /* Brand */
-    --accent: #e87428;
-    --accent-h: #d9651c;
-    --accent-l: #ffeee6;
+    --accent: #e8390e;
+    --accent-strong: #d4330c;
+    --accent-soft: #ffeee6;
+    --accent-alt: #f59e0b;
     --success: #4f8a54;
     --warning: #ffd966;
     --danger: #d64545;
-
-    /* Nav (always matches bg in default) */
     --nav-bg: #ffffff;
     --nav-border: #e8ded5;
     --nav-text: #6b5e57;
-    --nav-active: #e87428;
-    --nav-dim: #c4b5ac;
+    --nav-active: #e8390e;
+    --nav-dim: #a89b8c;
+    --shadow-card: 0 1px 2px rgba(47, 36, 31, 0.06), 0 8px 24px rgba(47, 36, 31, 0.04);
+    --shadow-lift: 0 8px 28px rgba(47, 36, 31, 0.08);
+    --shadow-warm: 0 8px 24px rgba(232, 57, 14, 0.16);
+    --radius-sm: 0.5rem;
+    --radius-md: 0.75rem;
+    --radius-lg: 1rem;
+    --radius-xl: 1.25rem;
+    --radius-2xl: 1.5rem;
+    --container: 72rem;
   }
 
-  /* ── HUNGER MODE — warm dark, not cold black ── */
   html.hunger {
     --bg: #2b211c;
     --bg-2: #3a2d27;
     --card: #44342d;
     --input: #3a2d27;
+    --surface-muted: #4a3830;
     --border: #56453c;
     --divider: #4a3830;
     --text-1: #f7f2ed;
     --text-2: #c9b5a8;
     --text-3: #9a8078;
+    --accent: #e8390e;
+    --accent-strong: #ff7b3d;
+    --accent-soft: rgba(232, 57, 14, 0.16);
+    --accent-alt: #f59e0b;
     --nav-bg: #2b211c;
     --nav-border: #56453c;
     --nav-text: #c9b5a8;
-    --nav-active: #e87428;
+    --nav-active: #e8390e;
     --nav-dim: #6b5550;
   }
 
@@ -75,6 +76,8 @@
     font-family: "Plus Jakarta Sans Variable", "Plus Jakarta Sans", sans-serif;
     background: var(--bg);
     color: var(--text-1);
+    min-height: 100vh;
+    min-height: 100dvh;
     overscroll-behavior: none;
     transition:
       background 0.35s ease,
@@ -90,7 +93,24 @@
     font-family: "Space Grotesk", sans-serif;
   }
 
-  /* Safe areas */
+  a,
+  button,
+  input,
+  textarea,
+  select {
+    font: inherit;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+
+  ::selection {
+    background: rgba(232, 57, 14, 0.2);
+    color: var(--text-1);
+  }
+
   .safe-bottom {
     padding-bottom: max(env(safe-area-inset-bottom), 0.75rem);
   }
@@ -104,14 +124,11 @@
 }
 
 @layer components {
-  /* ── Card system ── */
   .f4l-card {
     background: var(--card);
     border: 1px solid var(--border);
-    border-radius: 1.25rem;
-    box-shadow:
-      0 1px 3px rgba(47, 36, 31, 0.06),
-      0 4px 16px rgba(47, 36, 31, 0.04);
+    border-radius: var(--radius-xl);
+    box-shadow: var(--shadow-card);
     transition:
       transform 0.2s ease,
       box-shadow 0.2s ease,
@@ -119,18 +136,15 @@
   }
   .f4l-card:hover {
     transform: translateY(-1px);
-    box-shadow:
-      0 4px 12px rgba(47, 36, 31, 0.1),
-      0 16px 40px rgba(47, 36, 31, 0.06);
-    border-color: rgba(232, 116, 40, 0.2);
+    box-shadow: var(--shadow-lift);
+    border-color: rgba(232, 57, 14, 0.2);
   }
 
-  /* ── Input system ── */
   .f4l-input {
     background: var(--input);
     border: 1px solid var(--border);
     color: var(--text-1);
-    border-radius: 0.75rem;
+    border-radius: var(--radius-md);
     transition:
       border-color 0.15s ease,
       box-shadow 0.15s ease;
@@ -141,11 +155,10 @@
   }
   .f4l-input:focus {
     outline: none;
-    border-color: rgba(232, 116, 40, 0.5);
-    box-shadow: 0 0 0 3px rgba(232, 116, 40, 0.12);
+    border-color: rgba(232, 57, 14, 0.5);
+    box-shadow: 0 0 0 3px rgba(232, 57, 14, 0.12);
   }
 
-  /* ── Badge ── */
   .f4l-badge {
     display: inline-flex;
     align-items: center;
@@ -159,7 +172,7 @@
     white-space: nowrap;
   }
   .f4l-badge-accent {
-    background: var(--accent-l);
+    background: var(--accent-soft);
     color: var(--accent);
   }
   .f4l-badge-success {
@@ -175,7 +188,6 @@
     color: var(--text-3);
   }
 
-  /* ── Skeleton ── */
   .f4l-skeleton {
     background: linear-gradient(
       90deg,
@@ -188,7 +200,6 @@
     border-radius: 0.5rem;
   }
 
-  /* ── Nav system ── */
   .f4l-nav {
     background: var(--nav-bg);
     border-color: var(--nav-border);
@@ -197,7 +208,13 @@
       border-color 0.35s ease;
   }
 
-  /* ── Section label ── */
+  .f4l-container {
+    width: 100%;
+    max-width: min(100%, var(--container));
+    margin-inline: auto;
+    padding-inline: 1rem;
+  }
+
   .f4l-section-label {
     font-size: 0.6875rem;
     font-weight: 700;
@@ -206,15 +223,13 @@
     color: var(--text-3);
   }
 
-  /* ── Gradient text ── */
   .gradient-text {
-    background: linear-gradient(135deg, #e87428 0%, #f59e0b 100%);
+    background: linear-gradient(135deg, #e8390e 0%, #f59e0b 100%);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
   }
 
-  /* ── Shimmer loading ── */
   @keyframes shimmer {
     from {
       background-position: -200% 0;
@@ -224,14 +239,13 @@
     }
   }
 
-  /* ── Driver.js tour ── */
   .f4l-tour .driver-popover {
     background: var(--card) !important;
     border: 1px solid var(--border) !important;
     border-radius: 16px !important;
     color: var(--text-1) !important;
     font-family: "Plus Jakarta Sans Variable", sans-serif !important;
-    box-shadow: 0 8px 40px rgba(232, 116, 40, 0.15) !important;
+    box-shadow: 0 8px 40px rgba(232, 57, 14, 0.15) !important;
   }
   .f4l-tour .driver-popover-title {
     color: var(--text-1) !important;
@@ -242,7 +256,7 @@
     color: var(--text-2) !important;
   }
   .f4l-tour .driver-popover-next-btn {
-    background: #e87428 !important;
+    background: var(--accent) !important;
     border: none !important;
     border-radius: 8px !important;
     color: white !important;
@@ -262,6 +276,18 @@
   }
   .font-heading {
     font-family: "Space Grotesk", sans-serif;
+  }
+}
+
+@media (min-width: 640px) {
+  .f4l-container {
+    padding-inline: 1.25rem;
+  }
+}
+
+@media (min-width: 1024px) {
+  .f4l-container {
+    padding-inline: 1.5rem;
   }
 }
 

@@ -5,13 +5,13 @@ import { ArrowRight } from "lucide-react";
 
 export function LandingCTA() {
   return (
-    <section className="bg-cream px-5 py-24">
+    <section className="bg-cream px-4 py-16 sm:px-6 sm:py-20 lg:px-8 lg:py-24">
       <div className="mx-auto max-w-3xl">
         <motion.div
           initial={{ opacity: 0, y: 40 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
-          className="relative overflow-hidden rounded-[2.5rem] bg-pepper p-10 text-center md:p-16"
+          className="relative overflow-hidden rounded-[2.5rem] bg-pepper p-8 text-center sm:p-10 md:p-16"
         >
           {/* Warm glow inside the card */}
           <div className="pointer-events-none absolute left-1/2 top-0 h-40 w-80 -translate-x-1/2 bg-ember/30 blur-3xl" />

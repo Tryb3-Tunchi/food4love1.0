@@ -10,8 +10,8 @@ const STATS = [
 
 export function LandingStats() {
   return (
-    <section className="bg-ink px-5 py-20">
-      <div className="mx-auto max-w-5xl">
+    <section className="bg-ink px-4 py-20 sm:px-6 sm:py-24 lg:px-8">
+      <div className="mx-auto max-w-6xl">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
@@ -23,7 +23,7 @@ export function LandingStats() {
             Growing every single day across Nigeria.
           </p>
         </motion.div>
-        <div className="grid grid-cols-2 gap-6 md:grid-cols-4">
+        <div className="grid grid-cols-2 gap-4 sm:gap-6 md:grid-cols-4">
           {STATS.map((s, i) => (
             <motion.div
               key={s.label}

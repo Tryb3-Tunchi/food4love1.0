@@ -7,7 +7,7 @@ const badgeVariants = cva("inline-flex items-center gap-1 font-medium transition
       default:  "bg-pepper/10 text-pepper border border-pepper/20",
       ember:    "bg-ember/10 text-ember border border-ember/20",
       success:  "bg-lime/10 text-lime border border-lime/20",
-      muted:    "bg-fog text-ash border border-fog dark:bg-coal dark:text-mist dark:border-coal",
+      muted:    "bg-surface-muted text-body border border-border",
       verified: "bg-lime text-white",
       new:      "bg-pepper text-white animate-pulse-glow",
     },
