@@ -1,4 +1,5 @@
 import type { Config } from "tailwindcss";
+import { colors, radii, shadows, spacing } from "./src/design/tokens";
 
 const config: Config = {
   darkMode: "class",
@@ -6,35 +7,18 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        // Primary palette
-        cream: "#FFF9F2",
-        ivory: "#FFF5E8",
-        accent: "#E87428",
-        "accent-hover": "#D9651C",
-        "accent-light": "#FFEEE6",
-        success: "#4F8A54",
-        warning: "#FFD966",
-        danger: "#D64545",
-
-        // Text
-        ink: "#2F241F",
-        secondary: "#6B5E57",
-        muted: "#9A8E86",
-
-        // Borders
-        border: "#E8DED5",
-        divider: "#F1E8DF",
-
-        // Dark mode
-        "dark-bg": "#2B211C",
-        "dark-surface": "#3A2D27",
-        "dark-border": "#56453C",
-        "dark-text": "#F7F2ED",
-
-        // Keep for backward compat
-        pepper: "#E87428",
-        ember: "#F59E0B",
-        "naija-green": "#4F8A54",
+        ...colors,
+        primary: colors.pepper,
+        accent: colors.pepper,
+        "accent-hover": "#D4330C",
+        "accent-light": colors.ivory,
+        "accent-soft": colors.parchment,
+        bg: colors.bg,
+        "bg-soft": colors.bgSoft,
+        surface: colors.surface,
+        card: colors.surface,
+        border: colors.border,
+        divider: colors.divider,
       },
       fontFamily: {
         heading: ["Space Grotesk", "sans-serif"],
@@ -67,19 +51,19 @@ const config: Config = {
           { lineHeight: "1.4", letterSpacing: "0.05em", fontWeight: "600" },
         ],
       },
-      borderRadius: {
-        "2xl": "1rem",
-        "3xl": "1.5rem",
-        "4xl": "2rem",
-      },
-      boxShadow: {
-        card: "0 1px 3px rgba(47,36,31,0.06), 0 4px 16px rgba(47,36,31,0.06)",
-        "card-hover":
-          "0 4px 12px rgba(47,36,31,0.10), 0 16px 40px rgba(47,36,31,0.08)",
-        lift: "0 2px 8px rgba(47,36,31,0.08), 0 8px 24px rgba(47,36,31,0.06)",
-        accent: "0 4px 20px rgba(232,116,40,0.25)",
-        "accent-lg": "0 8px 32px rgba(232,116,40,0.30)",
-        focus: "0 0 0 3px rgba(232,116,40,0.20)",
+      borderRadius: radii,
+      boxShadow: shadows,
+      spacing,
+      container: {
+        center: true,
+        padding: "1rem",
+        screens: {
+          sm: "640px",
+          md: "768px",
+          lg: "1024px",
+          xl: "1280px",
+          "2xl": "1440px",
+        },
       },
       animation: {
         "card-in": "cardIn 0.4s cubic-bezier(0.16,1,0.3,1) forwards",
@@ -89,6 +73,7 @@ const config: Config = {
         shimmer: "shimmer 1.8s linear infinite",
         float: "float 6s ease-in-out infinite",
         "pulse-dot": "pulseDot 2s ease-in-out infinite",
+        "pulse-soft": "pulseSoft 2s ease-in-out infinite",
       },
       keyframes: {
         cardIn: {
@@ -118,6 +103,10 @@ const config: Config = {
         pulseDot: {
           "0%,100%": { opacity: "1", transform: "scale(1)" },
           "50%": { opacity: "0.5", transform: "scale(0.85)" },
+        },
+        pulseSoft: {
+          "0%,100%": { opacity: "0.8", transform: "scale(1)" },
+          "50%": { opacity: "1", transform: "scale(1.04)" },
         },
       },
     },

@@ -80,8 +80,8 @@ const CHEFS = [
 
 export function LandingChefs() {
   return (
-    <section id="chefs" className="px-5 py-24">
-      <div className="mx-auto max-w-5xl">
+    <section id="chefs" className="px-4 py-20 sm:px-6 sm:py-24 lg:px-8">
+      <div className="mx-auto max-w-6xl">
         {/* Header */}
         <motion.div
           initial={{ opacity: 0, y: 30 }}
@@ -116,13 +116,13 @@ export function LandingChefs() {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
               transition={{ delay: i * 0.07 }}
-              className="group cursor-pointer overflow-hidden rounded-3xl border border-biscuit bg-white transition-all hover:border-pepper/20 hover:shadow-lift"
+              className="group cursor-pointer overflow-hidden rounded-[1.5rem] border border-border bg-card transition-all hover:border-pepper/20 hover:shadow-lift"
             >
               {/* Photo area — emoji on warm gradient */}
-              <div className="relative flex h-40 items-center justify-center bg-gradient-to-br from-warmgray to-biscuit">
+              <div className="relative flex h-40 items-center justify-center bg-gradient-to-br from-surface-muted to-divider">
                 <span className="text-7xl">{chef.emoji}</span>
                 {chef.badge && (
-                  <div className="absolute left-3 top-3 rounded-full border border-biscuit bg-white px-3 py-1 text-xs font-bold text-ink shadow-sm">
+                  <div className="absolute left-3 top-3 rounded-full border border-border bg-card px-3 py-1 text-xs font-bold text-ink shadow-sm">
                     {chef.badge}
                   </div>
                 )}
@@ -166,7 +166,7 @@ export function LandingChefs() {
                   ))}
                 </div>
 
-                <div className="flex items-center justify-between border-t border-biscuit pt-3">
+                <div className="flex items-center justify-between border-t border-border pt-3">
                   <div className="flex items-center gap-1 text-xs text-muted">
                     <MapPin className="h-3 w-3" />
                     {chef.location}

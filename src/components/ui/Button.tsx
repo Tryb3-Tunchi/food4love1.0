@@ -41,17 +41,17 @@ const buttonVariants = cva(
 
         // ── SECONDARY — supporting action. White, subtle border, lifts on hover.
         secondary: [
-          "bg-white text-ink border border-biscuit",
+          "bg-card text-ink border border-border",
           "shadow-[0_1px_2px_rgba(0,0,0,0.06),0_1px_3px_rgba(0,0,0,0.04)]",
-          "hover:bg-warmgray hover:border-parchment hover:shadow-[0_2px_8px_rgba(0,0,0,0.08)]",
-          "active:bg-biscuit",
+          "hover:bg-surface-muted hover:border-divider hover:shadow-[0_2px_8px_rgba(0,0,0,0.08)]",
+          "active:bg-divider",
         ],
 
         // ── GHOST — tertiary. Invisible until hovered.
         ghost: [
           "bg-transparent text-body border border-transparent",
-          "hover:bg-warmgray hover:text-ink hover:border-biscuit",
-          "active:bg-biscuit",
+          "hover:bg-surface-muted hover:text-ink hover:border-border",
+          "active:bg-divider",
         ],
 
         // ── EMBER — warmth. For secondary CTAs, match celebration, chef features.
@@ -84,8 +84,8 @@ const buttonVariants = cva(
 
         // ── SURFACE — for cards and panels. Ultra subtle.
         surface: [
-          "bg-warmgray text-ink border border-biscuit",
-          "hover:bg-biscuit hover:border-parchment",
+          "bg-surface-muted text-ink border border-border",
+          "hover:bg-divider hover:border-border",
         ],
       },
 

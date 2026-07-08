@@ -3,8 +3,8 @@ import { ChefHat } from "lucide-react";
 
 export function LandingFooter() {
   return (
-    <footer className="bg-ink px-5 py-12 text-white">
-      <div className="mx-auto max-w-5xl">
+    <footer className="bg-ink px-4 py-12 text-white sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-6xl">
         <div className="mb-10 flex flex-col items-start justify-between gap-8 md:flex-row">
           {/* Brand */}
           <div>

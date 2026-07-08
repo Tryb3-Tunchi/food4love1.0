@@ -39,25 +39,14 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
             ref={ref}
             type={isPassword ? (showPassword ? "text" : "password") : type}
             className={cn(
-              // Base
-              "h-11 w-full rounded-xl text-sm text-ink placeholder:text-muted",
-              "border border-biscuit bg-white",
-              "outline-none transition-all duration-150",
-              // Focus — Stripe-style ring
-              "focus:border-pepper/40 focus:ring-2 focus:ring-pepper/15",
-              // Hover — subtle
-              "hover:border-parchment",
-              // Padding
+              "f4l-input h-11 w-full text-sm placeholder:text-muted",
               leftIcon ? "pl-10" : "pl-3.5",
               isPassword || rightElement ? "pr-10" : "pr-3.5",
               "py-2.5",
-              // Error state
               error && [
                 "border-red-400/60 bg-red-50/30",
                 "focus:border-red-400 focus:ring-red-400/15",
               ],
-              // Shadow
-              "shadow-xs",
               className
             )}
             {...props}
@@ -95,7 +84,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
         )}
 
         {/* Hint */}
-        {hint && !error && <p className="text-subtle text-xs">{hint}</p>}
+        {hint && !error && <p className="text-ash text-xs">{hint}</p>}
       </div>
     );
   }

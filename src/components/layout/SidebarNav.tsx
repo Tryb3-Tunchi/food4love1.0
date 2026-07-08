@@ -33,7 +33,7 @@ export function SidebarNav() {
   const nav = profile?.role === "cook" ? cookNav : buyerNav;
 
   return (
-    <aside className="f4l-nav fixed left-0 top-0 z-20 hidden h-full w-64 flex-col border-r md:flex">
+    <aside className="f4l-nav fixed left-0 top-0 z-20 hidden h-full w-64 flex-col border-r lg:flex">
       {/* Logo */}
       <div
         className="border-b p-5 pb-4"
@@ -67,7 +67,7 @@ export function SidebarNav() {
               className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-150"
               style={{
                 background: active ? "rgba(232,57,14,0.10)" : "transparent",
-                color: active ? "var(--pepper)" : "var(--nav-text)",
+                color: active ? "var(--accent)" : "var(--nav-text)",
                 fontWeight: active ? 700 : 500,
               }}
             >
@@ -75,7 +75,7 @@ export function SidebarNav() {
                 className="h-5 w-5 shrink-0"
                 strokeWidth={active ? 2.5 : 1.8}
                 style={{
-                  color: active ? "var(--pepper)" : "var(--nav-icon-dim)",
+                  color: active ? "var(--accent)" : "var(--nav-dim)",
                 }}
               />
               {label}

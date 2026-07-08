@@ -16,7 +16,7 @@ const AVATARS = ["👩🏿", "👨🏿", "👩🏾", "👨🏾", "🧑🏿"];
 
 export function LandingHero() {
   return (
-    <section className="relative min-h-[92vh] flex flex-col items-center justify-center px-5 py-20 overflow-hidden">
+    <section className="relative flex min-h-[92svh] flex-col items-center justify-center overflow-hidden px-4 py-16 sm:px-6 sm:py-20 lg:px-8">
 
       {/* Warm background blobs — subtle, not dark */}
       <div className="absolute inset-0 pointer-events-none overflow-hidden">
@@ -38,7 +38,7 @@ export function LandingHero() {
             right: card.right ?? undefined,
             animationDelay: `${card.delay}s`,
           }}
-          className="absolute hidden lg:flex items-center gap-3 bg-white rounded-2xl px-4 py-3 shadow-lift border border-biscuit animate-float"
+          className="absolute hidden xl:flex items-center gap-3 rounded-2xl border border-border bg-card px-4 py-3 shadow-lift animate-float"
         >
           <span className="text-3xl">{card.emoji}</span>
           <div>
@@ -71,7 +71,7 @@ export function LandingHero() {
           initial={{ opacity: 0, y: 30 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.7, delay: 0.1 }}
-          className="text-[3.5rem] md:text-[5.5rem] font-extrabold leading-[1.0] tracking-[-0.03em] text-ink mb-6 text-balance"
+          className="mb-6 text-[2.75rem] font-extrabold leading-[1.0] tracking-[-0.03em] text-ink text-balance sm:text-[3.5rem] lg:text-[5.5rem]"
         >
           Find someone
           <br />
@@ -86,7 +86,7 @@ export function LandingHero() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.3 }}
-          className="text-lg md:text-xl text-body max-w-xl mx-auto mb-10 leading-relaxed"
+          className="mx-auto mb-10 max-w-2xl text-base leading-relaxed text-body sm:text-lg lg:text-xl"
         >
           Match with talented home chefs near you. Real food, real people.
           No restaurants. No middlemen. Just great cooking.
@@ -97,7 +97,7 @@ export function LandingHero() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.45 }}
-          className="flex flex-col sm:flex-row items-center justify-center gap-3 mb-12"
+          className="mb-12 flex flex-col items-center justify-center gap-3 sm:flex-row"
         >
           <Link
             href="/signup"
@@ -152,7 +152,7 @@ export function LandingHero() {
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ delay: 1 }}
-        className="absolute bottom-8 left-0 right-0 flex justify-center gap-6 flex-wrap px-4"
+        className="absolute bottom-8 left-0 right-0 flex flex-wrap justify-center gap-3 px-4 sm:gap-6"
       >
         {["📍 Lagos", "📍 Abuja", "📍 Port Harcourt", "📍 Ibadan"].map((city) => (
           <span key={city} className="text-xs font-medium text-muted bg-white border border-biscuit rounded-full px-3 py-1.5 shadow-sm">

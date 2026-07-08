@@ -27,7 +27,7 @@ export function BottomNav() {
 
   return (
     <nav
-      className="safe-bottom f4l-nav fixed bottom-0 left-0 right-0 z-30 border-t md:hidden"
+      className="safe-bottom f4l-nav fixed bottom-0 left-0 right-0 z-30 border-t lg:hidden"
       style={{
         backdropFilter: "blur(20px)",
         WebkitBackdropFilter: "blur(20px)",
@@ -49,7 +49,7 @@ export function BottomNav() {
               href={href}
               className="relative flex flex-col items-center gap-0.5 rounded-xl px-3 py-1.5 transition-all"
               style={{
-                color: active ? "var(--pepper)" : "var(--nav-icon-dim)",
+                color: active ? "var(--accent)" : "var(--nav-dim)",
               }}
             >
               <span className="relative">
@@ -57,7 +57,7 @@ export function BottomNav() {
                 {badge > 0 && (
                   <span
                     className="absolute -right-1.5 -top-1.5 flex h-4 w-4 items-center justify-center rounded-full text-[9px] font-bold text-white"
-                    style={{ background: "var(--pepper)" }}
+                    style={{ background: "var(--accent)" }}
                   >
                     {badge > 9 ? "9+" : badge}
                   </span>

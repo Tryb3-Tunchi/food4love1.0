@@ -10,52 +10,21 @@ export function Shell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const isNoChrome = NO_CHROME.some((p) => pathname.startsWith(p));
 
-  // Auth + onboarding — no nav, uses same theme vars
   if (isNoChrome) {
     return (
-      <div
-        style={{
-          minHeight: "100vh",
-          background: "var(--bg)",
-          color: "var(--text-1)",
-        }}
-      >
+      <div className="min-h-dvh bg-[color:var(--bg)] text-[color:var(--text-1)]">
         {children}
       </div>
     );
   }
 
-  // Everything else — landing + all app pages — same theme vars
   return (
-    <div
-      style={{
-        display: "flex",
-        height: "100dvh",
-        overflow: "hidden",
-        background: "var(--bg)",
-        color: "var(--text-1)",
-      }}
-    >
+    <div className="flex min-h-dvh overflow-hidden bg-[color:var(--bg)] text-[color:var(--text-1)]">
       <SidebarNav />
-      <div
-        style={{
-          flex: 1,
-          display: "flex",
-          flexDirection: "column",
-          overflow: "hidden",
-        }}
-        className="md:ml-64"
-      >
+      <div className="flex min-w-0 flex-1 flex-col overflow-hidden lg:ml-64">
         <AppTopBar />
-        <main style={{ flex: 1, overflowY: "auto" }}>
-          <div
-            style={{
-              maxWidth: "32rem",
-              margin: "0 auto",
-              minHeight: "100%",
-              paddingBottom: "5rem",
-            }}
-          >
+        <main className="flex-1 overflow-y-auto">
+          <div className="mx-auto flex min-h-full w-full max-w-6xl flex-col px-3 py-3 pb-24 sm:px-4 sm:py-4 lg:px-6">
             {children}
           </div>
         </main>

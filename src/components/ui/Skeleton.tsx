@@ -4,12 +4,7 @@ import type { HTMLAttributes } from "react";
 type SkeletonProps = HTMLAttributes<HTMLDivElement>;
 
 export function Skeleton({ className, ...props }: SkeletonProps) {
-  return (
-    <div
-      className={cn("animate-pulse rounded-lg bg-fog dark:bg-coal", className)}
-      {...props}
-    />
-  );
+  return <div className={cn("f4l-skeleton", className)} {...props} />;
 }
 
 export function CardSkeleton() {

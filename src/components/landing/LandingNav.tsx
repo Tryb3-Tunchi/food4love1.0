@@ -9,8 +9,8 @@ export function LandingNav() {
   const [open, setOpen] = useState(false);
 
   return (
-    <nav className="sticky top-0 z-50 border-b border-biscuit bg-cream/90 backdrop-blur-md">
-      <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-4 px-5 md:px-8">
+    <nav className="sticky top-0 z-50 border-b border-border bg-[color:var(--bg)]/90 backdrop-blur-md">
+      <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-4 px-4 sm:px-6 md:px-8">
         {/* Logo */}
         <Link href="/" className="flex shrink-0 items-center gap-2.5">
           <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-pepper shadow-warm">
@@ -65,7 +65,7 @@ export function LandingNav() {
           <HungerModeToggle />
           <button
             onClick={() => setOpen(!open)}
-            className="flex h-9 w-9 items-center justify-center rounded-xl border border-biscuit bg-warmgray"
+            className="flex h-9 w-9 items-center justify-center rounded-xl border border-border bg-surface-muted"
           >
             {open ? (
               <X className="h-5 w-5 text-ink" />
@@ -82,7 +82,7 @@ export function LandingNav() {
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: "auto" }}
             exit={{ opacity: 0, height: 0 }}
-            className="overflow-hidden border-t border-biscuit bg-cream md:hidden"
+            className="overflow-hidden border-t border-border bg-[color:var(--bg)] md:hidden"
           >
             <div className="flex flex-col gap-2 px-5 py-4">
               <Link
@@ -109,7 +109,7 @@ export function LandingNav() {
               <div className="flex flex-col gap-2.5 pt-3">
                 <Link
                   href="/login"
-                  className="rounded-full border border-biscuit bg-white py-3 text-center text-sm font-semibold text-ink"
+                  className="rounded-full border border-border bg-card py-3 text-center text-sm font-semibold text-ink"
                 >
                   Sign in
                 </Link>
