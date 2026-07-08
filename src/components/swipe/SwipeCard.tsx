@@ -48,10 +48,10 @@ export function SwipeCard({ chef, onLike, onPass, onInfo, isTop }: SwipeCardProp
     >
       <div className="relative h-full w-full overflow-hidden rounded-2xl shadow-float bg-smoke">
         {photo ? (
-          <Image src={photo} alt={chef.full_name} fill className="object-cover pointer-events-none" sizes="(max-width: 500px) 100vw, 500px" priority={isTop} />
+          <Image src={photo} alt={chef.full_name ?? ""} fill className="object-cover pointer-events-none" sizes="(max-width: 500px) 100vw, 500px" priority={isTop} />
         ) : (
           <div className="absolute inset-0 bg-gradient-to-br from-ember/30 to-pepper/30 flex items-center justify-center">
-            <Avatar src={chef.avatar_url} name={chef.full_name} size="2xl" />
+            <Avatar src={chef.avatar_url} name={chef.full_name ?? chef.name ?? ""} size="2xl" />
           </div>
         )}
 

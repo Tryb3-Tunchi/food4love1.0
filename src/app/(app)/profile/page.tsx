@@ -422,7 +422,7 @@ export default function ProfilePage() {
           {tab === "Info" && (
             <div className="space-y-3">
               {[
-                { label: "Member since", value: new Date(profile.created_at).toLocaleDateString("en-NG", { month:"long", year:"numeric" }) },
+                { label: "Member since", value: new Date(profile.created_at ?? "").toLocaleDateString("en-NG", { month:"long", year:"numeric" }) },
                 { label: "Role", value: profile.role === "cook" ? "Home Chef" : "Food Lover" },
                 { label: "Identity", value: isVerified ? "✓ Verified" : "Unverified" },
                 { label: "KYC status", value: profile.kyc_status ?? "Not submitted" },

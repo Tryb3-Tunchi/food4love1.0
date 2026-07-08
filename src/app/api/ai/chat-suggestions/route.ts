@@ -4,7 +4,7 @@ export async function POST(req: Request) {
   try {
     const { chefName, cuisines } = await req.json();
     const { text } = await generateText({
-      model: google("gemini-1.5-flash"),
+      model: google("gemini-1.5-flash") as any,
       prompt: `Generate 3 short warm opening messages (max 12 words each) to send to a home chef named ${chefName} who cooks: ${(cuisines ?? []).join(", ")}. Return ONLY a JSON array of strings.`,
     });
     return Response.json({ suggestions: JSON.parse(text.replace(/```json|```/g, "").trim()) });

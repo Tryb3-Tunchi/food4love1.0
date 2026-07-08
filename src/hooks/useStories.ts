@@ -40,7 +40,7 @@ export function useStories(userId: string | null): UseStoriesState {
         return;
       }
 
-      const cookIds = [...new Set(rows.map((r) => r.cook_id))];
+      const cookIds = Array.from(new Set(rows.map((r) => r.cook_id)));
       const { data: profileRows } = await supabase
         .from("profiles")
         .select("*")

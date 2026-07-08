@@ -419,7 +419,7 @@ export function useSwipe(input: SwipeInput): SwipeState {
       if (swipesError) throw swipesError;
 
       const excludedIds = (swipesData ?? [])
-        .map((row) => row.target_id)
+        .map((row: { target_id: string | null }) => row.target_id)
         .filter(Boolean);
 
       let cooksQuery = supabase.from("profiles").select("*").neq("id", buyerId);
@@ -432,7 +432,7 @@ export function useSwipe(input: SwipeInput): SwipeState {
         cooksQuery = cooksQuery.not(
           "id",
           "in",
-          `(${excludedIds.map((id) => `"${id}"`).join(",")})`,
+          `(${excludedIds.map((id: string) => `"${id}"`).join(",")})`,
         );
       }
 
