@@ -52,7 +52,7 @@ export function useChat(params: {
           table: "messages",
           filter: `match_id=eq.${matchId}`,
         },
-        (payload) => {
+        (payload: { new: Message }) => {
           const next = payload.new as Message;
           setMessages((prev) => {
             if (prev.some((m) => m.id === next.id)) return prev;
