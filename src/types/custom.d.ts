@@ -1,1 +1,1 @@
-declare module "driver.js/dist/driver.css";
+declare module 'driver.js/dist/driver.css'

@@ -1,6 +1,6 @@
-import type { SVGProps } from "react";
+import type { SVGProps } from 'react'
 
-type Props = SVGProps<SVGSVGElement>;
+type Props = SVGProps<SVGSVGElement>
 
 export function SunIcon(props: Props) {
   return (
@@ -17,7 +17,7 @@ export function SunIcon(props: Props) {
         strokeLinecap="round"
       />
     </svg>
-  );
+  )
 }
 
 export function MoonIcon(props: Props) {
@@ -30,7 +30,7 @@ export function MoonIcon(props: Props) {
         strokeLinejoin="round"
       />
     </svg>
-  );
+  )
 }
 
 export function CompassIcon(props: Props) {
@@ -48,7 +48,7 @@ export function CompassIcon(props: Props) {
         strokeLinejoin="round"
       />
     </svg>
-  );
+  )
 }
 
 export function HeartIcon(props: Props) {
@@ -61,7 +61,7 @@ export function HeartIcon(props: Props) {
         strokeLinejoin="round"
       />
     </svg>
-  );
+  )
 }
 
 export function HeartFilledIcon(props: Props) {
@@ -69,7 +69,7 @@ export function HeartFilledIcon(props: Props) {
     <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" {...props}>
       <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" />
     </svg>
-  );
+  )
 }
 
 export function ChatIcon(props: Props) {
@@ -82,7 +82,7 @@ export function ChatIcon(props: Props) {
         strokeLinejoin="round"
       />
     </svg>
-  );
+  )
 }
 
 export function UserIcon(props: Props) {
@@ -100,7 +100,7 @@ export function UserIcon(props: Props) {
         strokeWidth="2"
       />
     </svg>
-  );
+  )
 }
 
 export function SparklesIcon(props: Props) {
@@ -119,7 +119,7 @@ export function SparklesIcon(props: Props) {
         strokeLinejoin="round"
       />
     </svg>
-  );
+  )
 }
 
 export function XIcon(props: Props) {
@@ -132,7 +132,7 @@ export function XIcon(props: Props) {
         strokeLinecap="round"
       />
     </svg>
-  );
+  )
 }
 
 export function InfoIcon(props: Props) {
@@ -146,7 +146,7 @@ export function InfoIcon(props: Props) {
         strokeLinecap="round"
       />
     </svg>
-  );
+  )
 }
 
 export function EyeIcon(props: Props) {
@@ -160,7 +160,7 @@ export function EyeIcon(props: Props) {
       />
       <circle cx="12" cy="12" r="3" stroke="currentColor" strokeWidth="2" />
     </svg>
-  );
+  )
 }
 
 export function EyeOffIcon(props: Props) {
@@ -180,5 +180,5 @@ export function EyeOffIcon(props: Props) {
         strokeLinecap="round"
       />
     </svg>
-  );
+  )
 }

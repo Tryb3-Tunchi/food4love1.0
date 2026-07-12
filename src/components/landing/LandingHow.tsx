@@ -1,89 +1,190 @@
-"use client";
-import { motion } from "framer-motion";
+'use client'
+
+import { motion } from 'framer-motion'
+import { ChefHat, Heart, MessageCircle, ShoppingBag } from 'lucide-react'
+import { Badge } from '@/components/ui/Badge'
+import { Card } from '@/components/ui/Card'
+
+const DISCOVERY_RAIL = [
+  {
+    title: 'Soups and swallows',
+    copy: 'Comfort food for slow evenings',
+    tone: 'bg-mint',
+  },
+  {
+    title: 'Small chops trays',
+    copy: 'Friendly hosting made easy',
+    tone: 'bg-blush',
+  },
+  {
+    title: 'Lunch packs',
+    copy: 'Office meals that feel homemade',
+    tone: 'bg-sky',
+  },
+  {
+    title: 'Date night specials',
+    copy: 'Cute dinners, plated beautifully',
+    tone: 'bg-lilac',
+  },
+  {
+    title: 'Sunday rice bowls',
+    copy: 'Warm portions for the whole house',
+    tone: 'bg-butter',
+  },
+]
+
+const DISCOVERY_RAIL_ALT = [
+  {
+    title: 'Pepper soup nights',
+    copy: 'Rich broths, grilled protein',
+    tone: 'bg-ivory',
+  },
+  { title: 'Asun and grills', copy: 'Weekend sharing plates', tone: 'bg-sage' },
+  {
+    title: 'Family pots',
+    copy: 'Big batches for home delivery',
+    tone: 'bg-parchment',
+  },
+  { title: 'Healthy picks', copy: 'Lighter meals, same soul', tone: 'bg-mint' },
+  {
+    title: 'Chef specials',
+    copy: 'Limited menus, chef-curated',
+    tone: 'bg-blush',
+  },
+]
 
 const STEPS = [
   {
-    number: "01",
-    emoji: "👆",
-    title: "Swipe through chefs",
-    desc: "Browse home chefs near you. Each card shows their specialty, cuisine, price range and rating. Swipe right if you like what you see.",
-    color: "bg-pepper/5 border-pepper/15",
-    numColor: "text-pepper",
+    icon: <ShoppingBag className="h-5 w-5" />,
+    title: 'Browse by mood',
+    copy: 'Explore chefs and dishes by craving, vibe, event, or how quickly you need dinner sorted.',
+    tone: 'bg-mint text-meadow',
   },
   {
-    number: "02",
-    emoji: "❤️",
-    title: "Get matched",
-    desc: "When a chef likes you back — it's a match. You have 24 hours to say hi before it expires. No pressure, just real connection.",
-    color: "bg-ember/5 border-ember/15",
-    numColor: "text-ember",
+    icon: <Heart className="h-5 w-5" />,
+    title: 'Match with confidence',
+    copy: 'Check ratings, delivery options, portions, and chef style before you commit to a meal.',
+    tone: 'bg-blush text-pepper',
   },
   {
-    number: "03",
-    emoji: "💬",
-    title: "Chat & book",
-    desc: "Message your match, discuss the meal you want, agree on a time and price. Our AI even suggests opening lines so you never freeze.",
-    color: "bg-lime/5 border-lime/20",
-    numColor: "text-lime",
+    icon: <MessageCircle className="h-5 w-5" />,
+    title: 'Chat and customize',
+    copy: 'Ask for more spice, fewer onions, larger trays, or a pickup time that works for your evening.',
+    tone: 'bg-lilac text-ink',
   },
   {
-    number: "04",
-    emoji: "🍽️",
-    title: "Eat & rate",
-    desc: "Enjoy home-cooked food made with love. Rate your chef, leave a review, and come back for more. Your next favourite cook is a swipe away.",
-    color: "bg-pepper/5 border-pepper/15",
-    numColor: "text-pepper",
+    icon: <ChefHat className="h-5 w-5" />,
+    title: 'Come back for favorites',
+    copy: 'Keep your best chefs close and re-order the meals that already feel like home.',
+    tone: 'bg-butter text-ink',
   },
-];
+]
 
 export function LandingHow() {
   return (
-    <section id="how" className="bg-surface-muted px-4 py-20 sm:px-6 sm:py-24 lg:px-8">
-      <div className="mx-auto max-w-6xl">
-
-        {/* Header */}
+    <section
+      id="how"
+      className="relative overflow-hidden bg-gradient-to-b from-cream via-surface-muted/30 to-cream px-4 py-20 sm:px-6 sm:py-24 lg:px-8"
+    >
+      <div className="mx-auto max-w-7xl">
         <motion.div
-          initial={{ opacity: 0, y: 30 }}
+          initial={{ opacity: 0, y: 24 }}
           whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          className="mb-12 text-center sm:mb-16"
+          viewport={{ once: true, margin: '-100px' }}
+          className="mx-auto mb-12 max-w-3xl text-center"
         >
-          <span className="inline-block text-sm font-bold text-pepper bg-pepper/10 border border-pepper/20 rounded-full px-4 py-1.5 mb-4">
-            How it works
-          </span>
-          <h2 className="text-display-lg text-ink mb-4 text-balance">
-            Four steps to your best meal
+          <Badge
+            variant="lime"
+            size="md"
+            className="mb-4 border-sage/80 bg-mint text-meadow"
+          >
+            Move through the app naturally
+          </Badge>
+          <h2
+            data-gsap="heading-reveal"
+            className="text-balance font-heading text-display-lg text-ink"
+          >
+            Browse, swipe, and book through a homepage that feels alive.
           </h2>
-          <p className="mx-auto max-w-2xl text-base text-body sm:text-lg">
-            From discovery to delivery — the whole process is designed to feel natural, fast, and delicious.
+          <p className="mx-auto mt-4 max-w-2xl text-base text-body leading-8 sm:text-lg">
+            We are leaning into richer card color, softer shapes, and gentle
+            motion so each section keeps telling the product story as you
+            scroll.
           </p>
         </motion.div>
 
-        {/* Steps grid */}
-        <div className="grid grid-cols-1 gap-4 sm:gap-5 md:grid-cols-2">
-          {STEPS.map((step, i) => (
+        <div className="space-y-4 overflow-hidden">
+          <div className="landing-marquee landing-marquee-left">
+            {[...DISCOVERY_RAIL, ...DISCOVERY_RAIL].map((item, index) => (
+              <div
+                key={`${item.title}-${index}`}
+                className={`flex min-w-[18rem] max-w-[18rem] flex-col gap-2 rounded-[2rem] border border-white/75 ${item.tone} p-5 shadow-card sm:min-w-[20rem] sm:max-w-[20rem]`}
+              >
+                <p className="text-sm font-semibold uppercase tracking-[0.18em] text-muted">
+                  curated
+                </p>
+                <h3 className="font-heading text-2xl font-bold text-ink">
+                  {item.title}
+                </h3>
+                <p className="text-body text-sm leading-6">{item.copy}</p>
+              </div>
+            ))}
+          </div>
+
+          <div className="landing-marquee landing-marquee-right">
+            {[...DISCOVERY_RAIL_ALT, ...DISCOVERY_RAIL_ALT].map(
+              (item, index) => (
+                <div
+                  key={`${item.title}-${index}`}
+                  className={`flex min-w-[16rem] max-w-[16rem] items-end justify-between rounded-[2rem] border border-white/75 ${item.tone} p-5 shadow-card sm:min-w-[18rem] sm:max-w-[18rem]`}
+                >
+                  <div>
+                    <h3 className="font-heading text-xl font-bold text-ink">
+                      {item.title}
+                    </h3>
+                    <p className="mt-2 text-body text-sm leading-6">
+                      {item.copy}
+                    </p>
+                  </div>
+                  <span className="rounded-full bg-white/80 px-3 py-1 text-body text-xs font-semibold">
+                    Food4Love
+                  </span>
+                </div>
+              ),
+            )}
+          </div>
+        </div>
+
+        <div
+          className="mt-14 grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-4"
+          data-gsap="card-group"
+        >
+          {STEPS.map((step, index) => (
             <motion.div
-              key={step.number}
-              initial={{ opacity: 0, y: 40 }}
+              key={step.title}
+              initial={{ opacity: 0, y: 24 }}
               whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ delay: i * 0.1 }}
-              className={`relative flex gap-5 rounded-[1.5rem] border bg-card p-6 transition-all hover:shadow-lift sm:p-7 ${step.color}`}
+              viewport={{ once: true, margin: '-100px' }}
+              transition={{ delay: index * 0.08 }}
             >
-              <div className="shrink-0">
-                <span className={`text-4xl font-extrabold ${step.numColor} opacity-20 leading-none`}>
-                  {step.number}
-                </span>
-              </div>
-              <div>
-                <div className="text-3xl mb-3">{step.emoji}</div>
-                <h3 className="text-xl font-bold text-ink mb-2">{step.title}</h3>
-                <p className="text-body text-sm leading-relaxed">{step.desc}</p>
-              </div>
+              <Card
+                data-gsap="micro-card"
+                className="h-full rounded-[2rem] p-6"
+              >
+                <div
+                  className={`inline-flex rounded-2xl px-3 py-3 ${step.tone}`}
+                >
+                  {step.icon}
+                </div>
+                <h3 className="mt-5 font-heading text-xl font-bold text-ink">
+                  {step.title}
+                </h3>
+                <p className="mt-3 text-body text-sm leading-7">{step.copy}</p>
+              </Card>
             </motion.div>
           ))}
         </div>
       </div>
     </section>
-  );
+  )
 }

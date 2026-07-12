@@ -35,5 +35,8 @@ export function useMatch(userId: string | null): UseMatchState {
     refresh().catch(() => {})
   }, [refresh])
 
-  return useMemo(() => ({ isLoading, matches, refresh }), [isLoading, matches, refresh])
+  return useMemo(
+    () => ({ isLoading, matches, refresh }),
+    [isLoading, matches, refresh],
+  )
 }

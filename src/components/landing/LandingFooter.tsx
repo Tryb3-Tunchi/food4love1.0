@@ -1,70 +1,53 @@
-import Link from "next/link";
-import { ChefHat } from "lucide-react";
+import Link from 'next/link'
+import { ChefHat } from 'lucide-react'
+
+const FOOTER_LINKS = [
+  { label: 'How it works', href: '#how' },
+  { label: 'Featured chefs', href: '#chefs' },
+  { label: 'Become a chef', href: '/signup?role=cook' },
+  { label: 'Sign in', href: '/login' },
+]
 
 export function LandingFooter() {
   return (
-    <footer className="bg-ink px-4 py-12 text-white sm:px-6 lg:px-8">
-      <div className="mx-auto max-w-6xl">
-        <div className="mb-10 flex flex-col items-start justify-between gap-8 md:flex-row">
-          {/* Brand */}
-          <div>
-            <div className="mb-3 flex items-center gap-2.5">
-              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-pepper">
-                <ChefHat className="h-5 w-5 text-white" strokeWidth={2} />
+    <footer className="bg-smoke px-4 py-12 text-white sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-7xl">
+        <div className="flex flex-col gap-10 rounded-[2.25rem] border border-white/10 bg-white/5 p-6 sm:p-8 lg:flex-row lg:items-start lg:justify-between">
+          <div className="max-w-sm">
+            <div className="flex items-center gap-3">
+              <div className="flex h-11 w-11 items-center justify-center rounded-full bg-mint text-meadow shadow-sm">
+                <ChefHat className="h-5 w-5" />
               </div>
-              <span className="text-xl font-extrabold tracking-tight">
-                Food<span className="text-pepper">4</span>Love
+              <span className="font-heading text-xl font-extrabold tracking-tight text-white">
+                Food<span className="text-ember">4</span>Love
               </span>
             </div>
-            <p className="max-w-xs text-sm leading-relaxed text-mist">
-              Connecting home chefs with food lovers across Nigeria. Real food.
-              Real people.
+            <p className="mt-4 text-sm leading-7 text-white/65">
+              A softer way to discover home chefs, book meals you actually want,
+              and make dinner feel personal again.
             </p>
           </div>
 
-          {/* Links */}
-          <div className="grid grid-cols-2 gap-x-16 gap-y-3 text-sm">
-            <Link
-              href="/signup"
-              className="text-mist transition-colors hover:text-white"
-            >
-              Sign up
-            </Link>
-            <Link
-              href="/signup?role=cook"
-              className="text-mist transition-colors hover:text-white"
-            >
-              Become a Chef
-            </Link>
-            <Link
-              href="/login"
-              className="text-mist transition-colors hover:text-white"
-            >
-              Sign in
-            </Link>
-            <Link
-              href="/admin"
-              className="text-mist transition-colors hover:text-white"
-            >
-              Admin
-            </Link>
+          <div className="grid grid-cols-2 gap-x-12 gap-y-4 text-sm sm:grid-cols-4">
+            {FOOTER_LINKS.map((link) => (
+              <Link
+                key={link.label}
+                href={link.href}
+                className="text-white/70 transition-colors hover:text-white"
+              >
+                {link.label}
+              </Link>
+            ))}
           </div>
         </div>
 
-        <div className="flex flex-col items-center justify-between gap-3 border-t border-white/10 pt-6 text-xs text-mist md:flex-row">
+        <div className="mt-6 flex flex-col gap-3 text-xs text-white/50 sm:flex-row sm:items-center sm:justify-between">
           <span>
-            © {new Date().getFullYear()} Food4Love. Made with ❤️ in Nigeria.
+            © {new Date().getFullYear()} Food4Love. All rights reserved.
           </span>
-          <div className="flex gap-4">
-            <Link href="#" className="transition-colors hover:text-white">
-              Privacy Policy
-            </Link>
-            <Link href="#" className="transition-colors hover:text-white">
-              Terms of Service
-            </Link>
-          </div>
+          <span>Built for home chefs, dinner plans, and everyday comfort.</span>
         </div>
       </div>
     </footer>
-  );
+  )
 }

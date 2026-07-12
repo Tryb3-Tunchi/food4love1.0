@@ -1,160 +1,207 @@
-"use client";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { loginSchema, LoginInput } from "@/lib/validations";
-import { Input } from "@/components/ui/Input";
-import { Button } from "@/components/ui/Button";
-import Link from "next/link";
-import { createClient } from "@/lib/supabase/client";
-import { useRouter } from "next/navigation";
-import toast from "react-hot-toast";
-import { motion } from "framer-motion";
-import { ChefHat, Mail, Lock, ArrowRight } from "lucide-react";
+'use client'
+
+import Link from 'next/link'
+import { useRouter } from 'next/navigation'
+import { motion } from 'framer-motion'
+import { useForm } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
+import toast from 'react-hot-toast'
+import {
+  ArrowRight,
+  ChefHat,
+  Lock,
+  Mail,
+  ShieldCheck,
+  Sparkles,
+} from 'lucide-react'
+import { loginSchema, LoginInput } from '@/lib/validations'
+import { createClient } from '@/lib/supabase/client'
+import { Button } from '@/components/ui/Button'
+import { Input } from '@/components/ui/Input'
+
+const LOGIN_CARDS = [
+  {
+    title: 'Saved chefs',
+    copy: 'Keep your best matches close.',
+    tone: 'bg-mint text-meadow',
+  },
+  {
+    title: 'Fast booking',
+    copy: 'Talk to cooks directly.',
+    tone: 'bg-lilac text-ink',
+  },
+  {
+    title: 'Verified profiles',
+    copy: 'Trust built into the flow.',
+    tone: 'bg-butter text-ink',
+  },
+]
 
 export default function LoginPage() {
-  const router = useRouter();
+  const router = useRouter()
   const {
     register,
     handleSubmit,
     formState: { errors, isSubmitting },
-  } = useForm<LoginInput>({ resolver: zodResolver(loginSchema) });
+  } = useForm<LoginInput>({ resolver: zodResolver(loginSchema) })
 
   const onSubmit = async (data: LoginInput) => {
-    const sb = createClient();
-    // Show immediate feedback — don't make user wonder
-    const loadingToast = toast.loading("Signing you in...");
-    const { error } = await sb.auth.signInWithPassword(data);
-    toast.dismiss(loadingToast);
+    const sb = createClient()
+    const loadingToast = toast.loading('Signing you in...')
+    const { error } = await sb.auth.signInWithPassword(data)
+    toast.dismiss(loadingToast)
     if (error) {
-      toast.error("Incorrect email or password. Try again.");
-      return;
+      toast.error('Incorrect email or password. Try again.')
+      return
     }
-    toast.success("Welcome back! 🍽️");
-    router.push("/swipe");
-  };
+    toast.success('Welcome back.')
+    router.push('/swipe')
+  }
 
   return (
-    <div className="flex min-h-screen bg-cream">
-      {/* Left panel — branding (desktop only) */}
-      <div className="relative hidden w-[420px] shrink-0 flex-col justify-between overflow-hidden bg-pepper p-10 lg:flex">
-        {/* Background texture */}
-        <div className="pointer-events-none absolute inset-0">
-          <div className="absolute right-[-20%] top-[-20%] h-80 w-80 rounded-full bg-ember/20 blur-3xl" />
-          <div className="absolute bottom-[-10%] left-[-10%] h-60 w-60 rounded-full bg-white/5 blur-3xl" />
-        </div>
-
-        <div className="relative z-10">
-          <div className="mb-16 flex items-center gap-2.5">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/20">
-              <ChefHat className="h-5 w-5 text-white" strokeWidth={2} />
-            </div>
-            <span className="text-xl font-extrabold tracking-tight text-white">
-              Food4Love
-            </span>
-          </div>
-
-          <h2 className="mb-4 text-4xl font-extrabold leading-tight text-white">
-            Good food starts with a real cook.
-          </h2>
-          <p className="text-base leading-relaxed text-white/70">
-            Sign in and keep discovering the home chefs who make Lagos, Abuja
-            and Port Harcourt taste like home.
-          </p>
-        </div>
-
-        {/* Floating food card */}
-        <div className="relative z-10 rounded-2xl border border-white/20 bg-white/10 p-4 backdrop-blur-sm">
-          <div className="flex items-center gap-3">
-            <span className="text-4xl">🍲</span>
-            <div>
-              <p className="text-sm font-bold text-white">Adaeze's Ofe Akwu</p>
-              <p className="text-xs text-white/60">Lekki · ₦8,500 · ⭐ 4.9</p>
-            </div>
-          </div>
-          <p className="mt-2 text-xs italic text-white/50">
-            "Best bitterleaf soup I've had outside my grandmother's kitchen."
-          </p>
-        </div>
-      </div>
-
-      {/* Right panel — form */}
-      <div className="flex flex-1 flex-col items-center justify-center px-5 py-12">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.4 }}
-          className="w-full max-w-sm"
-        >
-          {/* Mobile logo */}
-          <Link href="/" className="mb-10 flex items-center gap-2.5 lg:hidden">
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-pepper">
-              <ChefHat className="h-5 w-5 text-white" strokeWidth={2} />
-            </div>
-            <span className="text-xl font-extrabold tracking-tight text-ink">
-              Food<span className="text-pepper">4</span>Love
-            </span>
-          </Link>
-
-          <div className="mb-8">
-            <h1 className="text-display-sm mb-2 text-ink">Welcome back</h1>
-            <p className="text-sm text-body">
-              No account yet?{" "}
-              <Link
-                href="/signup"
-                className="font-semibold text-pepper hover:underline"
-              >
-                Sign up free
-              </Link>
-            </p>
-          </div>
-
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-            <Input
-              label="Email address"
-              type="email"
-              placeholder="you@example.com"
-              leftIcon={<Mail className="h-4 w-4" />}
-              error={errors.email?.message}
-              {...register("email")}
-            />
-            <Input
-              label="Password"
-              type="password"
-              placeholder="Enter your password"
-              leftIcon={<Lock className="h-4 w-4" />}
-              error={errors.password?.message}
-              hint="Minimum 6 characters"
-              {...register("password")}
-            />
-
-            <Button
-              type="submit"
-              size="lg"
-              fullWidth
-              loading={isSubmitting}
-              rightIcon={
-                !isSubmitting ? <ArrowRight className="h-4 w-4" /> : undefined
-              }
-              className="mt-2"
+    <div className="theme-buyer f4l-auth-grid px-4 py-6 sm:px-6 lg:px-8">
+      <div className="mx-auto grid min-h-[calc(100dvh-3rem)] max-w-7xl gap-6 lg:grid-cols-[0.94fr_1.06fr]">
+        <div className="f4l-auth-spotlight hidden rounded-[2.75rem] p-10 text-white lg:flex lg:flex-col lg:justify-between">
+          <div className="relative z-10">
+            <Link
+              href="/"
+              className="inline-flex items-center gap-3 rounded-full bg-white/10 px-3 py-2 backdrop-blur-sm"
             >
-              Sign In
-            </Button>
-          </form>
+              <div className="bg-white/18 flex h-10 w-10 items-center justify-center rounded-full">
+                <ChefHat className="h-5 w-5 text-white" />
+              </div>
+              <span className="font-heading text-xl font-extrabold tracking-tight">
+                Food4Love
+              </span>
+            </Link>
 
-          <div className="mt-6 border-t border-biscuit pt-6">
-            <p className="text-subtle text-center text-xs">
-              By signing in you agree to our{" "}
-              <Link href="#" className="underline hover:text-ink">
-                Terms
-              </Link>{" "}
-              and{" "}
-              <Link href="#" className="underline hover:text-ink">
-                Privacy Policy
-              </Link>
+            <h1 className="mt-10 max-w-md font-heading text-5xl font-bold leading-[1.02] tracking-[-0.05em]">
+              Good food still starts with a real cook.
+            </h1>
+            <p className="text-white/76 mt-5 max-w-md text-base leading-8">
+              Sign in to keep discovering home chefs, saved favorites, and the
+              warm meals already waiting in your flow.
             </p>
           </div>
-        </motion.div>
+
+          <div className="relative z-10 space-y-4">
+            <div className="landing-marquee landing-marquee-left">
+              {[...LOGIN_CARDS, ...LOGIN_CARDS].map((card, index) => (
+                <div
+                  key={`${card.title}-${index}`}
+                  className={`min-w-[14rem] rounded-[1.8rem] ${card.tone} px-5 py-4 shadow-card`}
+                >
+                  <p className="text-sm font-semibold">{card.title}</p>
+                  <p className="mt-2 text-sm opacity-80">{card.copy}</p>
+                </div>
+              ))}
+            </div>
+
+            <div className="border-white/14 rounded-[2rem] border bg-white/10 p-5 backdrop-blur-md">
+              <div className="flex items-start gap-3">
+                <div className="bg-white/16 flex h-11 w-11 items-center justify-center rounded-2xl">
+                  <ShieldCheck className="h-5 w-5 text-white" />
+                </div>
+                <div>
+                  <p className="text-sm font-semibold">
+                    Buyer-led color system
+                  </p>
+                  <p className="text-white/74 mt-2 text-sm leading-7">
+                    The app keeps one pattern language, but buyers can lean
+                    greener and softer while cooks stay warmer and stronger.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="flex items-center justify-center">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4 }}
+            className="f4l-auth-panel w-full max-w-xl rounded-[2.5rem] p-6 sm:p-8 lg:p-10"
+          >
+            <Link
+              href="/"
+              className="mb-8 inline-flex items-center gap-3 rounded-full bg-white/80 px-3 py-2 lg:hidden"
+            >
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-mint text-meadow">
+                <ChefHat className="h-5 w-5" />
+              </div>
+              <span className="font-heading text-xl font-extrabold tracking-tight text-ink">
+                Food4Love
+              </span>
+            </Link>
+
+            <div className="mb-8">
+              <div className="inline-flex items-center gap-2 rounded-full bg-mint px-3 py-1.5 text-xs font-semibold text-meadow">
+                <Sparkles className="h-3.5 w-3.5" />
+                Welcome back
+              </div>
+              <h2 className="mt-4 font-heading text-4xl font-bold tracking-[-0.04em] text-ink">
+                Sign in to your account
+              </h2>
+              <p className="mt-3 text-body text-sm leading-7">
+                No account yet?{' '}
+                <Link
+                  href="/signup"
+                  className="font-semibold text-[color:var(--accent)] hover:underline"
+                >
+                  Create one here
+                </Link>
+              </p>
+            </div>
+
+            <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+              <Input
+                label="Email address"
+                type="email"
+                placeholder="you@example.com"
+                leftIcon={<Mail className="h-4 w-4" />}
+                error={errors.email?.message}
+                {...register('email')}
+              />
+              <Input
+                label="Password"
+                type="password"
+                placeholder="Enter your password"
+                leftIcon={<Lock className="h-4 w-4" />}
+                error={errors.password?.message}
+                hint="Minimum 6 characters"
+                {...register('password')}
+              />
+
+              <Button
+                type="submit"
+                size="lg"
+                fullWidth
+                loading={isSubmitting}
+                rightIcon={
+                  !isSubmitting ? <ArrowRight className="h-4 w-4" /> : undefined
+                }
+                className="mt-2"
+              >
+                Sign in
+              </Button>
+            </form>
+
+            <div className="mt-6 border-t border-border pt-6">
+              <p className="text-center text-xs text-muted">
+                By signing in you agree to our{' '}
+                <Link href="#" className="underline hover:text-ink">
+                  Terms
+                </Link>{' '}
+                and{' '}
+                <Link href="#" className="underline hover:text-ink">
+                  Privacy Policy
+                </Link>
+              </p>
+            </div>
+          </motion.div>
+        </div>
       </div>
     </div>
-  );
+  )
 }

@@ -12,7 +12,7 @@
 
 // // -- DEMO CHEF 1
 // INSERT INTO profiles (id, full_name, role, bio, location, cuisines, price_min, price_max, rating, review_count, is_verified, kyc_status, onboarding_complete, streak, avatar_url)
-// SELECT 
+// SELECT
 //   id,
 //   'Adaeze Okonkwo',
 //   'cook',
@@ -36,7 +36,7 @@
 
 // -- DEMO CHEF 2
 // INSERT INTO profiles (id, full_name, role, bio, location, cuisines, price_min, price_max, rating, review_count, is_verified, kyc_status, onboarding_complete, streak, avatar_url)
-// SELECT 
+// SELECT
 //   id,
 //   'Emeka Tochukwu',
 //   'cook',
@@ -57,7 +57,7 @@
 
 // -- DEMO CHEF 3
 // INSERT INTO profiles (id, full_name, role, bio, location, cuisines, price_min, price_max, rating, review_count, is_verified, kyc_status, onboarding_complete, streak)
-// SELECT 
+// SELECT
 //   id,
 //   'Fatima Balogun',
 //   'cook',
@@ -77,7 +77,7 @@
 
 // -- DEMO BUYER
 // INSERT INTO profiles (id, full_name, role, bio, location, onboarding_complete)
-// SELECT 
+// SELECT
 //   id,
 //   'Test User',
 //   'buyer',
@@ -89,7 +89,7 @@
 
 // -- Daily specials for chefs
 // INSERT INTO daily_specials (cook_id, title, description, price, available_until)
-// SELECT 
+// SELECT
 //   p.id,
 //   'Ofe Akwu Special',
 //   'Palm fruit soup with assorted protein — goat, cow foot and stockfish. Served with pounded yam.',
@@ -99,7 +99,7 @@
 // ON CONFLICT DO NOTHING;
 
 // INSERT INTO daily_specials (cook_id, title, description, price, available_until)
-// SELECT 
+// SELECT
 //   p.id,
 //   'Party Jollof Package',
 //   'Long grain party jollof with grilled chicken, coleslaw and fried plantain for 2 people.',

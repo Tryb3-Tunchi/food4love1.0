@@ -1,28 +1,28 @@
-"use client";
-import { cn } from "@/lib/utils";
-import { forwardRef, useState } from "react";
-import { Eye, EyeOff } from "lucide-react";
+'use client'
+import { cn } from '@/lib/utils'
+import { forwardRef, useState } from 'react'
+import { Eye, EyeOff } from 'lucide-react'
 
 export interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
-  label?: string;
-  error?: string;
-  hint?: string;
-  leftIcon?: React.ReactNode;
-  rightElement?: React.ReactNode;
+  label?: string
+  error?: string
+  hint?: string
+  leftIcon?: React.ReactNode
+  rightElement?: React.ReactNode
 }
 
 export const Input = forwardRef<HTMLInputElement, InputProps>(
   (
     { className, label, error, hint, leftIcon, rightElement, type, ...props },
-    ref
+    ref,
   ) => {
-    const [showPassword, setShowPassword] = useState(false);
-    const isPassword = type === "password";
+    const [showPassword, setShowPassword] = useState(false)
+    const isPassword = type === 'password'
 
     return (
       <div className="flex w-full flex-col gap-1.5">
         {label && (
-          <label className="text-sm font-semibold leading-none text-ink">
+          <label className="font-heading text-sm font-semibold leading-none text-ink">
             {label}
           </label>
         )}
@@ -30,24 +30,23 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
         <div className="group relative">
           {/* Left icon */}
           {leftIcon && (
-            <span className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-muted transition-colors duration-150 group-focus-within:text-pepper">
+            <span className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-muted transition-colors duration-150 group-focus-within:text-[color:var(--accent)]">
               {leftIcon}
             </span>
           )}
 
           <input
             ref={ref}
-            type={isPassword ? (showPassword ? "text" : "password") : type}
+            type={isPassword ? (showPassword ? 'text' : 'password') : type}
             className={cn(
-              "f4l-input h-11 w-full text-sm placeholder:text-muted",
-              leftIcon ? "pl-10" : "pl-3.5",
-              isPassword || rightElement ? "pr-10" : "pr-3.5",
-              "py-2.5",
+              'f4l-input h-11 w-full text-sm placeholder:text-muted',
+              leftIcon ? 'pl-10' : 'pl-3.5',
+              isPassword || rightElement ? 'pr-10' : 'pr-3.5',
+              'py-2.5 transition-all duration-150',
               error && [
-                "border-red-400/60 bg-red-50/30",
-                "focus:border-red-400 focus:ring-red-400/15",
+                'border-red-400/60 bg-red-50/30 focus:border-red-400 focus:shadow-[0_0_0_3px_rgba(239,68,68,0.1)] focus:ring-red-400/15',
               ],
-              className
+              className,
             )}
             {...props}
           />
@@ -78,16 +77,16 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
 
         {/* Error message */}
         {error && (
-          <p className="flex items-center gap-1 text-xs font-medium text-red-500">
+          <p className="flex items-center gap-1 text-xs font-semibold text-red-500">
             <span>⚠</span> {error}
           </p>
         )}
 
         {/* Hint */}
-        {hint && !error && <p className="text-ash text-xs">{hint}</p>}
+        {hint && !error && <p className="text-xs text-muted">{hint}</p>}
       </div>
-    );
-  }
-);
+    )
+  },
+)
 
-Input.displayName = "Input";
+Input.displayName = 'Input'

@@ -1,4 +1,5 @@
 # FOOD4LOVE — Product Requirements Document
+
 **Version:** 1.0 | **Status:** MVP Ready for Build | **Date:** June 2026
 
 ---
@@ -6,12 +7,15 @@
 ## 1. PRODUCT OVERVIEW
 
 ### Vision
+
 Food4Love is a swipe-based food marketplace that connects home chefs with food lovers using Tinder-style discovery, real-time matching, chat, and meal booking.
 
 ### Mission
+
 Make home-cooked food accessible to everyone, while enabling talented home chefs to earn from their passion.
 
 ### Target Market
+
 - **Primary:** Lagos, Abuja, Port Harcourt, Nigeria
 - **Users (Buyers):** Urban professionals, 22–40, who love food but lack time to cook
 - **Chefs (Cooks):** Home cooks, 20–50, who want to monetize their cooking skills
@@ -21,6 +25,7 @@ Make home-cooked food accessible to everyone, while enabling talented home chefs
 ## 2. CORE USER JOURNEYS
 
 ### Buyer Journey
+
 1. Download / Open app → See landing page
 2. Sign up → Role select (Buyer)
 3. Onboarding (preferences, cuisines, location)
@@ -33,6 +38,7 @@ Make home-cooked food accessible to everyone, while enabling talented home chefs
 10. Receive meal → Rate & review
 
 ### Chef Journey
+
 1. Sign up → Role select (Cook)
 2. Onboarding (bio, photos, cuisines, pricing)
 3. KYC verification (ID + face)
@@ -48,6 +54,7 @@ Make home-cooked food accessible to everyone, while enabling talented home chefs
 ## 3. FEATURE REQUIREMENTS (MVP)
 
 ### P0 — Must Have for Launch
+
 - [x] Auth (email/password + OTP verify)
 - [x] Role selection (Cook / Buyer)
 - [x] Profile setup (bio, photos, cuisines, location)
@@ -70,6 +77,7 @@ Make home-cooked food accessible to everyone, while enabling talented home chefs
 - [x] AI bio generator
 
 ### P1 — Next Sprint
+
 - [ ] Booking & payment flow (Paystack integration)
 - [ ] Push notifications (Web Push API)
 - [ ] Superlike feature
@@ -82,6 +90,7 @@ Make home-cooked food accessible to everyone, while enabling talented home chefs
 - [ ] Review & rating system
 
 ### P2 — Future
+
 - [ ] Video profiles for chefs
 - [ ] Group booking (order for multiple people)
 - [ ] Scheduled meal delivery
@@ -94,6 +103,7 @@ Make home-cooked food accessible to everyone, while enabling talented home chefs
 ## 4. TECH ARCHITECTURE
 
 ### Frontend
+
 - Next.js 14 (App Router, TypeScript)
 - Tailwind CSS v3 with custom design tokens
 - Framer Motion + React Spring (animations)
@@ -103,12 +113,14 @@ Make home-cooked food accessible to everyone, while enabling talented home chefs
 - Driver.js (onboarding tour)
 
 ### Backend
+
 - Supabase (PostgreSQL, Auth, Storage, Realtime)
 - Next.js API Routes (Edge Functions)
 - Google Gemini 1.5 Flash (AI features, free tier)
 - Leaflet + OpenStreetMap (free maps)
 
 ### Database Tables
+
 - profiles (id, full_name, role, bio, cuisines, photos, price_min, price_max, rating, streak, kyc_status, onboarding_complete, tour_completed)
 - swipes (id, swiper_id, swiped_id, action, created_at)
 - matches (id, user1_id, user2_id, status, expires_at)
@@ -119,6 +131,7 @@ Make home-cooked food accessible to everyone, while enabling talented home chefs
 - reviews (id, booking_id, reviewer_id, reviewee_id, rating, comment)
 
 ### Supabase RLS Policies (Critical)
+
 - profiles: Public read, own write only
 - swipes: Own read/write only
 - matches: Read if participant only
@@ -130,6 +143,7 @@ Make home-cooked food accessible to everyone, while enabling talented home chefs
 ## 5. DESIGN SYSTEM
 
 ### Colors
+
 - Pepper: #E8390E (primary CTA, love)
 - Ember: #F59E0B (warmth, match glow)
 - Lime: #84CC16 (success, verified)
@@ -138,11 +152,13 @@ Make home-cooked food accessible to everyone, while enabling talented home chefs
 - Cream: #FEF7ED (light bg)
 
 ### Typography
+
 - Display: DM Serif Display (hero moments only)
 - Body: Space Grotesk (all text)
 - Mono: JetBrains Mono (prices, codes)
 
 ### Principles
+
 - Mobile-first, tablet/desktop-aware
 - Dark mode default
 - Warm, alive, sensory aesthetic
@@ -154,9 +170,11 @@ Make home-cooked food accessible to everyone, while enabling talented home chefs
 ## 6. METRICS & SUCCESS
 
 ### North Star Metric
+
 **Weekly Active Matches** — users who complete at least one match→chat→booking cycle per week
 
 ### Launch Targets (Month 3)
+
 - 500 verified chefs onboarded
 - 5,000 registered users
 - 1,000 weekly swipe sessions
@@ -165,6 +183,7 @@ Make home-cooked food accessible to everyone, while enabling talented home chefs
 - 4.5+ average chef rating
 
 ### Investor KPIs
+
 - CAC (Customer Acquisition Cost)
 - Match-to-Chat Rate (target: >60%)
 - Chat-to-Booking Rate (target: >20%)
@@ -175,28 +194,28 @@ Make home-cooked food accessible to everyone, while enabling talented home chefs
 
 ## 7. RISKS & MITIGATIONS
 
-| Risk | Mitigation |
-|---|---|
-| Chef quality inconsistency | KYC + rating system + suspension policy |
-| Food safety liability | Terms of service, chef certification program |
-| Low liquidity (few chefs or buyers) | Launch city-by-city, curate first 100 chefs |
-| Payment fraud | Paystack integration, escrow model |
-| Match expiry frustration | In-app notification, 4h warning before expiry |
+| Risk                                | Mitigation                                    |
+| ----------------------------------- | --------------------------------------------- |
+| Chef quality inconsistency          | KYC + rating system + suspension policy       |
+| Food safety liability               | Terms of service, chef certification program  |
+| Low liquidity (few chefs or buyers) | Launch city-by-city, curate first 100 chefs   |
+| Payment fraud                       | Paystack integration, escrow model            |
+| Match expiry frustration            | In-app notification, 4h warning before expiry |
 
 ---
 
 ## 8. COMPETITIVE LANDSCAPE
 
-| Feature | Food4Love | Chowdeck | Uber Eats | Homemade |
-|---|---|---|---|---|
-| Home chef focus | ✅ | ❌ | ❌ | ✅ |
-| Swipe discovery | ✅ | ❌ | ❌ | ❌ |
-| Real-time matching | ✅ | ❌ | ❌ | ❌ |
-| Nigerian market | ✅ | ✅ | ✅ | ❌ |
-| AI-powered features | ✅ | ❌ | ❌ | ❌ |
+| Feature             | Food4Love | Chowdeck | Uber Eats | Homemade |
+| ------------------- | --------- | -------- | --------- | -------- |
+| Home chef focus     | ✅        | ❌       | ❌        | ✅       |
+| Swipe discovery     | ✅        | ❌       | ❌        | ❌       |
+| Real-time matching  | ✅        | ❌       | ❌        | ❌       |
+| Nigerian market     | ✅        | ✅       | ✅        | ❌       |
+| AI-powered features | ✅        | ❌       | ❌        | ❌       |
 
 **Our moat:** The swipe-to-match mechanic creates emotional investment that restaurant delivery apps never will. Users root for their matches. This drives retention.
 
 ---
 
-*Document owner: Product Team | Next review: Pre-launch*
+_Document owner: Product Team | Next review: Pre-launch_
