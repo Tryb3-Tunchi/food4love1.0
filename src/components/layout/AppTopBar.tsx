@@ -1,21 +1,21 @@
-"use client";
-import { Bell } from "lucide-react";
-import { useHungerMode } from "@/components/providers/HungerModeProviders";
-import { useNotificationStore } from "@/stores/useNotificationStore";
-import { motion, AnimatePresence } from "framer-motion";
+'use client'
+import { Bell } from 'lucide-react'
+import { useHungerMode } from '@/components/providers/HungerModeProviders'
+import { useNotificationStore } from '@/stores/useNotificationStore'
+import { motion, AnimatePresence } from 'framer-motion'
 
 export function AppTopBar() {
-  const { hungerMode, toggleHungerMode } = useHungerMode();
-  const { unreadMessages, newMatches } = useNotificationStore();
-  const totalNotifs = unreadMessages + newMatches;
+  const { hungerMode, toggleHungerMode } = useHungerMode()
+  const { unreadMessages, newMatches } = useNotificationStore()
+  const totalNotifs = unreadMessages + newMatches
 
   return (
     <div className="f4l-nav flex shrink-0 items-center justify-between border-b px-4 py-3 lg:hidden">
       <span
         className="text-base font-extrabold tracking-tight"
-        style={{ color: "var(--text-1)" }}
+        style={{ color: 'var(--text-1)' }}
       >
-        Food<span style={{ color: "var(--accent)" }}>4</span>Love
+        Food<span style={{ color: 'var(--accent)' }}>4</span>Love
       </span>
 
       <div className="flex items-center gap-2">
@@ -25,28 +25,30 @@ export function AppTopBar() {
           className="flex items-center gap-2 rounded-full px-3 py-1.5 transition-all duration-300"
           style={{
             background: hungerMode
-              ? "rgba(245,158,11,0.15)"
-              : "rgba(0,0,0,0.05)",
-            border: `1px solid ${hungerMode ? "rgba(245,158,11,0.3)" : "var(--border)"}`,
+              ? 'color-mix(in srgb, var(--accent-alt) 18%, white 82%)'
+              : 'rgba(255,255,255,0.65)',
+            border: `1px solid ${hungerMode ? 'var(--accent-alt)' : 'var(--border)'}`,
           }}
         >
           <AnimatePresence mode="wait">
             <motion.span
-              key={hungerMode ? "fire" : "smile"}
+              key={hungerMode ? 'fire' : 'smile'}
               initial={{ scale: 0, rotate: -15 }}
               animate={{ scale: 1, rotate: 0 }}
               exit={{ scale: 0 }}
-              transition={{ type: "spring", bounce: 0.5, duration: 0.3 }}
+              transition={{ type: 'spring', bounce: 0.5, duration: 0.3 }}
               className="text-sm"
             >
-              {hungerMode ? "🔥" : "😋"}
+              {hungerMode ? '🔥' : '😋'}
             </motion.span>
           </AnimatePresence>
           <span
             className="text-xs font-bold"
-            style={{ color: hungerMode ? "#F59E0B" : "var(--text-3)" }}
+            style={{
+              color: hungerMode ? 'var(--accent-alt)' : 'var(--text-3)',
+            }}
           >
-            {hungerMode ? "Hungry" : "Chill"}
+            {hungerMode ? 'Hungry' : 'Chill'}
           </span>
         </button>
 
@@ -54,21 +56,21 @@ export function AppTopBar() {
         <button
           className="relative flex h-9 w-9 items-center justify-center rounded-xl transition-all"
           style={{
-            background: "rgba(0,0,0,0.05)",
-            border: "1px solid var(--border)",
+            background: 'rgba(255,255,255,0.68)',
+            border: '1px solid var(--border)',
           }}
         >
-          <Bell className="h-4 w-4" style={{ color: "var(--text-3)" }} />
+          <Bell className="h-4 w-4" style={{ color: 'var(--text-3)' }} />
           {totalNotifs > 0 && (
             <span
               className="absolute -right-0.5 -top-0.5 flex h-4 w-4 items-center justify-center rounded-full text-[9px] font-bold text-white"
-              style={{ background: "var(--accent)" }}
+              style={{ background: 'var(--accent)' }}
             >
-              {totalNotifs > 9 ? "9+" : totalNotifs}
+              {totalNotifs > 9 ? '9+' : totalNotifs}
             </span>
           )}
         </button>
       </div>
     </div>
-  );
+  )
 }

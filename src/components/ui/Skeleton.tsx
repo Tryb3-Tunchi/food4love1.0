@@ -1,10 +1,15 @@
-import { cn } from "@/lib/utils";
-import type { HTMLAttributes } from "react";
+import { cn } from '@/lib/utils'
+import type { HTMLAttributes } from 'react'
 
-type SkeletonProps = HTMLAttributes<HTMLDivElement>;
+type SkeletonProps = HTMLAttributes<HTMLDivElement>
 
 export function Skeleton({ className, ...props }: SkeletonProps) {
-  return <div className={cn("f4l-skeleton", className)} {...props} />;
+  return (
+    <div
+      className={cn('f4l-skeleton', 'rounded-lg bg-divider/70', className)}
+      {...props}
+    />
+  )
 }
 
 export function CardSkeleton() {
@@ -12,11 +17,11 @@ export function CardSkeleton() {
     <div className="mx-auto w-full max-w-sm overflow-hidden rounded-2xl">
       <Skeleton className="aspect-[4/5] w-full rounded-2xl" />
       <div className="mt-3 space-y-2 px-1">
-        <Skeleton className="h-5 w-2/3" />
-        <Skeleton className="h-4 w-1/2" />
+        <Skeleton className="h-5 w-2/3 rounded-lg" />
+        <Skeleton className="h-4 w-1/2 rounded-lg" />
       </div>
     </div>
-  );
+  )
 }
 
 export function MessageSkeleton() {
@@ -26,18 +31,18 @@ export function MessageSkeleton() {
         <div
           key={i}
           className={cn(
-            "flex gap-2",
-            i % 2 === 0 ? "justify-start" : "justify-end"
+            'flex gap-2',
+            i % 2 === 0 ? 'justify-start' : 'justify-end',
           )}
         >
           {i % 2 === 0 && (
             <Skeleton className="h-8 w-8 shrink-0 rounded-full" />
           )}
           <Skeleton
-            className={cn("h-10 rounded-2xl", i % 2 === 0 ? "w-48" : "w-36")}
+            className={cn('h-10 rounded-2xl', i % 2 === 0 ? 'w-48' : 'w-36')}
           />
         </div>
       ))}
     </div>
-  );
+  )
 }

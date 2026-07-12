@@ -1,165 +1,290 @@
-"use client";
-import Link from "next/link";
-import { motion } from "framer-motion";
-import { ArrowRight, Star, MapPin } from "lucide-react";
+'use client'
 
-// Animated food emoji cards — no external images needed
-// These float around the hero and give it life and warmth
-const FOOD_CARDS = [
-  { emoji: "🍲", label: "Ofe Onugbu", chef: "Ada C.", rating: "4.9", top: "12%", left: "4%",  delay: 0 },
-  { emoji: "🍛", label: "Party Jollof", chef: "Emeka T.", rating: "5.0", top: "55%", left: "2%",  delay: 0.3 },
-  { emoji: "🥘", label: "Egusi Soup",  chef: "Ngozi A.", rating: "4.8", top: "20%", right: "4%", delay: 0.15 },
-  { emoji: "🍖", label: "Peppered Goat", chef: "Kunle M.", rating: "4.9", top: "60%", right: "2%", delay: 0.45 },
-];
+import Link from 'next/link'
+import { motion } from 'framer-motion'
+import {
+  ArrowRight,
+  Clock3,
+  MapPin,
+  MessageCircle,
+  ShieldCheck,
+  Sparkles,
+  Star,
+} from 'lucide-react'
+import { Badge } from '@/components/ui/Badge'
+import { Button } from '@/components/ui/Button'
 
-const AVATARS = ["👩🏿", "👨🏿", "👩🏾", "👨🏾", "🧑🏿"];
+const QUICK_PICKS = [
+  { label: 'Sunday soups', tone: 'bg-mint text-meadow' },
+  { label: 'Date night trays', tone: 'bg-lilac text-ink' },
+  { label: 'Office lunch', tone: 'bg-butter text-ink' },
+  { label: 'Fresh swallows', tone: 'bg-blush text-ink' },
+  { label: 'Small chops', tone: 'bg-sky text-ink' },
+  { label: 'Family bowls', tone: 'bg-sage text-meadow' },
+]
+
+const APP_CARDS = [
+  {
+    name: 'Chef Adaeze',
+    dish: 'Bitterleaf soup, white rice',
+    meta: '24 min away',
+    tone: 'bg-mint',
+  },
+  {
+    name: 'Chef Fatima',
+    dish: 'Tuwo, miyan kuka, lamb',
+    meta: 'Pickup available',
+    tone: 'bg-butter',
+  },
+  {
+    name: 'Chef Tolu',
+    dish: 'Party jollof, grilled turkey',
+    meta: '4.9 rated',
+    tone: 'bg-lilac',
+  },
+]
 
 export function LandingHero() {
   return (
-    <section className="relative flex min-h-[92svh] flex-col items-center justify-center overflow-hidden px-4 py-16 sm:px-6 sm:py-20 lg:px-8">
-
-      {/* Warm background blobs — subtle, not dark */}
-      <div className="absolute inset-0 pointer-events-none overflow-hidden">
-        <div className="absolute top-[-10%] left-[20%] h-[500px] w-[500px] rounded-full bg-ember/10 blur-[80px]" />
-        <div className="absolute bottom-[-5%] right-[15%] h-[400px] w-[400px] rounded-full bg-pepper/8 blur-[80px]" />
-        <div className="absolute top-[40%] left-[-5%] h-[300px] w-[300px] rounded-full bg-lime/5 blur-[60px]" />
+    <section className="relative overflow-hidden px-4 pb-16 pt-10 sm:px-6 sm:pb-20 lg:px-8 lg:pb-24 lg:pt-12">
+      <div className="ambient-bg">
+        <div className="ambient-orb left-[8%] top-16 h-48 w-48 bg-mint/90" />
+        <div className="ambient-orb right-[10%] top-24 h-56 w-56 bg-blush/70" />
+        <div className="ambient-orb bottom-10 left-1/3 h-64 w-64 bg-sage/70" />
       </div>
 
-      {/* Floating food cards — desktop only */}
-      {FOOD_CARDS.map((card, i) => (
-        <motion.div
-          key={i}
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: card.delay + 0.8, duration: 0.6 }}
-          style={{
-            top: card.top,
-            left: card.left ?? undefined,
-            right: card.right ?? undefined,
-            animationDelay: `${card.delay}s`,
-          }}
-          className="absolute hidden xl:flex items-center gap-3 rounded-2xl border border-border bg-card px-4 py-3 shadow-lift animate-float"
-        >
-          <span className="text-3xl">{card.emoji}</span>
-          <div>
-            <p className="text-sm font-bold text-ink leading-tight">{card.label}</p>
-            <p className="text-xs text-muted leading-tight">by {card.chef}</p>
-            <div className="flex items-center gap-1 mt-0.5">
-              <Star className="h-3 w-3 fill-ember text-ember" />
-              <span className="text-xs font-semibold text-ember">{card.rating}</span>
+      <motion.div
+        animate={{ x: [0, 10, 0], y: [0, -8, 0] }}
+        transition={{ duration: 10, repeat: Infinity, ease: 'easeInOut' }}
+        className="landing-cloud pointer-events-none left-[6%] top-28 hidden h-12 w-28 sm:block"
+      />
+      <motion.div
+        animate={{ x: [0, -8, 0], y: [0, 10, 0] }}
+        transition={{ duration: 12, repeat: Infinity, ease: 'easeInOut' }}
+        className="landing-cloud pointer-events-none right-[8%] top-40 hidden h-14 w-32 lg:block"
+      />
+
+      <div className="relative z-10 mx-auto grid max-w-7xl gap-12 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)] lg:items-center">
+        <div className="max-w-2xl">
+          <motion.div
+            initial={{ opacity: 0, y: 18 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.55 }}
+          >
+            <Badge
+              variant="lime"
+              size="md"
+              className="mb-5 border-sage/80 bg-mint text-meadow"
+            >
+              Home chefs, not generic takeout
+            </Badge>
+          </motion.div>
+
+          <h1
+            data-gsap="heading-reveal"
+            className="text-balance font-heading text-[2.9rem] font-extrabold leading-[0.98] tracking-[-0.05em] text-ink sm:text-[3.7rem] lg:text-[4.8rem]"
+          >
+            Find home-cooked meals that feel soft, warm, and made for you.
+          </h1>
+
+          <motion.p
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.65, delay: 0.18 }}
+            className="mt-5 max-w-xl text-base text-body leading-8 sm:text-lg"
+          >
+            Food4Love helps you discover nearby home chefs, match with the ones
+            you love, chat directly, and get comforting meals for every mood.
+          </motion.p>
+
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.65, delay: 0.28 }}
+            className="mt-8 flex flex-col items-start gap-3 sm:flex-row"
+          >
+            <Link href="/signup">
+              <Button
+                size="xl"
+                pill
+                className="bg-meadow text-white shadow-[0_16px_40px_rgba(47,106,67,0.18)] hover:bg-herb"
+                rightIcon={<ArrowRight className="h-4 w-4" />}
+              >
+                Find a chef
+              </Button>
+            </Link>
+            <Link href="/signup?role=cook">
+              <Button
+                variant="secondary"
+                size="xl"
+                pill
+                className="border-border/80 bg-white/80 text-ink hover:bg-ivory"
+              >
+                Cook and earn
+              </Button>
+            </Link>
+          </motion.div>
+
+          <motion.div
+            initial={{ opacity: 0, y: 18 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 0.38 }}
+            className="mt-8 flex flex-wrap gap-3"
+          >
+            <div className="flex items-center gap-2 rounded-full bg-white/75 px-4 py-2 text-body text-sm shadow-card">
+              <ShieldCheck className="h-4 w-4 text-meadow" />
+              2,400+ verified home chefs
             </div>
-          </div>
-        </motion.div>
-      ))}
+            <div className="flex items-center gap-2 rounded-full bg-white/75 px-4 py-2 text-body text-sm shadow-card">
+              <Star className="h-4 w-4 fill-ember text-ember" />
+              4.9 average chef rating
+            </div>
+            <div className="flex items-center gap-2 rounded-full bg-white/75 px-4 py-2 text-body text-sm shadow-card">
+              <Clock3 className="h-4 w-4 text-pepper" />
+              Pickup or delivery
+            </div>
+          </motion.div>
+        </div>
 
-      {/* Main hero content */}
-      <div className="relative z-10 text-center max-w-4xl mx-auto">
-
-        {/* Pill badge */}
         <motion.div
-          initial={{ opacity: 0, y: -10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5 }}
-          className="inline-flex items-center gap-2 bg-pepper/10 border border-pepper/20 rounded-full px-4 py-1.5 mb-8"
-        >
-          <span className="h-2 w-2 rounded-full bg-pepper animate-pulse-soft" />
-          <span className="text-sm font-semibold text-pepper">Now live in Lagos, Abuja & Port Harcourt</span>
-        </motion.div>
-
-        {/* Main headline — Chowdeck energy: massive, black, confident */}
-        <motion.h1
           initial={{ opacity: 0, y: 30 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.7, delay: 0.1 }}
-          className="mb-6 text-[2.75rem] font-extrabold leading-[1.0] tracking-[-0.03em] text-ink text-balance sm:text-[3.5rem] lg:text-[5.5rem]"
+          transition={{ duration: 0.8, delay: 0.15 }}
+          className="relative mx-auto w-full max-w-[38rem]"
         >
-          Find someone
-          <br />
-          who'll{" "}
-          <span className="gradient-text">cook</span>
-          <br />
-          for you.
-        </motion.h1>
-
-        {/* Subheading */}
-        <motion.p
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.3 }}
-          className="mx-auto mb-10 max-w-2xl text-base leading-relaxed text-body sm:text-lg lg:text-xl"
-        >
-          Match with talented home chefs near you. Real food, real people.
-          No restaurants. No middlemen. Just great cooking.
-        </motion.p>
-
-        {/* CTA buttons */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.45 }}
-          className="mb-12 flex flex-col items-center justify-center gap-3 sm:flex-row"
-        >
-          <Link
-            href="/signup"
-            className="group inline-flex items-center gap-2 bg-pepper text-white font-bold text-base px-8 py-4 rounded-full hover:bg-pepper/90 active:scale-95 transition-all shadow-warm"
+          <div
+            data-gsap="hero-plate"
+            className="pointer-events-none absolute left-1/2 top-1/2 h-[24rem] w-[24rem] -translate-x-1/2 -translate-y-1/2 rounded-full border border-white/60 bg-gradient-to-br from-white/60 via-ivory/80 to-blush/40 shadow-[0_20px_60px_rgba(91,57,45,0.08)]"
+          />
+          <motion.div
+            animate={{ y: [0, -10, 0] }}
+            transition={{ duration: 8, repeat: Infinity, ease: 'easeInOut' }}
+            className="absolute -left-4 top-12 z-20 hidden rounded-[1.5rem] bg-white/90 p-4 shadow-float sm:block"
           >
-            Start Swiping
-            <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
-          </Link>
-          <Link
-            href="/signup?role=cook"
-            className="inline-flex items-center gap-2 bg-white text-ink font-bold text-base px-8 py-4 rounded-full border-2 border-biscuit hover:border-pepper/30 hover:bg-warmgray active:scale-95 transition-all shadow-lift"
-          >
-            🍳 Become a Chef
-          </Link>
-        </motion.div>
-
-        {/* Social proof */}
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.65 }}
-          className="flex flex-col sm:flex-row items-center justify-center gap-4 text-sm text-muted"
-        >
-          {/* Avatar cluster */}
-          <div className="flex items-center gap-3">
-            <div className="flex -space-x-2">
-              {AVATARS.map((av, i) => (
-                <span
-                  key={i}
-                  className="flex h-8 w-8 items-center justify-center rounded-full bg-warmgray border-2 border-cream text-base"
-                >
-                  {av}
-                </span>
-              ))}
+            <div className="flex items-center gap-3">
+              <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-blush text-pepper">
+                <Sparkles className="h-5 w-5" />
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-ink">
+                  Chef Adaeze matched
+                </p>
+                <p className="text-xs text-muted">
+                  Sunday tray ready in 24 mins
+                </p>
+              </div>
             </div>
-            <span className="font-medium text-body">2,400+ chefs ready to cook</span>
-          </div>
+          </motion.div>
 
-          <span className="hidden sm:block text-biscuit">·</span>
+          <motion.div
+            animate={{ y: [0, 8, 0] }}
+            transition={{ duration: 9, repeat: Infinity, ease: 'easeInOut' }}
+            className="absolute -right-1 bottom-12 z-20 hidden rounded-[1.5rem] bg-white/90 p-4 shadow-float lg:block"
+          >
+            <div className="flex items-center gap-3">
+              <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-mint text-meadow">
+                <MessageCircle className="h-5 w-5" />
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-ink">
+                  Direct chef chat
+                </p>
+                <p className="text-xs text-muted">
+                  Custom spice, sides, portions
+                </p>
+              </div>
+            </div>
+          </motion.div>
 
-          <div className="flex items-center gap-1.5">
-            {[...Array(5)].map((_, i) => (
-              <Star key={i} className="h-4 w-4 fill-ember text-ember" />
-            ))}
-            <span className="font-semibold text-body">4.9 average rating</span>
+          <div className="relative overflow-hidden rounded-[2.75rem] border border-border/90 bg-white/80 p-3 shadow-float backdrop-blur-xl">
+            <div className="rounded-[2.15rem] bg-gradient-to-b from-white to-cream p-4 sm:p-5">
+              <div className="rounded-[1.6rem] bg-surface p-4 shadow-card">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted">
+                      Food4Love
+                    </p>
+                    <h3 className="mt-1 font-heading text-xl font-bold text-ink">
+                      Discover your next favorite chef
+                    </h3>
+                  </div>
+                  <div className="rounded-full bg-mint px-3 py-1 text-xs font-semibold text-meadow">
+                    Live in Lagos
+                  </div>
+                </div>
+
+                <div className="mt-4 rounded-[1.4rem] bg-ivory p-3">
+                  <div className="flex items-center justify-between rounded-[1rem] bg-white px-4 py-3 shadow-sm">
+                    <div>
+                      <p className="text-xs text-muted">
+                        Tonight&apos;s craving
+                      </p>
+                      <p className="text-sm font-semibold text-ink">
+                        Warm bowls, grilled sides, small chops
+                      </p>
+                    </div>
+                    <MapPin className="h-4 w-4 text-meadow" />
+                  </div>
+
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {['Spicy', 'Low oil', 'Family size', 'Fast pickup'].map(
+                      (chip) => (
+                        <span
+                          key={chip}
+                          className="rounded-full bg-white px-3 py-1.5 text-body text-xs font-medium shadow-sm"
+                        >
+                          {chip}
+                        </span>
+                      ),
+                    )}
+                  </div>
+                </div>
+
+                <div className="mt-4 space-y-3" data-gsap="card-group">
+                  {APP_CARDS.map((card) => (
+                    <div
+                      key={card.name}
+                      data-gsap="micro-card"
+                      className={`flex items-center gap-3 rounded-[1.35rem] ${card.tone} p-3.5`}
+                    >
+                      <div className="flex h-14 w-14 items-center justify-center rounded-[1.2rem] bg-white/80 text-sm font-bold text-ink shadow-sm">
+                        {card.name.split(' ')[1]?.slice(0, 1)}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-semibold text-ink">
+                          {card.name}
+                        </p>
+                        <p className="truncate text-body text-sm">
+                          {card.dish}
+                        </p>
+                      </div>
+                      <div className="rounded-full bg-white/80 px-3 py-1 text-xs font-semibold text-ink shadow-sm">
+                        {card.meta}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
           </div>
         </motion.div>
       </div>
 
-      {/* City marker strip — grounded Nigerian context */}
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ delay: 1 }}
-        className="absolute bottom-8 left-0 right-0 flex flex-wrap justify-center gap-3 px-4 sm:gap-6"
-      >
-        {["📍 Lagos", "📍 Abuja", "📍 Port Harcourt", "📍 Ibadan"].map((city) => (
-          <span key={city} className="text-xs font-medium text-muted bg-white border border-biscuit rounded-full px-3 py-1.5 shadow-sm">
-            {city}
-          </span>
-        ))}
-      </motion.div>
+      <div className="relative z-10 mx-auto mt-14 max-w-7xl overflow-hidden">
+        <div className="landing-marquee landing-marquee-left pr-4">
+          {[...QUICK_PICKS, ...QUICK_PICKS].map((item, index) => (
+            <div
+              key={`${item.label}-${index}`}
+              className={`flex min-w-[13rem] items-center justify-between gap-4 rounded-[1.75rem] border border-white/70 ${item.tone} px-5 py-4 shadow-card`}
+            >
+              <span className="text-sm font-semibold">{item.label}</span>
+              <span className="rounded-full bg-white/80 px-2.5 py-1 text-body text-xs font-semibold">
+                popular
+              </span>
+            </div>
+          ))}
+        </div>
+      </div>
     </section>
-  );
+  )
 }

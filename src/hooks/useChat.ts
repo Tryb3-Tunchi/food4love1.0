@@ -1,99 +1,99 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { supabase } from "../lib/supabase";
-import type { Message } from "../types/db";
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { supabase } from '../lib/supabase'
+import type { Message } from '../types/db'
 
 type UseChatState = {
-  isLoading: boolean;
-  messages: Message[];
-  sendMessage: (body: string) => Promise<void>;
-};
+  isLoading: boolean
+  messages: Message[]
+  sendMessage: (body: string) => Promise<void>
+}
 
 export function useChat(params: {
-  matchId: string;
-  userId: string | null;
+  matchId: string
+  userId: string | null
 }): UseChatState {
-  const { matchId, userId } = params;
-  const [isLoading, setIsLoading] = useState(true);
-  const [messages, setMessages] = useState<Message[]>([]);
-  const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
+  const { matchId, userId } = params
+  const [isLoading, setIsLoading] = useState(true)
+  const [messages, setMessages] = useState<Message[]>([])
+  const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null)
 
   useEffect(() => {
-    let isActive = true;
+    let isActive = true
 
     const load = async () => {
-      setIsLoading(true);
+      setIsLoading(true)
       const { data, error } = await supabase
-        .from("messages")
-        .select("*")
-        .eq("match_id", matchId)
-        .order("created_at", { ascending: true });
+        .from('messages')
+        .select('*')
+        .eq('match_id', matchId)
+        .order('created_at', { ascending: true })
 
-      if (error) throw error;
-      if (!isActive) return;
-      setMessages((data as Message[]) ?? []);
-      setIsLoading(false);
-    };
+      if (error) throw error
+      if (!isActive) return
+      setMessages((data as Message[]) ?? [])
+      setIsLoading(false)
+    }
 
-    load().catch(() => {});
+    load().catch(() => {})
 
     return () => {
-      isActive = false;
-    };
-  }, [matchId]);
+      isActive = false
+    }
+  }, [matchId])
 
   useEffect(() => {
     const channel = supabase
       .channel(`messages:${matchId}`)
       .on(
-        "postgres_changes",
+        'postgres_changes',
         {
-          event: "INSERT",
-          schema: "public",
-          table: "messages",
+          event: 'INSERT',
+          schema: 'public',
+          table: 'messages',
           filter: `match_id=eq.${matchId}`,
         },
         (payload: { new: Message }) => {
-          const next = payload.new as Message;
+          const next = payload.new as Message
           setMessages((prev) => {
-            if (prev.some((m) => m.id === next.id)) return prev;
-            return [...prev, next];
-          });
+            if (prev.some((m) => m.id === next.id)) return prev
+            return [...prev, next]
+          })
         },
       )
-      .subscribe();
+      .subscribe()
 
-    channelRef.current = channel;
+    channelRef.current = channel
 
     return () => {
-      channelRef.current?.unsubscribe();
-      channelRef.current = null;
-    };
-  }, [matchId]);
+      channelRef.current?.unsubscribe()
+      channelRef.current = null
+    }
+  }, [matchId])
 
   const sendMessage = useCallback(
     async (body: string) => {
-      const trimmed = body.trim();
-      if (!trimmed) return;
-      if (!userId) throw new Error("Not authenticated");
+      const trimmed = body.trim()
+      if (!trimmed) return
+      if (!userId) throw new Error('Not authenticated')
 
-      const { error } = await supabase.from("messages").insert({
+      const { error } = await supabase.from('messages').insert({
         match_id: matchId,
         sender_id: userId,
         body: trimmed,
-      });
-      if (error) throw error;
+      })
+      if (error) throw error
 
       await supabase.functions
-        .invoke("groq-bot", {
+        .invoke('groq-bot', {
           body: { matchId },
         })
-        .catch(() => {});
+        .catch(() => {})
     },
     [matchId, userId],
-  );
+  )
 
   return useMemo(
     () => ({ isLoading, messages, sendMessage }),
     [isLoading, messages, sendMessage],
-  );
+  )
 }

@@ -1,7 +1,7 @@
-"use client";
-import { useEffect, useState } from "react";
-import { getAdminStats } from "@/services/admin";
-import { createClient } from "@/lib/supabase/client";
+'use client'
+import { useEffect, useState } from 'react'
+import { getAdminStats } from '@/services/admin'
+import { createClient } from '@/lib/supabase/client'
 import {
   Users,
   ChefHat,
@@ -11,122 +11,122 @@ import {
   Shield,
   Plus,
   RefreshCw,
-} from "lucide-react";
-import Link from "next/link";
-import { motion } from "framer-motion";
-import { Button } from "@/components/ui/Button";
-import { Input } from "@/components/ui/Input";
-import toast from "react-hot-toast";
+} from 'lucide-react'
+import Link from 'next/link'
+import { motion } from 'framer-motion'
+import { Button } from '@/components/ui/Button'
+import { Input } from '@/components/ui/Input'
+import toast from 'react-hot-toast'
 
 interface Stats {
-  totalUsers: number;
-  totalChefs: number;
-  totalMatches: number;
-  totalBookings: number;
-  openDisputes: number;
-  pendingKyc: number;
+  totalUsers: number
+  totalChefs: number
+  totalMatches: number
+  totalBookings: number
+  openDisputes: number
+  pendingKyc: number
 }
 
 export default function AdminDashboard() {
-  const [stats, setStats] = useState<Stats | null>(null);
-  const [showCreateUser, setShowCreateUser] = useState(false);
+  const [stats, setStats] = useState<Stats | null>(null)
+  const [showCreateUser, setShowCreateUser] = useState(false)
   const [newUser, setNewUser] = useState({
-    email: "",
-    password: "demo1234",
-    full_name: "",
-    role: "cook" as "cook" | "buyer",
-  });
-  const [creating, setCreating] = useState(false);
+    email: '',
+    password: 'demo1234',
+    full_name: '',
+    role: 'cook' as 'cook' | 'buyer',
+  })
+  const [creating, setCreating] = useState(false)
 
   useEffect(() => {
-    getAdminStats().then(setStats);
-  }, []);
+    getAdminStats().then(setStats)
+  }, [])
 
   const createDemoUser = async () => {
-    setCreating(true);
-    const sb = createClient();
+    setCreating(true)
+    const sb = createClient()
     const { data, error } = await sb.auth.admin.createUser({
       email: newUser.email,
       password: newUser.password,
       email_confirm: true,
       user_metadata: { full_name: newUser.full_name, role: newUser.role },
-    });
+    })
     if (error) {
-      toast.error(error.message);
-      setCreating(false);
-      return;
+      toast.error(error.message)
+      setCreating(false)
+      return
     }
     // Insert profile
-    await sb.from("profiles").insert({
+    await sb.from('profiles').insert({
       id: data.user.id,
       full_name: newUser.full_name,
       role: newUser.role,
-      kyc_status: newUser.role === "cook" ? "verified" : "unverified",
-      is_verified: newUser.role === "cook",
+      kyc_status: newUser.role === 'cook' ? 'verified' : 'unverified',
+      is_verified: newUser.role === 'cook',
       onboarding_complete: true,
-    });
-    toast.success(`${newUser.full_name} created as ${newUser.role} ✓`);
-    setShowCreateUser(false);
+    })
+    toast.success(`${newUser.full_name} created as ${newUser.role} ✓`)
+    setShowCreateUser(false)
     setNewUser({
-      email: "",
-      password: "demo1234",
-      full_name: "",
-      role: "cook",
-    });
-    setCreating(false);
-    getAdminStats().then(setStats);
-  };
+      email: '',
+      password: 'demo1234',
+      full_name: '',
+      role: 'cook',
+    })
+    setCreating(false)
+    getAdminStats().then(setStats)
+  }
 
   const seedDemoChefs = async () => {
-    const t = toast.loading("Seeding demo chef accounts...");
-    const sb = createClient();
+    const t = toast.loading('Seeding demo chef accounts...')
+    const sb = createClient()
     const chefs = [
       {
-        email: "adaeze@demo.food4love",
-        name: "Adaeze Okonkwo",
-        bio: "Igbo cuisine specialist. My Ofe Akwu is legendary in Lekki.",
-        location: "Lekki Phase 1, Lagos",
-        cuisines: ["Igbo Cuisine", "Nigerian Soups"],
+        email: 'adaeze@demo.food4love',
+        name: 'Adaeze Okonkwo',
+        bio: 'Igbo cuisine specialist. My Ofe Akwu is legendary in Lekki.',
+        location: 'Lekki Phase 1, Lagos',
+        cuisines: ['Igbo Cuisine', 'Nigerian Soups'],
         price_min: 7500,
       },
       {
-        email: "emeka@demo.food4love",
-        name: "Emeka Tochukwu",
-        bio: "The Jollof King of Surulere. Party Jollof is my religion.",
-        location: "Surulere, Lagos",
-        cuisines: ["Jollof & Rice", "Nigerian BBQ"],
+        email: 'emeka@demo.food4love',
+        name: 'Emeka Tochukwu',
+        bio: 'The Jollof King of Surulere. Party Jollof is my religion.',
+        location: 'Surulere, Lagos',
+        cuisines: ['Jollof & Rice', 'Nigerian BBQ'],
         price_min: 12000,
       },
       {
-        email: "fatima@demo.food4love",
-        name: "Fatima Balogun",
-        bio: "Northern Nigerian cuisine with heart. Best Tuwo in Lagos.",
-        location: "Ikeja, Lagos",
-        cuisines: ["Hausa Cuisine", "Suya & Grills"],
+        email: 'fatima@demo.food4love',
+        name: 'Fatima Balogun',
+        bio: 'Northern Nigerian cuisine with heart. Best Tuwo in Lagos.',
+        location: 'Ikeja, Lagos',
+        cuisines: ['Hausa Cuisine', 'Suya & Grills'],
         price_min: 6500,
       },
       {
-        email: "grace@demo.food4love",
-        name: "Grace Oduya",
-        bio: "Afang soup and fresh starch specialist from Cross River.",
-        location: "Yaba, Lagos",
-        cuisines: ["Cross River Cuisine", "Soups"],
+        email: 'grace@demo.food4love',
+        name: 'Grace Oduya',
+        bio: 'Afang soup and fresh starch specialist from Cross River.',
+        location: 'Yaba, Lagos',
+        cuisines: ['Cross River Cuisine', 'Soups'],
         price_min: 8000,
       },
-    ];
+    ]
 
     for (const chef of chefs) {
       const { data: userData } = await sb.auth.admin.createUser({
         email: chef.email,
-        password: "demo1234",
+        password: 'demo1234',
         email_confirm: true,
-        user_metadata: { full_name: chef.name, role: "cook" },
-      });
+        user_metadata: { full_name: chef.name, role: 'cook' },
+      })
       if (userData?.user) {
-        await sb.from("profiles").upsert({
+        await sb.from('profiles').upsert({
           id: userData.user.id,
           full_name: chef.name,
-          role: "cook",
+          role: 'cook',
           bio: chef.bio,
           location: chef.location,
           cuisines: chef.cuisines,
@@ -134,76 +134,76 @@ export default function AdminDashboard() {
           rating: 4.8 + Math.random() * 0.2,
           review_count: Math.floor(20 + Math.random() * 50),
           is_verified: true,
-          kyc_status: "verified",
+          kyc_status: 'verified',
           onboarding_complete: true,
           streak: Math.floor(3 + Math.random() * 10),
-        });
+        })
       }
     }
-    toast.dismiss(t);
+    toast.dismiss(t)
     toast.success(
-      "4 demo chefs created! Log in as test@demo.food4love to swipe them."
-    );
-    getAdminStats().then(setStats);
-  };
+      '4 demo chefs created! Log in as test@demo.food4love to swipe them.',
+    )
+    getAdminStats().then(setStats)
+  }
 
   const statCards = stats
     ? [
         {
-          label: "Total Users",
+          label: 'Total Users',
           value: stats.totalUsers,
           icon: Users,
-          href: "/admin/users",
-          color: "#3B82F6",
-          bg: "rgba(59,130,246,0.1)",
+          href: '/admin/users',
+          color: '#3B82F6',
+          bg: 'rgba(59,130,246,0.1)',
         },
         {
-          label: "Home Chefs",
+          label: 'Home Chefs',
           value: stats.totalChefs,
           icon: ChefHat,
-          href: "/admin/users",
-          color: "#F59E0B",
-          bg: "rgba(245,158,11,0.1)",
+          href: '/admin/users',
+          color: '#F59E0B',
+          bg: 'rgba(245,158,11,0.1)',
         },
         {
-          label: "Total Matches",
+          label: 'Total Matches',
           value: stats.totalMatches,
           icon: Heart,
-          href: "/admin/bookings",
-          color: "#E8390E",
-          bg: "rgba(232,57,14,0.1)",
+          href: '/admin/bookings',
+          color: '#E8390E',
+          bg: 'rgba(232,57,14,0.1)',
         },
         {
-          label: "Bookings",
+          label: 'Bookings',
           value: stats.totalBookings,
           icon: ShoppingBag,
-          href: "/admin/bookings",
-          color: "#22C55E",
-          bg: "rgba(34,197,94,0.1)",
+          href: '/admin/bookings',
+          color: '#22C55E',
+          bg: 'rgba(34,197,94,0.1)',
         },
         {
-          label: "Open Disputes",
+          label: 'Open Disputes',
           value: stats.openDisputes,
           icon: AlertTriangle,
-          href: "/admin/disputes",
-          color: "#EF4444",
-          bg: "rgba(239,68,68,0.1)",
+          href: '/admin/disputes',
+          color: '#EF4444',
+          bg: 'rgba(239,68,68,0.1)',
           urgent: stats.openDisputes > 0,
         },
         {
-          label: "Pending KYC",
+          label: 'Pending KYC',
           value: stats.pendingKyc,
           icon: Shield,
-          href: "/admin/kyc",
-          color: "#F59E0B",
-          bg: "rgba(245,158,11,0.1)",
+          href: '/admin/kyc',
+          color: '#F59E0B',
+          bg: 'rgba(245,158,11,0.1)',
           urgent: stats.pendingKyc > 0,
         },
       ]
-    : [];
+    : []
 
   return (
-    <div className="min-h-screen" style={{ background: "#0A0A0A" }}>
+    <div className="min-h-screen" style={{ background: '#0A0A0A' }}>
       <div className="mx-auto max-w-5xl px-5 py-8">
         {/* Header */}
         <div className="mb-8 flex items-center justify-between">
@@ -213,7 +213,7 @@ export default function AdminDashboard() {
             </h1>
             <p
               className="mt-1 text-sm"
-              style={{ color: "rgba(255,255,255,0.4)" }}
+              style={{ color: 'rgba(255,255,255,0.4)' }}
             >
               Food4Love Operations Centre
             </p>
@@ -246,8 +246,8 @@ export default function AdminDashboard() {
             animate={{ opacity: 1, y: 0 }}
             className="mb-6 rounded-2xl border p-5"
             style={{
-              background: "rgba(255,255,255,0.04)",
-              borderColor: "rgba(255,255,255,0.08)",
+              background: 'rgba(255,255,255,0.04)',
+              borderColor: 'rgba(255,255,255,0.08)',
             }}
           >
             <h3 className="mb-4 text-base font-bold text-white">
@@ -275,22 +275,22 @@ export default function AdminDashboard() {
               />
             </div>
             <div className="mb-4 flex gap-3">
-              {(["cook", "buyer"] as const).map((r) => (
+              {(['cook', 'buyer'] as const).map((r) => (
                 <button
                   key={r}
                   onClick={() => setNewUser((p) => ({ ...p, role: r }))}
                   className="flex-1 rounded-xl py-2.5 text-sm font-bold transition-all"
                   style={
                     newUser.role === r
-                      ? { background: "#E8390E", color: "white" }
+                      ? { background: '#E8390E', color: 'white' }
                       : {
-                          background: "rgba(255,255,255,0.05)",
-                          color: "rgba(255,255,255,0.5)",
-                          border: "1px solid rgba(255,255,255,0.08)",
+                          background: 'rgba(255,255,255,0.05)',
+                          color: 'rgba(255,255,255,0.5)',
+                          border: '1px solid rgba(255,255,255,0.08)',
                         }
                   }
                 >
-                  {r === "cook" ? "🍳 Chef" : "🍽️ Food Lover"}
+                  {r === 'cook' ? '🍳 Chef' : '🍽️ Food Lover'}
                 </button>
               ))}
             </div>
@@ -320,15 +320,15 @@ export default function AdminDashboard() {
         <div
           className="mb-6 flex items-center justify-between rounded-2xl border p-4"
           style={{
-            background: "rgba(45,106,79,0.08)",
-            borderColor: "rgba(45,106,79,0.2)",
+            background: 'rgba(45,106,79,0.08)',
+            borderColor: 'rgba(45,106,79,0.2)',
           }}
         >
           <div>
-            <p className="text-sm font-bold" style={{ color: "#52B788" }}>
+            <p className="text-sm font-bold" style={{ color: '#52B788' }}>
               🌱 Seed Demo Data
             </p>
-            <p className="text-xs" style={{ color: "rgba(82,183,136,0.6)" }}>
+            <p className="text-xs" style={{ color: 'rgba(82,183,136,0.6)' }}>
               Creates 4 realistic chef accounts you can swipe in the app
             </p>
           </div>
@@ -356,10 +356,10 @@ export default function AdminDashboard() {
                 href={c.href}
                 className="block rounded-2xl border p-4 transition-all hover:scale-[1.01]"
                 style={{
-                  background: "rgba(255,255,255,0.03)",
+                  background: 'rgba(255,255,255,0.03)',
                   borderColor: c.urgent
                     ? `${c.color}40`
-                    : "rgba(255,255,255,0.06)",
+                    : 'rgba(255,255,255,0.06)',
                 }}
               >
                 <div className="mb-3 flex items-center justify-between">
@@ -385,7 +385,7 @@ export default function AdminDashboard() {
                 </div>
                 <div
                   className="text-xs"
-                  style={{ color: "rgba(255,255,255,0.4)" }}
+                  style={{ color: 'rgba(255,255,255,0.4)' }}
                 >
                   {c.label}
                 </div>
@@ -398,31 +398,31 @@ export default function AdminDashboard() {
         <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
           {[
             {
-              href: "/admin/kyc",
-              title: "KYC Review Queue",
-              desc: "Review chef video verifications",
-              icon: "🎥",
+              href: '/admin/kyc',
+              title: 'KYC Review Queue',
+              desc: 'Review chef video verifications',
+              icon: '🎥',
               urgent: (stats?.pendingKyc ?? 0) > 0,
             },
             {
-              href: "/admin/disputes",
-              title: "Dispute Resolution",
-              desc: "AI-analyzed buyer-chef conflicts",
-              icon: "⚖️",
+              href: '/admin/disputes',
+              title: 'Dispute Resolution',
+              desc: 'AI-analyzed buyer-chef conflicts',
+              icon: '⚖️',
               urgent: (stats?.openDisputes ?? 0) > 0,
             },
             {
-              href: "/admin/users",
-              title: "User Management",
-              desc: "Search, view, suspend users",
-              icon: "👥",
+              href: '/admin/users',
+              title: 'User Management',
+              desc: 'Search, view, suspend users',
+              icon: '👥',
               urgent: false,
             },
             {
-              href: "/admin/bookings",
-              title: "Booking Oversight",
-              desc: "Monitor all active bookings",
-              icon: "📋",
+              href: '/admin/bookings',
+              title: 'Booking Oversight',
+              desc: 'Monitor all active bookings',
+              icon: '📋',
               urgent: false,
             },
           ].map((l) => (
@@ -432,11 +432,11 @@ export default function AdminDashboard() {
               className="flex items-center gap-4 rounded-2xl border p-4 transition-all hover:bg-white/5"
               style={{
                 borderColor: l.urgent
-                  ? "rgba(232,57,14,0.25)"
-                  : "rgba(255,255,255,0.06)",
+                  ? 'rgba(232,57,14,0.25)'
+                  : 'rgba(255,255,255,0.06)',
                 background: l.urgent
-                  ? "rgba(232,57,14,0.05)"
-                  : "rgba(255,255,255,0.02)",
+                  ? 'rgba(232,57,14,0.05)'
+                  : 'rgba(255,255,255,0.02)',
               }}
             >
               <span className="shrink-0 text-2xl">{l.icon}</span>
@@ -451,7 +451,7 @@ export default function AdminDashboard() {
                 </div>
                 <p
                   className="mt-0.5 text-xs"
-                  style={{ color: "rgba(255,255,255,0.35)" }}
+                  style={{ color: 'rgba(255,255,255,0.35)' }}
                 >
                   {l.desc}
                 </p>
@@ -461,5 +461,5 @@ export default function AdminDashboard() {
         </div>
       </div>
     </div>
-  );
+  )
 }

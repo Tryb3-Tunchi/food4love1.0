@@ -1,129 +1,129 @@
-"use client";
-import Link from "next/link";
-import { useState } from "react";
-import { Menu, X, ChefHat } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
-import { HungerModeToggle } from "@/components/ui/HungerModeToggle";
+'use client'
+
+import Link from 'next/link'
+import { useState } from 'react'
+import { AnimatePresence, motion } from 'framer-motion'
+import { ArrowRight, ChefHat, Menu, X } from 'lucide-react'
+import { Button } from '@/components/ui/Button'
+
+const NAV_ITEMS = [
+  { label: 'How it works', href: '#how' },
+  { label: 'Featured chefs', href: '#chefs' },
+  { label: 'For cooks', href: '#join' },
+]
 
 export function LandingNav() {
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(false)
 
   return (
-    <nav className="sticky top-0 z-50 border-b border-border bg-[color:var(--bg)]/90 backdrop-blur-md">
-      <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-4 px-4 sm:px-6 md:px-8">
-        {/* Logo */}
-        <Link href="/" className="flex shrink-0 items-center gap-2.5">
-          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-pepper shadow-warm">
-            <ChefHat className="h-5 w-5 text-white" strokeWidth={2} />
+    <nav className="sticky top-0 z-50 px-4 pt-4 sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-7xl">
+        <div className="f4l-nav flex h-16 items-center justify-between rounded-full border border-border/80 bg-white/80 px-3 shadow-card sm:px-4">
+          <Link
+            href="/"
+            className="flex items-center gap-3 rounded-full px-2 py-1.5"
+          >
+            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-mint text-meadow shadow-[inset_0_1px_0_rgba(255,255,255,0.85)]">
+              <ChefHat className="h-5 w-5" strokeWidth={2.2} />
+            </div>
+            <span className="font-heading text-lg font-extrabold tracking-tight text-ink sm:text-xl">
+              Food<span className="text-pepper">4</span>Love
+            </span>
+          </Link>
+
+          <div className="hidden items-center gap-2 lg:flex">
+            {NAV_ITEMS.map((item) => (
+              <Link
+                key={item.label}
+                href={item.href}
+                className="rounded-full px-4 py-2 text-body text-sm font-medium transition-colors hover:bg-ivory hover:text-ink"
+              >
+                {item.label}
+              </Link>
+            ))}
           </div>
-          <span className="text-xl font-extrabold tracking-tight text-ink">
-            Food<span className="text-pepper">4</span>Love
-          </span>
-        </Link>
 
-        {/* Desktop links */}
-        <div className="hidden flex-1 items-center justify-center gap-6 md:flex">
-          <Link
-            href="#how"
-            className="text-sm font-medium text-body transition-colors hover:text-ink"
-          >
-            How it works
-          </Link>
-          <Link
-            href="#chefs"
-            className="text-sm font-medium text-body transition-colors hover:text-ink"
-          >
-            Browse Chefs
-          </Link>
-          <Link
-            href="/signup?role=cook"
-            className="text-sm font-medium text-body transition-colors hover:text-ink"
-          >
-            Become a Chef
-          </Link>
-        </div>
+          <div className="hidden items-center gap-2 sm:flex">
+            <Link href="/login">
+              <Button
+                variant="secondary"
+                size="md"
+                pill
+                className="border-border/80 bg-white/75 text-ink shadow-none hover:bg-ivory"
+              >
+                Sign in
+              </Button>
+            </Link>
+            <Link href="/signup">
+              <Button
+                size="md"
+                pill
+                className="bg-meadow text-white shadow-[0_10px_28px_rgba(47,106,67,0.18)] hover:bg-herb"
+                rightIcon={<ArrowRight className="h-4 w-4" />}
+              >
+                Get started
+              </Button>
+            </Link>
+          </div>
 
-        {/* Right side */}
-        <div className="hidden items-center gap-3 md:flex">
-          <HungerModeToggle />
-          <Link
-            href="/login"
-            className="px-3 py-2 text-sm font-semibold text-body transition-colors hover:text-ink"
-          >
-            Sign in
-          </Link>
-          <Link
-            href="/signup"
-            className="inline-flex items-center gap-2 rounded-full bg-pepper px-5 py-2.5 text-sm font-bold text-white shadow-warm transition-all hover:bg-[#D4330C] active:scale-95"
-          >
-            Start Swiping →
-          </Link>
-        </div>
-
-        {/* Mobile */}
-        <div className="flex items-center gap-2 md:hidden">
-          <HungerModeToggle />
           <button
-            onClick={() => setOpen(!open)}
-            className="flex h-9 w-9 items-center justify-center rounded-xl border border-border bg-surface-muted"
+            type="button"
+            onClick={() => setOpen((value) => !value)}
+            className="flex h-10 w-10 items-center justify-center rounded-full border border-border bg-white/80 text-ink shadow-sm transition-colors hover:bg-ivory sm:hidden"
+            aria-label={open ? 'Close menu' : 'Open menu'}
           >
-            {open ? (
-              <X className="h-5 w-5 text-ink" />
-            ) : (
-              <Menu className="h-5 w-5 text-ink" />
-            )}
+            {open ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
           </button>
         </div>
-      </div>
 
-      <AnimatePresence>
-        {open && (
-          <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: "auto" }}
-            exit={{ opacity: 0, height: 0 }}
-            className="overflow-hidden border-t border-border bg-[color:var(--bg)] md:hidden"
-          >
-            <div className="flex flex-col gap-2 px-5 py-4">
-              <Link
-                href="#how"
-                onClick={() => setOpen(false)}
-                className="border-b border-biscuit py-2.5 text-base font-medium text-body"
-              >
-                How it works
-              </Link>
-              <Link
-                href="#chefs"
-                onClick={() => setOpen(false)}
-                className="border-b border-biscuit py-2.5 text-base font-medium text-body"
-              >
-                Browse Chefs
-              </Link>
-              <Link
-                href="/signup?role=cook"
-                onClick={() => setOpen(false)}
-                className="border-b border-biscuit py-2.5 text-base font-medium text-body"
-              >
-                Become a Chef
-              </Link>
-              <div className="flex flex-col gap-2.5 pt-3">
-                <Link
-                  href="/login"
-                  className="rounded-full border border-border bg-card py-3 text-center text-sm font-semibold text-ink"
-                >
-                  Sign in
+        <AnimatePresence>
+          {open && (
+            <motion.div
+              initial={{ opacity: 0, y: -8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -8 }}
+              className="bg-white/92 mt-3 overflow-hidden rounded-[2rem] border border-border p-4 shadow-float sm:hidden"
+            >
+              <div className="flex flex-col gap-2">
+                {NAV_ITEMS.map((item) => (
+                  <Link
+                    key={item.label}
+                    href={item.href}
+                    onClick={() => setOpen(false)}
+                    className="rounded-2xl px-4 py-3 text-body text-sm font-medium transition-colors hover:bg-ivory hover:text-ink"
+                  >
+                    {item.label}
+                  </Link>
+                ))}
+              </div>
+              <div className="mt-4 grid grid-cols-1 gap-2">
+                <Link href="/login" onClick={() => setOpen(false)}>
+                  <Button
+                    variant="secondary"
+                    size="lg"
+                    fullWidth
+                    pill
+                    className="border-border/80 bg-white text-ink shadow-none hover:bg-ivory"
+                  >
+                    Sign in
+                  </Button>
                 </Link>
-                <Link
-                  href="/signup"
-                  className="rounded-full bg-pepper py-3 text-center text-sm font-bold text-white shadow-warm"
-                >
-                  Start Swiping →
+                <Link href="/signup" onClick={() => setOpen(false)}>
+                  <Button
+                    size="lg"
+                    fullWidth
+                    pill
+                    className="bg-meadow text-white hover:bg-herb"
+                    rightIcon={<ArrowRight className="h-4 w-4" />}
+                  >
+                    Get started
+                  </Button>
                 </Link>
               </div>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
     </nav>
-  );
+  )
 }

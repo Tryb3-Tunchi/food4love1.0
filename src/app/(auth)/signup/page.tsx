@@ -1,236 +1,254 @@
-"use client";
-import { Suspense } from "react";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { signupSchema, SignupInput } from "@/lib/validations";
-import { Input } from "@/components/ui/Input";
-import { Button } from "@/components/ui/Button";
-import Link from "next/link";
-import { createClient } from "@/lib/supabase/client";
-import { useRouter, useSearchParams } from "next/navigation";
-import toast from "react-hot-toast";
-import { motion } from "framer-motion";
+'use client'
+
+import { Suspense } from 'react'
+import Link from 'next/link'
+import { useRouter, useSearchParams } from 'next/navigation'
+import { motion } from 'framer-motion'
+import { useForm } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
+import toast from 'react-hot-toast'
 import {
-  ChefHat,
-  Phone,
-  User,
-  Mail,
-  Lock,
   ArrowRight,
   Check,
-} from "lucide-react";
+  ChefHat,
+  Lock,
+  Mail,
+  Phone,
+  Sparkles,
+  User,
+} from 'lucide-react'
+import { signupSchema, SignupInput } from '@/lib/validations'
+import { createClient } from '@/lib/supabase/client'
+import { Button } from '@/components/ui/Button'
+import { Input } from '@/components/ui/Input'
 
 const PERKS = [
-  "Match with verified home chefs",
-  "Real-time chat and booking",
-  "AI-powered meal suggestions",
-  "Secure payments and dispute protection",
-];
+  'Role-based experience from day one',
+  'Direct chef and buyer conversations',
+  'Cleaner discovery, booking, and trust cues',
+  'Same product language with different lead colors',
+]
 
 function SignupPageContent() {
-  const router = useRouter();
-  const params = useSearchParams();
-  const role = params.get("role") === "cook" ? "cook" : "buyer";
-  const isCook = role === "cook";
+  const router = useRouter()
+  const params = useSearchParams()
+  const role = params.get('role') === 'cook' ? 'cook' : 'buyer'
+  const isCook = role === 'cook'
 
   const {
     register,
     handleSubmit,
     formState: { errors, isSubmitting },
-  } = useForm<SignupInput>({ resolver: zodResolver(signupSchema) });
+  } = useForm<SignupInput>({ resolver: zodResolver(signupSchema) })
 
   const onSubmit = async (data: SignupInput) => {
-    const sb = createClient();
-    const loadingToast = toast.loading("Creating your account...");
+    const sb = createClient()
+    const loadingToast = toast.loading('Creating your account...')
     const { error } = await sb.auth.signUp({
       email: data.email,
       password: data.password,
       options: { data: { full_name: data.full_name, phone: data.phone, role } },
-    });
-    toast.dismiss(loadingToast);
+    })
+    toast.dismiss(loadingToast)
     if (error) {
-      toast.error(error.message);
-      return;
+      toast.error(error.message)
+      return
     }
-    toast.success("Account created! Check your email ✉️");
-    router.push("/verify");
-  };
+    toast.success('Account created. Check your email.')
+    router.push('/verify')
+  }
 
   return (
-    <div className="flex min-h-screen bg-cream">
-      {/* Left panel */}
-      <div className="relative hidden w-[420px] shrink-0 flex-col justify-between overflow-hidden bg-ink p-10 lg:flex">
-        <div className="pointer-events-none absolute inset-0">
-          <div className="absolute right-[-20%] top-[-10%] h-72 w-72 rounded-full bg-pepper/15 blur-3xl" />
-          <div className="absolute bottom-[-10%] left-[-10%] h-60 w-60 rounded-full bg-ember/10 blur-3xl" />
-        </div>
-
-        <div className="relative z-10">
-          <Link href="/" className="mb-16 flex items-center gap-2.5">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-pepper">
-              <ChefHat className="h-5 w-5 text-white" strokeWidth={2} />
-            </div>
-            <span className="text-xl font-extrabold tracking-tight text-white">
-              Food4Love
-            </span>
-          </Link>
-
-          <h2 className="mb-4 text-4xl font-extrabold leading-tight text-white">
-            {isCook
-              ? "Turn your kitchen into a business."
-              : "Meet the chef who'll change how you eat."}
-          </h2>
-          <p className="mb-8 text-sm leading-relaxed text-white/50">
-            {isCook
-              ? "Set your own prices, schedule, and menu. We handle the discovery, you handle the magic."
-              : "Home-cooked meals made by talented people in your city. No restaurants. Just real food."}
-          </p>
-
-          <div className="space-y-3">
-            {PERKS.map((p) => (
-              <div key={p} className="flex items-center gap-3">
-                <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-pepper/20">
-                  <Check className="h-3 w-3 text-pepper" strokeWidth={3} />
-                </div>
-                <span className="text-sm text-white/70">{p}</span>
+    <div
+      className={`${isCook ? 'theme-cook' : 'theme-buyer'} f4l-auth-grid px-4 py-6 sm:px-6 lg:px-8`}
+    >
+      <div className="mx-auto grid min-h-[calc(100dvh-3rem)] max-w-7xl gap-6 lg:grid-cols-[0.94fr_1.06fr]">
+        <div className="f4l-auth-spotlight hidden rounded-[2.75rem] p-10 text-white lg:flex lg:flex-col lg:justify-between">
+          <div className="relative z-10">
+            <Link
+              href="/"
+              className="inline-flex items-center gap-3 rounded-full bg-white/10 px-3 py-2 backdrop-blur-sm"
+            >
+              <div className="bg-white/18 flex h-10 w-10 items-center justify-center rounded-full">
+                <ChefHat className="h-5 w-5 text-white" />
               </div>
-            ))}
-          </div>
-        </div>
+              <span className="font-heading text-xl font-extrabold tracking-tight">
+                Food4Love
+              </span>
+            </Link>
 
-        <div className="relative z-10 text-xs text-white/30">
-          Free to join · No credit card required
-        </div>
-      </div>
-
-      {/* Right panel — form */}
-      <div className="flex flex-1 flex-col items-center justify-center overflow-y-auto px-5 py-12">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.4 }}
-          className="w-full max-w-sm"
-        >
-          {/* Mobile logo */}
-          <Link href="/" className="mb-10 flex items-center gap-2.5 lg:hidden">
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-pepper">
-              <ChefHat className="h-5 w-5 text-white" strokeWidth={2} />
+            <div className="bg-white/12 mt-10 inline-flex rounded-full px-4 py-2 text-sm font-semibold">
+              {isCook ? 'Cook experience' : 'Buyer experience'}
             </div>
-            <span className="text-xl font-extrabold tracking-tight text-ink">
-              Food<span className="text-pepper">4</span>Love
-            </span>
-          </Link>
+            <h1 className="mt-6 max-w-md font-heading text-5xl font-bold leading-[1.02] tracking-[-0.05em]">
+              {isCook
+                ? 'Turn your kitchen into a premium, trusted storefront.'
+                : 'Find the chefs who make dinner feel personal again.'}
+            </h1>
+            <p className="text-white/76 mt-5 max-w-md text-base leading-8">
+              {isCook
+                ? 'Set pricing, availability, specialties, and let the app carry a stronger warm tone for your side of the marketplace.'
+                : 'Browse a greener, softer buyer flow built around discovery, comfort, and quick decisions without clutter.'}
+            </p>
 
-          {/* Role pill */}
-          <div className="bg-pepper/8 mb-6 inline-flex items-center gap-2 rounded-full border border-pepper/15 px-3 py-1.5">
-            <span className="text-lg">{isCook ? "🍳" : "🍽️"}</span>
-            <span className="text-xs font-bold text-pepper">
-              {isCook ? "Signing up as a Chef" : "Signing up as a Food Lover"}
-            </span>
+            <div className="mt-8 space-y-3">
+              {PERKS.map((perk) => (
+                <div
+                  key={perk}
+                  className="flex items-start gap-3 rounded-[1.4rem] bg-white/10 px-4 py-3 backdrop-blur-sm"
+                >
+                  <div className="bg-white/18 mt-0.5 flex h-5 w-5 items-center justify-center rounded-full">
+                    <Check className="h-3.5 w-3.5 text-white" strokeWidth={3} />
+                  </div>
+                  <span className="text-sm text-white/80">{perk}</span>
+                </div>
+              ))}
+            </div>
           </div>
 
-          <div className="mb-8">
-            <h1 className="text-display-sm mb-2 text-ink">
-              Create your account
-            </h1>
-            <p className="text-sm text-body">
-              Already have one?{" "}
-              <Link
-                href="/login"
-                className="font-semibold text-pepper hover:underline"
+          <div className="border-white/14 relative z-10 rounded-[2rem] border bg-white/10 p-5 backdrop-blur-md">
+            <p className="text-sm font-semibold">
+              Same system, different lead color
+            </p>
+            <p className="text-white/74 mt-2 text-sm leading-7">
+              Buyers lean softer and greener. Cooks stay warmer and bolder. The
+              structure, spacing, and motion language still belong to one
+              product.
+            </p>
+          </div>
+        </div>
+
+        <div className="flex items-center justify-center">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4 }}
+            className="f4l-auth-panel w-full max-w-xl rounded-[2.5rem] p-6 sm:p-8 lg:p-10"
+          >
+            <Link
+              href="/"
+              className="mb-8 inline-flex items-center gap-3 rounded-full bg-white/80 px-3 py-2 lg:hidden"
+            >
+              <div
+                className={`flex h-10 w-10 items-center justify-center rounded-full ${isCook ? 'bg-blush text-pepper' : 'bg-mint text-meadow'}`}
               >
-                Sign in
+                <ChefHat className="h-5 w-5" />
+              </div>
+              <span className="font-heading text-xl font-extrabold tracking-tight text-ink">
+                Food4Love
+              </span>
+            </Link>
+
+            <div className="mb-8">
+              <div
+                className={`inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-semibold ${isCook ? 'bg-blush text-pepper' : 'bg-mint text-meadow'}`}
+              >
+                <Sparkles className="h-3.5 w-3.5" />
+                {isCook ? 'Signing up as a cook' : 'Signing up as a food lover'}
+              </div>
+              <h2 className="mt-4 font-heading text-4xl font-bold tracking-[-0.04em] text-ink">
+                Create your account
+              </h2>
+              <p className="mt-3 text-body text-sm leading-7">
+                Already have one?{' '}
+                <Link
+                  href="/login"
+                  className="font-semibold text-[color:var(--accent)] hover:underline"
+                >
+                  Sign in
+                </Link>
+              </p>
+            </div>
+
+            <form onSubmit={handleSubmit(onSubmit)} className="space-y-3.5">
+              <Input
+                label="Full name"
+                placeholder="Adaeze Okonkwo"
+                leftIcon={<User className="h-4 w-4" />}
+                error={errors.full_name?.message}
+                {...register('full_name')}
+              />
+              <Input
+                label="Email address"
+                type="email"
+                placeholder="you@example.com"
+                leftIcon={<Mail className="h-4 w-4" />}
+                error={errors.email?.message}
+                {...register('email')}
+              />
+              <Input
+                label="Phone number"
+                placeholder="+234 801 234 5678"
+                leftIcon={<Phone className="h-4 w-4" />}
+                error={errors.phone?.message}
+                hint="Used for booking and match notifications"
+                {...register('phone')}
+              />
+              <Input
+                label="Password"
+                type="password"
+                placeholder="Create a strong password"
+                leftIcon={<Lock className="h-4 w-4" />}
+                error={errors.password?.message}
+                hint="Minimum 6 characters"
+                {...register('password')}
+              />
+
+              <Button
+                type="submit"
+                size="lg"
+                fullWidth
+                loading={isSubmitting}
+                rightIcon={
+                  !isSubmitting ? <ArrowRight className="h-4 w-4" /> : undefined
+                }
+                className="mt-2"
+              >
+                Create account
+              </Button>
+            </form>
+
+            <div className="mt-5 text-center">
+              <p className="mb-2 text-xs text-muted">
+                {isCook
+                  ? 'Want to find food instead?'
+                  : 'Want to cook and earn?'}
+              </p>
+              <Link
+                href={isCook ? '/signup' : '/signup?role=cook'}
+                className="text-xs font-semibold text-[color:var(--accent)] hover:underline"
+              >
+                {isCook ? 'Sign up as a food lover' : 'Sign up as a chef'} →
+              </Link>
+            </div>
+
+            <p className="mt-6 text-center text-xs text-muted">
+              By creating an account you agree to our{' '}
+              <Link href="#" className="underline hover:text-ink">
+                Terms
+              </Link>{' '}
+              and{' '}
+              <Link href="#" className="underline hover:text-ink">
+                Privacy Policy
               </Link>
             </p>
-          </div>
-
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-3.5">
-            <Input
-              label="Full name"
-              placeholder="Adaeze Okonkwo"
-              leftIcon={<User className="h-4 w-4" />}
-              error={errors.full_name?.message}
-              {...register("full_name")}
-            />
-            <Input
-              label="Email address"
-              type="email"
-              placeholder="you@example.com"
-              leftIcon={<Mail className="h-4 w-4" />}
-              error={errors.email?.message}
-              {...register("email")}
-            />
-            <Input
-              label="Phone number"
-              placeholder="+234 801 234 5678"
-              leftIcon={<Phone className="h-4 w-4" />}
-              error={errors.phone?.message}
-              hint="Nigerian number · used for match notifications"
-              {...register("phone")}
-            />
-            <Input
-              label="Password"
-              type="password"
-              placeholder="Create a strong password"
-              leftIcon={<Lock className="h-4 w-4" />}
-              error={errors.password?.message}
-              hint="Minimum 6 characters"
-              {...register("password")}
-            />
-
-            <Button
-              type="submit"
-              size="lg"
-              fullWidth
-              loading={isSubmitting}
-              rightIcon={
-                !isSubmitting ? <ArrowRight className="h-4 w-4" /> : undefined
-              }
-              className="mt-2"
-            >
-              Create Account
-            </Button>
-          </form>
-
-          {/* Role switch */}
-          <div className="mt-5 text-center">
-            <p className="text-subtle mb-2 text-xs">
-              {isCook ? "Want to find food instead?" : "Want to cook and earn?"}
-            </p>
-            <Link
-              href={isCook ? "/signup" : "/signup?role=cook"}
-              className="text-xs font-semibold text-pepper hover:underline"
-            >
-              {isCook ? "Sign up as a Food Lover" : "Sign up as a Chef"} →
-            </Link>
-          </div>
-
-          <p className="text-subtle mt-6 text-center text-xs">
-            By creating an account you agree to our{" "}
-            <Link href="#" className="underline hover:text-ink">
-              Terms
-            </Link>{" "}
-            and{" "}
-            <Link href="#" className="underline hover:text-ink">
-              Privacy Policy
-            </Link>
-          </p>
-        </motion.div>
+          </motion.div>
+        </div>
       </div>
     </div>
-  );
+  )
 }
 
 export default function SignupPage() {
   return (
     <Suspense
       fallback={
-        <div className="flex min-h-screen items-center justify-center bg-cream">
-          <div className="text-sm font-medium text-body">Loading...</div>
+        <div className="theme-buyer f4l-auth-grid flex min-h-screen items-center justify-center">
+          <div className="text-body text-sm font-medium">Loading...</div>
         </div>
       }
     >
       <SignupPageContent />
     </Suspense>
-  );
+  )
 }
