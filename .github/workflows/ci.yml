@@ -3,28 +3,39 @@ name: CI
 on:
   pull_request:
     branches:
+      - develop
       - main
-      - master
+
+  push:
+    branches:
+      - develop
+      - main
 
 jobs:
   quality:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Check out repository
+      - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Set up Node.js
+      - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: lts/*
+          node-version: 20
           cache: npm
 
       - name: Install dependencies
         run: npm ci
 
-      - name: Run Next.js lint
+      - name: Run ESLint
         run: npm run lint
 
-      - name: Run Prettier check
+      - name: Type Check
+        run: npx tsc --noEmit
+
+      - name: Run Prettier
         run: npx prettier --check .
+
+      - name: Production Build
+        run: npm run build
