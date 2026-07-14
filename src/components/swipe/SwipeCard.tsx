@@ -67,7 +67,7 @@ export function SwipeCard({
       style={{ x, rotate, scale, opacity, touchAction: 'none' }}
       className="absolute inset-0 cursor-grab select-none active:cursor-grabbing"
     >
-      <div className="shadow-float relative h-full w-full overflow-hidden rounded-[1.75rem] bg-card">
+      <div className="relative h-full w-full overflow-hidden rounded-[1.75rem] bg-card shadow-float">
         {photo ? (
           <Image
             src={photo}
