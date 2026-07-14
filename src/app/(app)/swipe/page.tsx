@@ -179,7 +179,9 @@ export default function SwipePage() {
               <SlidersHorizontal
                 className="h-4 w-4"
                 style={{
-                  color: activeFilters ? 'var(--accent)' : 'var(--app-text-muted)',
+                  color: activeFilters
+                    ? 'var(--accent)'
+                    : 'var(--app-text-muted)',
                 }}
               />
               {activeFilters && (
