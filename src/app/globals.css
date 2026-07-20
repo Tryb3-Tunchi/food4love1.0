@@ -540,7 +540,11 @@
   }
 
   .gradient-text {
-    background: linear-gradient(135deg, var(--accent) 0%, #f3b33d 100%);
+    background: linear-gradient(
+      135deg,
+      var(--accent) 0%,
+      var(--accent-alt) 100%
+    );
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;

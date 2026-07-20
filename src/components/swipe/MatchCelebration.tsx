@@ -100,7 +100,7 @@ export function MatchCelebration({
                 initial={{ scale: 0, opacity: 0 }}
                 animate={{ scale: 1, opacity: 1 }}
                 transition={{ type: 'spring', bounce: 0.5, delay: 0.6 }}
-                className="z-20 flex h-12 w-12 items-center justify-center rounded-full bg-white text-xl shadow-glow"
+                className="z-20 flex h-12 w-12 items-center justify-center rounded-full bg-[color:var(--card)] text-xl shadow-glow"
               >
                 ❤️
               </motion.div>
