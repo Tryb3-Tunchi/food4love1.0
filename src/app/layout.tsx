@@ -30,6 +30,9 @@ export const metadata: Metadata = {
     description: 'Discover home chefs near you',
     siteName: 'Food4Love',
   },
+  icons: {
+    icon: '/favicon.svg', // Placed inside the /public folder
+  },
   manifest: '/manifest.json',
 }
 

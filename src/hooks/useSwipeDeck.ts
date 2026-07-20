@@ -5,6 +5,7 @@ import { useAuthStore } from '@/stores/useAuthStore'
 export function useSwipeDeck(filters?: {
   cuisines?: string[]
   priceMax?: number
+  distance?: number
 }) {
   const profile = useAuthStore((s) => s.profile)
   return useQuery({

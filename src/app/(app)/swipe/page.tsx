@@ -1,5 +1,5 @@
 'use client'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useSwipeDeck } from '@/hooks/useSwipeDeck'
 import { useAuthStore } from '@/stores/useAuthStore'
 import { useSwipeStore } from '@/stores/useSwipeStore'
@@ -15,6 +15,7 @@ import { createMatch } from '@/services/matches'
 import { SlidersHorizontal, Flame, X, Check } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import toast from 'react-hot-toast'
+import { SwipeAmbientParticles } from '@/components/swipe/SwipeAmbientParticles'
 
 const CUISINES = [
   'Igbo Cuisine',
@@ -49,8 +50,10 @@ export default function SwipePage() {
     matchedProfile,
     clearMatch,
   } = useSwipeStore()
+
   const [matchId, setMatchId] = useState<string>()
   const [showFilter, setShowFilter] = useState(false)
+
   const [filters, setFilters] = useState<Filters>({
     cuisines: [],
     priceMax: 50000,
@@ -64,13 +67,23 @@ export default function SwipePage() {
 
   const activeFilters = filters.cuisines.length > 0 || filters.priceMax < 50000
 
+  // 1. Fetching hook driven smoothly by the committed filter state variables
   const { data, isLoading, refetch } = useSwipeDeck(
-    filters.cuisines.length > 0 || filters.priceMax < 50000
-      ? { cuisines: filters.cuisines, priceMax: filters.priceMax }
+    activeFilters
+      ? {
+          cuisines: filters.cuisines,
+          priceMax: filters.priceMax,
+          distance: filters.distance,
+        }
       : undefined,
   )
 
-  if (data && deck.length === 0) useSwipeStore.getState().setDeck(data)
+  // 2. FIXED: Safe store hydration inside useEffect to prevent infinite rendering cycles
+  useEffect(() => {
+    if (data && deck.length === 0) {
+      useSwipeStore.getState().setDeck(data)
+    }
+  }, [data, deck.length])
 
   const current = deck[currentIndex]
   const next = deck[currentIndex + 1]
@@ -99,7 +112,6 @@ export default function SwipePage() {
     setFilters(pendingFilters)
     useSwipeStore.getState().setDeck([])
     setShowFilter(false)
-    setTimeout(() => refetch(), 100)
   }
 
   const clearFilters = () => {
@@ -107,7 +119,6 @@ export default function SwipePage() {
     setFilters(reset)
     setPendingFilters(reset)
     useSwipeStore.getState().setDeck([])
-    setTimeout(() => refetch(), 100)
   }
 
   const toggleCuisine = (c: string) => {
@@ -127,6 +138,7 @@ export default function SwipePage() {
         fullHeight
         className="px-4 pt-6"
       >
+        <SwipeAmbientParticles />
         <PageHeader title="Discover" icon={Flame} />
         <CardSkeleton />
       </AppPage>
@@ -179,9 +191,7 @@ export default function SwipePage() {
               <SlidersHorizontal
                 className="h-4 w-4"
                 style={{
-                  color: activeFilters
-                    ? 'var(--accent)'
-                    : 'var(--app-text-muted)',
+                  color: activeFilters ? 'var(--accent)' : 'var(--text-3)',
                 }}
               />
               {activeFilters && (
@@ -213,13 +223,13 @@ export default function SwipePage() {
             <div>
               <h3
                 className="mb-2 text-xl font-bold"
-                style={{ color: 'var(--app-text)' }}
+                style={{ color: 'var(--text-1)' }}
               >
                 {activeFilters
                   ? 'No chefs match your filters'
                   : "You've seen everyone!"}
               </h3>
-              <p className="text-sm" style={{ color: 'var(--app-text-muted)' }}>
+              <p className="text-sm" style={{ color: 'var(--text-3)' }}>
                 {activeFilters
                   ? 'Try broadening your search'
                   : 'New chefs join every day. Check back soon.'}
@@ -294,7 +304,7 @@ export default function SwipePage() {
               exit={{ opacity: 0 }}
               className="fixed inset-0 z-40"
               style={{
-                background: 'rgba(0,0,0,0.6)',
+                background: 'rgba(0,0,0,0.4)',
                 backdropFilter: 'blur(4px)',
               }}
               onClick={() => setShowFilter(false)}
@@ -306,32 +316,27 @@ export default function SwipePage() {
               transition={{ type: 'spring', damping: 30, stiffness: 300 }}
               className="fixed bottom-0 left-0 right-0 z-50 mx-auto max-w-lg overflow-hidden rounded-t-3xl"
               style={{
-                background: 'var(--app-sidebar)',
-                border: '1px solid rgba(255,255,255,0.08)',
+                background: 'var(--bg-2)',
+                borderTop: '1px solid var(--border)',
               }}
             >
-              {/* Handle */}
               <div className="flex justify-center pb-1 pt-3">
                 <div
                   className="h-1 w-10 rounded-full"
-                  style={{ background: 'rgba(255,255,255,0.15)' }}
+                  style={{ background: 'var(--border)' }}
                 />
               </div>
 
               <div className="max-h-[80vh] overflow-y-auto px-5 pb-6">
-                {/* Header */}
                 <div className="flex items-center justify-between py-4">
                   <h3
                     className="text-base font-bold"
-                    style={{ color: 'var(--app-text)' }}
+                    style={{ color: 'var(--text-1)' }}
                   >
                     Filter Chefs
                   </h3>
                   <button onClick={() => setShowFilter(false)}>
-                    <X
-                      className="h-5 w-5"
-                      style={{ color: 'var(--app-text-muted)' }}
-                    />
+                    <X className="h-5 w-5" style={{ color: 'var(--text-3)' }} />
                   </button>
                 </div>
 
@@ -339,7 +344,7 @@ export default function SwipePage() {
                 <div className="mb-6">
                   <p
                     className="mb-3 text-sm font-semibold"
-                    style={{ color: 'var(--app-text)' }}
+                    style={{ color: 'var(--text-1)' }}
                   >
                     Cuisine type
                   </p>
@@ -352,11 +357,12 @@ export default function SwipePage() {
                           onClick={() => toggleCuisine(c)}
                           className="flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold transition-all"
                           style={{
+                            // FIXED: Using tokens instead of hardcoded hex values
                             background: selected
-                              ? '#E8390E'
-                              : 'rgba(255,255,255,0.07)',
-                            color: selected ? 'white' : 'rgba(254,243,226,0.6)',
-                            border: `1px solid ${selected ? '#E8390E' : 'rgba(255,255,255,0.1)'}`,
+                              ? 'var(--accent)'
+                              : 'var(--bg-3)',
+                            color: selected ? 'white' : 'var(--text-2)',
+                            border: `1px solid ${selected ? 'var(--accent)' : 'var(--border)'}`,
                           }}
                         >
                           {selected && <Check className="h-3 w-3" />}
@@ -372,13 +378,13 @@ export default function SwipePage() {
                   <div className="mb-3 flex items-center justify-between">
                     <p
                       className="text-sm font-semibold"
-                      style={{ color: 'var(--app-text)' }}
+                      style={{ color: 'var(--text-1)' }}
                     >
                       Max price per meal
                     </p>
                     <span
                       className="text-sm font-bold"
-                      style={{ color: '#E8390E' }}
+                      style={{ color: 'var(--accent)' }}
                     >
                       ₦{pendingFilters.priceMax.toLocaleString()}
                     </span>
@@ -395,11 +401,11 @@ export default function SwipePage() {
                         priceMax: Number(e.target.value),
                       }))
                     }
-                    className="w-full accent-pepper"
+                    className="w-full accent-[color:var(--accent)]"
                   />
                   <div
                     className="mt-1 flex justify-between text-xs"
-                    style={{ color: 'var(--app-text-muted)' }}
+                    style={{ color: 'var(--text-3)' }}
                   >
                     <span>₦2,000</span>
                     <span>₦50,000</span>
