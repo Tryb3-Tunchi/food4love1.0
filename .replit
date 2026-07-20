@@ -1,2 +1,10 @@
+modules = ["nodejs-20"]
 [nix]
 channel = "stable-25_05"
+
+[userenv]
+
+[userenv.shared]
+NEXT_PUBLIC_APP_NAME = "Food4Love"
+NEXT_PUBLIC_SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im95bmhhcXB1cXp2YXltbnRuenFvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIzOTM4NTIsImV4cCI6MjA5Nzk2OTg1Mn0.UO4nnDGN23VmI9hSQiTsVpnl20qIEvN2AtwJTcfhzf0"
+NEXT_PUBLIC_SUPABASE_URL = "https://oynhaqpuqzvaymntnzqo.supabase.co"
