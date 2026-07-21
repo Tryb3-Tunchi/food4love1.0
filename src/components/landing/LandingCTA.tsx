@@ -32,12 +32,11 @@ export function LandingCTA() {
               data-gsap="heading-reveal"
               className="mt-6 font-heading text-3xl font-bold leading-tight text-ink sm:text-4xl"
             >
-              Home chefs deserve a landing page that feels premium too.
+              Turn your kitchen into a consistent income.
             </h2>
             <p className="mt-4 text-base text-body leading-8">
-              We are pulling the product closer to the best parts of modern
-              consumer marketplaces while keeping the softer Food4Love
-              personality.
+              Set your own hours, choose your specials, and build a local
+              following around the meals you love making.
             </p>
             <div className="mt-8 rounded-[1.8rem] bg-white/80 p-5 shadow-sm">
               <p className="text-sm font-semibold text-ink">For cooks</p>
@@ -83,9 +82,8 @@ export function LandingCTA() {
               secret?
             </h2>
             <p className="text-white/78 mt-5 max-w-lg text-base leading-8 sm:text-lg">
-              Browse chefs, save favorites, and make dinner feel thoughtful
-              again. This section now closes the page with warmth instead of a
-              harsh block.
+              Browse chefs nearby, match with the ones that feel right, and
+              build a relationship with the food that feeds you.
             </p>
 
             <div className="mt-8 flex flex-col gap-3 sm:flex-row">

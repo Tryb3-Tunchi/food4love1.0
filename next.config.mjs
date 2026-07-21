@@ -9,6 +9,8 @@ const nextConfig = {
   experimental: {
     optimizePackageImports: ['lucide-react', 'framer-motion'],
   },
+  // Allow Replit's proxied preview to connect
+  allowedDevOrigins: ['*'],
 }
 
 export default nextConfig

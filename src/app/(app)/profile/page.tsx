@@ -159,7 +159,7 @@ export default function ProfilePage() {
             <button
               className="absolute bottom-3 right-3 flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-bold"
               style={{
-                background: 'rgba(255,255,255,0.85)',
+                background: 'var(--card)',
                 color: 'var(--text-2)',
               }}
             >
@@ -271,9 +271,12 @@ export default function ProfilePage() {
               {profile.streak && profile.streak > 1 && (
                 <span
                   className="ml-2 flex items-center gap-0.5 text-xs font-bold"
-                  style={{ color: 'var(--warning)' }}
+                  style={{ color: 'var(--accent-alt)' }}
                 >
-                  <Flame className="h-3 w-3" style={{ color: '#F59E0B' }} />
+                  <Flame
+                    className="h-3 w-3"
+                    style={{ color: 'var(--accent-alt)' }}
+                  />
                   {profile.streak}d streak
                 </span>
               )}
@@ -299,9 +302,9 @@ export default function ProfilePage() {
               style={{
                 background:
                   profile.kyc_status === 'pending'
-                    ? 'rgba(255,217,102,0.15)'
-                    : 'rgba(214,69,69,0.08)',
-                border: `1px solid ${profile.kyc_status === 'pending' ? 'rgba(255,217,102,0.4)' : 'rgba(214,69,69,0.2)'}`,
+                    ? 'color-mix(in srgb, var(--warning) 12%, transparent)'
+                    : 'color-mix(in srgb, var(--danger) 8%, transparent)',
+                border: `1px solid ${profile.kyc_status === 'pending' ? 'color-mix(in srgb, var(--warning) 35%, transparent)' : 'color-mix(in srgb, var(--danger) 22%, transparent)'}`,
               }}
             >
               <Shield
@@ -309,7 +312,7 @@ export default function ProfilePage() {
                 style={{
                   color:
                     profile.kyc_status === 'pending'
-                      ? '#8B6914'
+                      ? 'var(--warning)'
                       : 'var(--danger)',
                 }}
               />
@@ -319,7 +322,7 @@ export default function ProfilePage() {
                   style={{
                     color:
                       profile.kyc_status === 'pending'
-                        ? '#8B6914'
+                        ? 'var(--warning)'
                         : 'var(--danger)',
                   }}
                 >
@@ -368,8 +371,9 @@ export default function ProfilePage() {
             <div
               className="mb-5 flex items-center justify-between rounded-2xl p-4"
               style={{
-                background: 'rgba(232,116,40,0.06)',
-                border: '1px solid rgba(232,116,40,0.15)',
+                background: 'var(--accent-soft)',
+                border:
+                  '1px solid color-mix(in srgb, var(--accent) 18%, transparent)',
               }}
             >
               <div>
@@ -388,7 +392,7 @@ export default function ProfilePage() {
                 className="flex items-center gap-2 rounded-full px-4 py-2.5 text-sm font-bold text-white transition-all active:scale-95"
                 style={{
                   background: 'var(--accent)',
-                  boxShadow: '0 4px 20px rgba(232,116,40,0.3)',
+                  boxShadow: 'var(--shadow-warm)',
                 }}
               >
                 <Calendar className="h-4 w-4" />
@@ -541,8 +545,10 @@ export default function ProfilePage() {
                 onClick={handleLogout}
                 className="flex w-full items-center gap-3 rounded-2xl p-4 transition-all active:scale-[0.99]"
                 style={{
-                  background: 'rgba(214,69,69,0.06)',
-                  border: '1px solid rgba(214,69,69,0.15)',
+                  background:
+                    'color-mix(in srgb, var(--danger) 6%, transparent)',
+                  border:
+                    '1px solid color-mix(in srgb, var(--danger) 18%, transparent)',
                 }}
               >
                 <span
@@ -631,9 +637,9 @@ export default function ProfilePage() {
                         style={{
                           fill:
                             i < Math.round(profile.rating ?? 4.8)
-                              ? '#F59E0B'
+                              ? 'var(--accent-alt)'
                               : 'transparent',
-                          color: '#F59E0B',
+                          color: 'var(--accent-alt)',
                         }}
                       />
                     ))}
@@ -658,7 +664,7 @@ export default function ProfilePage() {
                         <div
                           className="h-full rounded-full"
                           style={{
-                            background: '#F59E0B',
+                            background: 'var(--accent-alt)',
                             width:
                               star === 5 ? '75%' : star === 4 ? '20%' : '5%',
                           }}

@@ -17,7 +17,7 @@ const TRUST_CARDS = [
   {
     value: '4.9/5',
     label: 'average ratings',
-    copy: 'Cleaner trust signals and better food-first storytelling.',
+    copy: 'Meals rated by real buyers, across every neighbourhood.',
     tone: 'bg-blush',
     icon: <Sparkles className="h-5 w-5" />,
     iconTone: 'bg-white/85 text-pepper',
@@ -25,7 +25,7 @@ const TRUST_CARDS = [
   {
     value: '24 min',
     label: 'typical pickup window',
-    copy: 'The product now communicates speed without feeling rushed or loud.',
+    copy: 'Most chefs confirm your order within 15 minutes of your request.',
     tone: 'bg-butter',
     icon: <Clock3 className="h-5 w-5" />,
     iconTone: 'bg-white/85 text-ink',
@@ -55,19 +55,18 @@ export function LandingStats() {
             size="md"
             className="mb-4 border-sage/80 bg-sage text-meadow"
           >
-            Why this feels better
+            Built on trust
           </Badge>
           <h2
             data-gsap="heading-reveal"
             className="text-balance font-heading text-display-lg text-ink"
           >
-            Softer contrast, better hierarchy, and more movement across the
-            whole page.
+            Every meal starts with a match you can trust.
           </h2>
           <p className="mx-auto mt-4 max-w-2xl text-base text-body leading-8 sm:text-lg">
-            This section replaces the heavy dark stats block with a lighter
-            trust story, still informative, but much more aligned with the
-            friendly brand you described.
+            Every chef is verified before going live. Ratings come from real
+            buyers. Prices, pickup windows, and neighbourhoods are always
+            visible upfront.
           </p>
         </motion.div>
 

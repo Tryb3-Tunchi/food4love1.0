@@ -1,0 +1,3 @@
+- [Swipe page brace bug](swipe-page-brace.md) — handleSwipe was missing closing brace; applyFilters/clearFilters/toggleCuisine were accidentally inside it, causing TS1005 at EOF.
+- [Profiles service gap](profiles-service.md) — profiles.ts only exported getSwipeDeck; getProfile and updateProfile were missing, breaking useProfile hook and 4 onboarding pages.
+- [Design system token rules](design-token-rules.md) — hardcoded rgba/hex values should use CSS vars; key tokens for colour work.

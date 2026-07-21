@@ -13,31 +13,13 @@ function MatchSkeleton() {
   return (
     <div
       className="flex items-center gap-3 rounded-2xl p-4"
-      style={{ background: 'rgba(255,255,255,0.04)' }}
+      style={{ background: 'var(--surface-muted)' }}
     >
-      <Skeleton
-        className="h-14 w-14 shrink-0 rounded-full"
-        style={{ background: 'rgba(255,255,255,0.08)' } as React.CSSProperties}
-      />
+      <Skeleton className="h-14 w-14 shrink-0 rounded-full" />
       <div className="flex-1 space-y-2">
-        <Skeleton
-          className="h-4 w-32"
-          style={
-            { background: 'rgba(255,255,255,0.08)' } as React.CSSProperties
-          }
-        />
-        <Skeleton
-          className="h-3 w-48"
-          style={
-            { background: 'rgba(255,255,255,0.05)' } as React.CSSProperties
-          }
-        />
-        <Skeleton
-          className="h-3 w-24"
-          style={
-            { background: 'rgba(255,255,255,0.05)' } as React.CSSProperties
-          }
-        />
+        <Skeleton className="h-4 w-32" />
+        <Skeleton className="h-3 w-48" />
+        <Skeleton className="h-3 w-24" />
       </div>
     </div>
   )
@@ -51,8 +33,8 @@ export default function MatchesPage() {
       <PageHeader
         title="Your Matches"
         icon={Heart}
-        iconColor="#E8390E"
-        iconBg="rgba(232,57,14,0.12)"
+        iconColor="var(--accent)"
+        iconBg="var(--accent-soft)"
         badge={matches?.length ? `${matches.length} active` : undefined}
       />
 
@@ -82,13 +64,13 @@ export default function MatchesPage() {
 
           <h3
             className="mb-2 text-xl font-bold"
-            style={{ color: 'var(--app-text)' }}
+            style={{ color: 'var(--text-1)' }}
           >
             No matches yet
           </h3>
           <p
             className="mb-8 max-w-xs text-sm leading-relaxed"
-            style={{ color: 'var(--app-text-muted)' }}
+            style={{ color: 'var(--text-3)' }}
           >
             When a chef likes you back, they appear here. You have 24 hours to
             start a conversation before it expires.
@@ -98,19 +80,26 @@ export default function MatchesPage() {
           <div
             className="mb-6 w-full max-w-sm rounded-2xl p-4 text-left"
             style={{
-              background: 'rgba(245,158,11,0.08)',
-              border: '1px solid rgba(245,158,11,0.15)',
+              background: 'var(--accent-soft)',
+              border:
+                '1px solid color-mix(in srgb, var(--accent-alt) 30%, transparent)',
             }}
           >
             <div className="mb-2 flex items-center gap-2">
-              <Sparkles className="h-4 w-4" style={{ color: '#F59E0B' }} />
-              <span className="text-xs font-bold" style={{ color: '#F59E0B' }}>
+              <Sparkles
+                className="h-4 w-4"
+                style={{ color: 'var(--accent-alt)' }}
+              />
+              <span
+                className="text-xs font-bold"
+                style={{ color: 'var(--accent-alt)' }}
+              >
                 Pro tip
               </span>
             </div>
             <p
               className="text-xs leading-relaxed"
-              style={{ color: 'rgba(254,247,237,0.45)' }}
+              style={{ color: 'var(--text-2)' }}
             >
               Chefs with a complete profile and daily special get 3× more
               matches. Swipe right on chefs you genuinely want cooking for you.
@@ -119,8 +108,11 @@ export default function MatchesPage() {
 
           <Link
             href="/swipe"
-            className="inline-flex items-center gap-2 rounded-full bg-pepper px-8 py-4 font-bold text-white transition-all hover:bg-[#D4330C] active:scale-95"
-            style={{ boxShadow: '0 4px 24px rgba(232,57,14,0.3)' }}
+            className="inline-flex items-center gap-2 rounded-full px-8 py-4 font-bold text-white transition-all active:scale-95"
+            style={{
+              background: 'var(--accent)',
+              boxShadow: 'var(--shadow-warm)',
+            }}
           >
             Start Swiping →
           </Link>
@@ -159,10 +151,16 @@ export default function MatchesPage() {
                     />
                     {!match.last_message && (
                       <span
-                        className="absolute -right-0.5 -top-0.5 h-3.5 w-3.5 rounded-full border-2 bg-pepper"
-                        style={{ borderColor: 'var(--app-bg)' }}
+                        className="absolute -right-0.5 -top-0.5 h-3.5 w-3.5 rounded-full border-2"
+                        style={{
+                          background: 'var(--accent)',
+                          borderColor: 'var(--app-bg)',
+                        }}
                       >
-                        <span className="absolute inset-0 animate-ping rounded-full bg-pepper opacity-75" />
+                        <span
+                          className="absolute inset-0 animate-ping rounded-full opacity-75"
+                          style={{ background: 'var(--accent)' }}
+                        />
                       </span>
                     )}
                   </div>
@@ -172,12 +170,15 @@ export default function MatchesPage() {
                     <div className="mb-0.5 flex items-center justify-between">
                       <span
                         className="truncate text-sm font-bold"
-                        style={{ color: 'var(--app-text)' }}
+                        style={{ color: 'var(--text-1)' }}
                       >
                         {chef.full_name}
                       </span>
                       {match.unread_count ? (
-                        <span className="ml-2 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-pepper text-[10px] font-bold text-white">
+                        <span
+                          className="ml-2 flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px] font-bold text-white"
+                          style={{ background: 'var(--accent)' }}
+                        >
                           {match.unread_count > 9 ? '9+' : match.unread_count}
                         </span>
                       ) : null}
@@ -185,10 +186,10 @@ export default function MatchesPage() {
 
                     <p
                       className="mb-1.5 truncate text-sm"
-                      style={{ color: 'var(--app-text-muted)' }}
+                      style={{ color: 'var(--text-3)' }}
                     >
                       {match.last_message?.content ?? (
-                        <span style={{ color: 'rgba(232,57,14,0.7)' }}>
+                        <span style={{ color: 'var(--accent)' }}>
                           ✨ New match — say hi!
                         </span>
                       )}
@@ -199,16 +200,18 @@ export default function MatchesPage() {
                         className="h-3 w-3 shrink-0"
                         style={{
                           color: isExpiringSoon
-                            ? '#E8390E'
-                            : 'rgba(255,255,255,0.25)',
+                            ? 'var(--accent)'
+                            : 'var(--text-3)',
+                          opacity: isExpiringSoon ? 1 : 0.5,
                         }}
                       />
                       <span
                         className="text-[11px]"
                         style={{
                           color: isExpiringSoon
-                            ? '#E8390E'
-                            : 'rgba(255,255,255,0.3)',
+                            ? 'var(--accent)'
+                            : 'var(--text-3)',
+                          opacity: isExpiringSoon ? 1 : 0.6,
                         }}
                       >
                         {isExpired
@@ -219,8 +222,8 @@ export default function MatchesPage() {
                         <span
                           className="ml-1 rounded-full px-1.5 py-0.5 text-[10px] font-bold"
                           style={{
-                            background: 'rgba(232,57,14,0.15)',
-                            color: '#E8390E',
+                            background: 'var(--accent-soft)',
+                            color: 'var(--accent)',
                           }}
                         >
                           Act fast
@@ -231,7 +234,7 @@ export default function MatchesPage() {
 
                   <ChevronRight
                     className="h-4 w-4 shrink-0 transition-opacity group-hover:opacity-50"
-                    style={{ color: 'var(--app-text)', opacity: 0.2 }}
+                    style={{ color: 'var(--text-3)', opacity: 0.3 }}
                   />
                 </Link>
               </motion.div>

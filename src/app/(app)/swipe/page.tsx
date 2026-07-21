@@ -90,22 +90,28 @@ export default function SwipePage() {
 
   const handleSwipe = async (action: 'like' | 'pass') => {
     if (!profile || !current) return
-    nextCard()
-    if (action === 'like') {
-      try {
-        await recordSwipe(profile.id, current.id, 'like')
-        const mutual = await checkMutualLike(profile.id, current.id)
-        if (mutual) {
-          const m = await createMatch(profile.id, current.id)
-          setMatchId(m.id)
-          setMatch(current)
+
+    // Trigger the animation first
+    // The SwipeCard component will handle its own animation based on user drag
+    // We delay the state update to allow animation to complete
+    setTimeout(async () => {
+      nextCard()
+      if (action === 'like') {
+        try {
+          await recordSwipe(profile.id, current.id, 'like')
+          const mutual = await checkMutualLike(profile.id, current.id)
+          if (mutual) {
+            const m = await createMatch(profile.id, current.id)
+            setMatchId(m.id)
+            setMatch(current)
+          }
+        } catch {
+          toast.error('Something went wrong')
         }
-      } catch {
-        toast.error('Something went wrong')
+      } else {
+        await recordSwipe(profile.id, current.id, 'pass').catch(() => {})
       }
-    } else {
-      await recordSwipe(profile.id, current.id, 'pass').catch(() => {})
-    }
+    }, 300) // Match this delay with the animation duration in SwipeCard
   }
 
   const applyFilters = () => {

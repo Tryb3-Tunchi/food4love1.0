@@ -60,12 +60,11 @@ export function LandingChefs() {
               data-gsap="heading-reveal"
               className="text-balance font-heading text-display-lg text-ink"
             >
-              A chef marketplace that looks more curated, colorful, and premium.
+              Real home chefs. Real meals. Ready near you.
             </h2>
             <p className="mt-4 text-base text-body leading-8 sm:text-lg">
-              Instead of flat cards repeating forever, we are giving each chef
-              and collection room to breathe with warmer layouts and softer
-              color contrast.
+              Every profile is verified, rated, and ready to chat. Browse by
+              cuisine, neighbourhood, or tonight&apos;s craving.
             </p>
           </div>
 
@@ -106,13 +105,12 @@ export function LandingChefs() {
                     Chef spotlight
                   </Badge>
                   <h3 className="mt-4 font-heading text-3xl font-bold leading-tight text-ink sm:text-4xl">
-                    Chef Adaeze&apos;s Sunday comfort menu is the kind of
-                    feature card this homepage needed.
+                    Chef Adaeze&apos;s Sunday comfort menu. Soups, rice, and
+                    portions for the whole house.
                   </h3>
                   <p className="mt-4 max-w-md text-body text-sm leading-7 sm:text-base">
-                    Rich soups, clean plating, and portion options for one, two,
-                    or the whole house. This is the softer, more premium
-                    storytelling direction.
+                    Rich soups, clean plating, and portions for one, two, or a
+                    full table. Delivery and pickup across Lekki, Lagos.
                   </p>
 
                   <div className="mt-8 grid grid-cols-2 gap-3 text-sm">
@@ -195,10 +193,10 @@ export function LandingChefs() {
                 <div className="flex items-start justify-between gap-4">
                   <div>
                     <p className="text-sm font-semibold uppercase tracking-[0.18em] text-pepper/70">
-                      For dinner plans
+                      Browse by mood
                     </p>
                     <h3 className="mt-3 font-heading text-2xl font-bold text-ink">
-                      Colorful category cards, not the old flat blocks.
+                      Find exactly what you&apos;re craving tonight.
                     </h3>
                   </div>
                   <div className="rounded-full bg-white/80 px-3 py-1 text-xs font-semibold text-pepper">

@@ -276,7 +276,7 @@ export default function ChatPage() {
             style={{
               background: input.trim() ? 'var(--accent)' : 'var(--bg-2)',
               boxShadow: input.trim()
-                ? '0 4px 16px rgba(232,116,40,0.3)'
+                ? 'var(--shadow-warm, 0 4px 16px rgba(232,116,40,0.3))'
                 : 'none',
             }}
           >

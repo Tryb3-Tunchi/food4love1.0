@@ -1,6 +1,6 @@
 'use client'
 import { useState, useRef } from 'react'
-import { Send, Sparkles } from 'lucide-react'
+import { Send } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 interface ChatInputProps {
@@ -24,7 +24,13 @@ export function ChatInput({ onSend, loading, suggestions }: ChatInputProps) {
   }
 
   return (
-    <div className="safe-bottom border-t border-fog bg-white p-3 dark:border-coal dark:bg-smoke">
+    <div
+      className="safe-bottom border-t p-3"
+      style={{
+        background: 'var(--card)',
+        borderColor: 'var(--border)',
+      }}
+    >
       {showSuggestions && suggestions?.length && (
         <div className="scrollbar-none mb-2 flex gap-2 overflow-x-auto pb-1">
           {suggestions.map((s) => (
@@ -34,7 +40,13 @@ export function ChatInput({ onSend, loading, suggestions }: ChatInputProps) {
                 setValue(s)
                 setShowSuggestions(false)
               }}
-              className="shrink-0 rounded-full border border-pepper/30 bg-pepper/5 px-3 py-1 text-xs text-pepper transition-all hover:bg-pepper/10"
+              className="shrink-0 rounded-full px-3 py-1 text-xs transition-all"
+              style={{
+                background: 'color-mix(in srgb, var(--accent) 8%, transparent)',
+                border:
+                  '1px solid color-mix(in srgb, var(--accent) 28%, transparent)',
+                color: 'var(--accent)',
+              }}
             >
               {s}
             </button>
@@ -42,7 +54,13 @@ export function ChatInput({ onSend, loading, suggestions }: ChatInputProps) {
         </div>
       )}
       <div className="flex items-end gap-2">
-        <div className="flex-1 overflow-hidden rounded-xl border border-fog bg-fog dark:border-coal dark:bg-coal">
+        <div
+          className="flex-1 overflow-hidden rounded-xl"
+          style={{
+            background: 'var(--bg-2)',
+            border: '1px solid var(--border)',
+          }}
+        >
           <textarea
             ref={ref}
             value={value}
@@ -55,21 +73,30 @@ export function ChatInput({ onSend, loading, suggestions }: ChatInputProps) {
             }}
             placeholder="Say something tasty..."
             rows={1}
-            className="max-h-24 w-full resize-none bg-transparent px-3 py-2.5 text-sm text-ink outline-none placeholder:text-mist dark:text-cream"
-            style={{ height: 'auto' }}
+            className="max-h-24 w-full resize-none bg-transparent px-3 py-2.5 text-sm outline-none"
+            style={{
+              color: 'var(--text-1)',
+              height: 'auto',
+            }}
           />
         </div>
         <button
           onClick={handleSend}
           disabled={!value.trim() || loading}
           className={cn(
-            'flex h-10 w-10 shrink-0 items-center justify-center rounded-xl transition-all',
-            value.trim()
-              ? 'bg-pepper text-white shadow-glow active:scale-95'
-              : 'bg-fog text-mist dark:bg-coal',
+            'flex h-10 w-10 shrink-0 items-center justify-center rounded-xl transition-all active:scale-95 disabled:opacity-40',
           )}
+          style={{
+            background: value.trim() ? 'var(--accent)' : 'var(--bg-2)',
+            boxShadow: value.trim()
+              ? 'var(--shadow-warm, 0 4px 16px rgba(232,116,40,0.3))'
+              : 'none',
+          }}
         >
-          <Send className="h-4 w-4" />
+          <Send
+            className="h-4 w-4"
+            style={{ color: value.trim() ? 'white' : 'var(--text-3)' }}
+          />
         </button>
       </div>
     </div>
