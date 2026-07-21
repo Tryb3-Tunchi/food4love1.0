@@ -24,14 +24,14 @@ The workflow **Start application** runs `npm run dev` and serves on port 5000.
 
 Set in Replit Secrets / Env Vars:
 
-| Key | Type | Purpose |
-|-----|------|---------|
-| `NEXT_PUBLIC_SUPABASE_URL` | env var | Supabase project URL |
-| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | env var | Supabase public anon key |
-| `SUPABASE_SERVICE_ROLE_KEY` | secret | Supabase service role (server-only) |
-| `GOOGLE_GENERATIVE_AI_API_KEY` | secret | Google Gemini API key |
-| `NEXT_PUBLIC_APP_URL` | env var | Public app URL |
-| `NEXT_PUBLIC_APP_NAME` | env var | App name (Food4Love) |
+| Key                             | Type    | Purpose                             |
+| ------------------------------- | ------- | ----------------------------------- |
+| `NEXT_PUBLIC_SUPABASE_URL`      | env var | Supabase project URL                |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | env var | Supabase public anon key            |
+| `SUPABASE_SERVICE_ROLE_KEY`     | secret  | Supabase service role (server-only) |
+| `GOOGLE_GENERATIVE_AI_API_KEY`  | secret  | Google Gemini API key               |
+| `NEXT_PUBLIC_APP_URL`           | env var | Public app URL                      |
+| `NEXT_PUBLIC_APP_NAME`          | env var | App name (Food4Love)                |
 
 ## Key routes
 
@@ -57,6 +57,7 @@ Set in Replit Secrets / Env Vars:
 ## Supabase setup
 
 If starting with a fresh Supabase project:
+
 1. Run `supabase-schema.sql` in the SQL Editor
 2. Create storage buckets: `profile-photos` (public) and `kyc-documents` (private)
 3. Enable Realtime for `messages` and `matches` tables

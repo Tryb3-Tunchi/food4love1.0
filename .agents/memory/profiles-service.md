@@ -4,6 +4,7 @@ description: profiles.ts only had getSwipeDeck; getProfile and updateProfile wer
 ---
 
 ## Rule
+
 `src/services/profiles.ts` — added `getProfile(id: string): Promise<Profile>` and `updateProfile(id: string, updates: Partial<Profile>): Promise<Profile>` using Supabase `.from('profiles')` queries. These were imported by `useProfile.ts`, `onboarding/photos`, `onboarding/role`, `onboarding/setup`, and `AppTour`.
 
 **Why:** The service file was scaffolded with only the swipe-deck query. The hook and pages were written expecting the standard profile CRUD functions to exist.
