@@ -83,7 +83,13 @@ function ChefMapCard({
                 className="flex items-center gap-0.5 text-xs font-semibold"
                 style={{ color: 'var(--text-2)' }}
               >
-                <Star className="h-3 w-3 fill-amber-400 text-amber-400" />
+                <Star
+                  className="h-3 w-3"
+                  style={{
+                    fill: 'var(--accent-alt)',
+                    color: 'var(--accent-alt)',
+                  }}
+                />
                 {chef.rating}
               </span>
               <span
@@ -101,8 +107,9 @@ function ChefMapCard({
           <div
             className="mt-3 flex items-center justify-between rounded-xl p-3"
             style={{
-              background: 'rgba(232,116,40,0.08)',
-              border: '1px solid rgba(232,116,40,0.15)',
+              background: 'var(--accent-soft)',
+              border:
+                '1px solid color-mix(in srgb, var(--accent) 18%, transparent)',
             }}
           >
             <div className="min-w-0 flex-1">
@@ -134,7 +141,7 @@ function ChefMapCard({
             className="flex-1 rounded-2xl py-3 text-sm font-bold text-white transition-all active:scale-95"
             style={{
               background: 'var(--accent)',
-              boxShadow: '0 4px 16px rgba(232,116,40,0.3)',
+              boxShadow: 'var(--shadow-warm, 0 4px 16px rgba(232,116,40,0.3))',
             }}
           >
             Like Chef ❤️
@@ -159,7 +166,6 @@ function ChefMapCard({
 export default function MapPage() {
   const [selected, setSelected] = useState<string | null>(null)
   const [search, setSearch] = useState('')
-  const [mapLoaded, setMapLoaded] = useState(false)
 
   const filtered = MOCK_MAP_LOCATIONS.filter(
     (l) =>
@@ -227,7 +233,6 @@ export default function MapPage() {
           className="h-full w-full"
           style={{ background: '#FFF5E8' }}
           zoomControl={false}
-          whenReady={() => setMapLoaded(true)}
         >
           <TileLayer
             url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
@@ -237,14 +242,23 @@ export default function MapPage() {
             if (typeof window === 'undefined') return null
             // eslint-disable-next-line @typescript-eslint/no-var-requires
             const L = require('leaflet')
+            // CSS vars can't be used inside Leaflet's divIcon HTML string;
+            // read computed values at runtime so markers still respect the theme.
+            const root = document.documentElement
+            const accentHex =
+              getComputedStyle(root).getPropertyValue('--accent').trim() ||
+              '#E87428'
+            const accentDark =
+              getComputedStyle(root).getPropertyValue('--accent-dark').trim() ||
+              '#D9651C'
             const icon = L.divIcon({
               html: `<div style="
                 width:44px;height:44px;border-radius:50%;
-                background:${selected === loc.id ? '#E87428' : '#FFFFFF'};
-                border:3px solid ${selected === loc.id ? '#D9651C' : '#E8DED5'};
+                background:${selected === loc.id ? accentHex : '#FFFFFF'};
+                border:3px solid ${selected === loc.id ? accentDark : '#E8DED5'};
                 display:flex;align-items:center;justify-content:center;
                 font-size:22px;cursor:pointer;
-                box-shadow:0 4px 16px rgba(232,116,40,${selected === loc.id ? '0.4' : '0.15'});
+                box-shadow:0 4px 16px rgba(0,0,0,${selected === loc.id ? '0.25' : '0.1'});
                 transition:all 0.2s ease;
               ">${loc.emoji}</div>`,
               className: '',
@@ -276,20 +290,20 @@ export default function MapPage() {
                       style={{
                         fontWeight: 700,
                         fontSize: 13,
-                        color: '#2F241F',
+                        color: 'var(--text-1)',
                         marginBottom: 2,
                       }}
                     >
                       {loc.name}
                     </p>
-                    <p style={{ fontSize: 11, color: '#9A8E86' }}>
+                    <p style={{ fontSize: 11, color: 'var(--text-3)' }}>
                       {loc.cuisine}
                     </p>
                     <p
                       style={{
                         fontSize: 12,
                         fontWeight: 700,
-                        color: '#E87428',
+                        color: 'var(--accent)',
                         marginTop: 4,
                       }}
                     >

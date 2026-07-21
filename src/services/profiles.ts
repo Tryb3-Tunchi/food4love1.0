@@ -1,45 +1,63 @@
-import { createClient } from '@/lib/supabase/client'
+import { supabase } from '@/lib/supabase'
 import { Profile } from '@/types/db'
 
-const sb = () => createClient()
+export async function getProfile(id: string): Promise<Profile> {
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('*')
+    .eq('id', id)
+    .single()
 
-export async function getProfile(id: string): Promise<Profile | null> {
-  const { data } = await sb().from('profiles').select('*').eq('id', id).single()
-  return data
+  if (error) throw error
+  return data as Profile
 }
 
-export async function updateProfile(id: string, updates: Partial<Profile>) {
-  const { data, error } = await sb()
+export async function updateProfile(
+  id: string,
+  updates: Partial<Profile>,
+): Promise<Profile> {
+  const { data, error } = await supabase
     .from('profiles')
     .update(updates)
     .eq('id', id)
     .select()
     .single()
+
   if (error) throw error
-  return data
+  return data as Profile
 }
 
 export async function getSwipeDeck(
-  userId: string,
-  filters?: { cuisines?: string[]; priceMax?: number },
-): Promise<Profile[]> {
-  let query = sb()
+  userId?: string,
+  filters?: { cuisines?: string[]; priceMax?: number; distance?: number },
+) {
+  let query = supabase
     .from('profiles')
-    .select('*, daily_special:daily_specials(*)')
-    .eq('role', 'cook')
+    .select('*')
+    .eq('role', 'cook') // <-- MUST BE 'cook' NOT 'chef'
     .eq('onboarding_complete', true)
-    .neq('id', userId)
-    .not(
-      'id',
-      'in',
-      `(SELECT swiped_id FROM swipes WHERE swiper_id = '${userId}')`,
-    )
-    .limit(20)
 
-  if (filters?.cuisines?.length)
+  // Exclude current user if logged in
+  if (userId) {
+    query = query.neq('id', userId)
+  }
+
+  // Apply price filter if provided
+  if (filters?.priceMax) {
+    query = query.lte('price_min', filters.priceMax)
+  }
+
+  // Apply cuisines filter if provided
+  if (filters?.cuisines && filters.cuisines.length > 0) {
     query = query.overlaps('cuisines', filters.cuisines)
-  if (filters?.priceMax) query = query.lte('price_min', filters.priceMax)
+  }
 
-  const { data } = await query
-  return data ?? []
+  const { data, error } = await query
+
+  if (error) {
+    console.error('Error in getSwipeDeck:', error)
+    return []
+  }
+
+  return data || []
 }

@@ -107,7 +107,7 @@ export function LandingHero() {
               <Button
                 size="xl"
                 pill
-                className="bg-meadow text-white shadow-[0_16px_40px_rgba(47,106,67,0.18)] hover:bg-herb"
+                className="bg-pepper text-white shadow-[0_16px_40px_rgba(232,90,42,0.22)] hover:bg-[#d4330c]"
                 rightIcon={<ArrowRight className="h-4 w-4" />}
               >
                 Find a chef
