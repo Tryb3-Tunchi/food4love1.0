@@ -98,18 +98,17 @@ export function LandingHow() {
             size="md"
             className="mb-4 border-sage/80 bg-mint text-meadow"
           >
-            Move through the app naturally
+            How it works
           </Badge>
           <h2
             data-gsap="heading-reveal"
             className="text-balance font-heading text-display-lg text-ink"
           >
-            Browse, swipe, and book through a homepage that feels alive.
+            Swipe through real home chefs. Chat directly. Book a meal.
           </h2>
           <p className="mx-auto mt-4 max-w-2xl text-base text-body leading-8 sm:text-lg">
-            We are leaning into richer card color, softer shapes, and gentle
-            motion so each section keeps telling the product story as you
-            scroll.
+            Every chef profile shows their specialties, prices, location, and
+            ratings from real buyers. Nothing generic, nothing guessed.
           </p>
         </motion.div>
 

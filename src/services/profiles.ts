@@ -1,4 +1,31 @@
 import { supabase } from '@/lib/supabase'
+import { Profile } from '@/types/db'
+
+export async function getProfile(id: string): Promise<Profile> {
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('*')
+    .eq('id', id)
+    .single()
+
+  if (error) throw error
+  return data as Profile
+}
+
+export async function updateProfile(
+  id: string,
+  updates: Partial<Profile>,
+): Promise<Profile> {
+  const { data, error } = await supabase
+    .from('profiles')
+    .update(updates)
+    .eq('id', id)
+    .select()
+    .single()
+
+  if (error) throw error
+  return data as Profile
+}
 
 export async function getSwipeDeck(
   userId?: string,

@@ -112,6 +112,7 @@ export default function SwipePage() {
         await recordSwipe(profile.id, current.id, 'pass').catch(() => {})
       }
     }, 300) // Match this delay with the animation duration in SwipeCard
+  }
 
   const applyFilters = () => {
     setFilters(pendingFilters)
