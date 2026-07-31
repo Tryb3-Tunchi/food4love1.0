@@ -12,6 +12,10 @@ export default async function AppLayout({
     data: { user },
   } = await sb.auth.getUser()
   if (!user) redirect('/login')
-  return <>{children}
-    <BottomNav /></>
+  return (
+    <>
+      {children}
+      <BottomNav />
+    </>
+  )
 }
