@@ -51,18 +51,22 @@
     --app-bg: var(--bg);
     --app-text: var(--text-1);
     --app-text-muted: var(--text-3);
-    --app-sidebar: linear-gradient(180deg,
-        rgba(255, 249, 242, 0.95),
-        rgba(255, 243, 230, 0.9));
+    --app-sidebar: linear-gradient(
+      180deg,
+      rgba(255, 249, 242, 0.95),
+      rgba(255, 243, 230, 0.9)
+    );
     --theme-lead: #4b8b57;
     --theme-lead-strong: #2f6a43;
     --theme-soft: rgba(221, 235, 212, 0.9);
     --theme-soft-2: rgba(249, 221, 211, 0.72);
     --theme-ring: rgba(75, 139, 87, 0.16);
     --theme-card: rgba(255, 255, 255, 0.74);
-    --theme-panel: linear-gradient(180deg,
-        rgba(255, 255, 255, 0.72),
-        rgba(255, 247, 238, 0.92));
+    --theme-panel: linear-gradient(
+      180deg,
+      rgba(255, 255, 255, 0.72),
+      rgba(255, 247, 238, 0.92)
+    );
   }
 
   html.hunger {
@@ -102,18 +106,22 @@
     --app-bg: var(--bg);
     --app-text: var(--text-1);
     --app-text-muted: var(--text-3);
-    --app-sidebar: linear-gradient(180deg,
-        rgba(30, 21, 18, 0.98),
-        rgba(41, 29, 25, 0.92));
+    --app-sidebar: linear-gradient(
+      180deg,
+      rgba(30, 21, 18, 0.98),
+      rgba(41, 29, 25, 0.92)
+    );
     --theme-lead: #ff9352;
     --theme-lead-strong: #ff7a43;
     --theme-soft: rgba(255, 122, 67, 0.12);
     --theme-soft-2: rgba(243, 179, 61, 0.12);
     --theme-ring: rgba(255, 122, 67, 0.18);
     --theme-card: rgba(48, 34, 29, 0.84);
-    --theme-panel: linear-gradient(180deg,
-        rgba(52, 37, 32, 0.88),
-        rgba(41, 29, 25, 0.95));
+    --theme-panel: linear-gradient(
+      180deg,
+      rgba(52, 37, 32, 0.88),
+      rgba(41, 29, 25, 0.95)
+    );
   }
 
   .scrollbar-hide {
@@ -124,8 +132,6 @@
   .scrollbar-hide::-webkit-scrollbar {
     display: none;
   }
-
-
 
   .theme-buyer {
     --accent: #4b8b57;
@@ -140,9 +146,11 @@
     --theme-soft-2: rgba(233, 221, 246, 0.86);
     --theme-ring: rgba(75, 139, 87, 0.16);
     --theme-card: rgba(255, 255, 255, 0.76);
-    --theme-panel: linear-gradient(180deg,
-        rgba(255, 255, 255, 0.76),
-        rgba(239, 247, 234, 0.92));
+    --theme-panel: linear-gradient(
+      180deg,
+      rgba(255, 255, 255, 0.76),
+      rgba(239, 247, 234, 0.92)
+    );
   }
 
   .theme-cook {
@@ -158,9 +166,11 @@
     --theme-soft-2: rgba(246, 227, 166, 0.88);
     --theme-ring: rgba(232, 90, 42, 0.16);
     --theme-card: rgba(255, 255, 255, 0.76);
-    --theme-panel: linear-gradient(180deg,
-        rgba(255, 255, 255, 0.76),
-        rgba(255, 243, 230, 0.94));
+    --theme-panel: linear-gradient(
+      180deg,
+      rgba(255, 255, 255, 0.76),
+      rgba(255, 243, 230, 0.94)
+    );
   }
 
   * {
@@ -185,12 +195,16 @@
     color: var(--text-1);
     background:
       radial-gradient(circle at top, rgba(255, 143, 63, 0.14), transparent 34%),
-      radial-gradient(circle at 18% 18%,
+      radial-gradient(
+        circle at 18% 18%,
         rgba(232, 90, 42, 0.08),
-        transparent 22%),
-      radial-gradient(circle at 82% 24%,
+        transparent 22%
+      ),
+      radial-gradient(
+        circle at 82% 24%,
         rgba(143, 203, 107, 0.06),
-        transparent 20%),
+        transparent 20%
+      ),
       linear-gradient(180deg, var(--bg) 0%, #fff6ef 100%);
     transition:
       background 0.35s ease,
@@ -267,12 +281,16 @@
     inset: 0;
     pointer-events: none;
     background:
-      radial-gradient(circle at top right,
+      radial-gradient(
+        circle at top right,
         rgba(255, 143, 63, 0.12),
-        transparent 24%),
-      radial-gradient(circle at bottom left,
+        transparent 24%
+      ),
+      radial-gradient(
+        circle at bottom left,
         rgba(232, 90, 42, 0.08),
-        transparent 22%);
+        transparent 22%
+      );
     opacity: 0.9;
   }
 
@@ -291,9 +309,11 @@
   }
 
   .f4l-panel {
-    background: linear-gradient(180deg,
-        rgba(255, 255, 255, 0.76),
-        rgba(255, 247, 238, 0.92));
+    background: linear-gradient(
+      180deg,
+      rgba(255, 255, 255, 0.76),
+      rgba(255, 247, 238, 0.92)
+    );
     backdrop-filter: blur(18px);
     -webkit-backdrop-filter: blur(18px);
     border: 1px solid rgba(233, 214, 197, 0.82);
@@ -381,13 +401,17 @@
     position: relative;
     overflow: hidden;
     background:
-      radial-gradient(circle at top,
+      radial-gradient(
+        circle at top,
         rgba(255, 255, 255, 0.14),
-        transparent 34%),
-      linear-gradient(160deg,
+        transparent 34%
+      ),
+      linear-gradient(
+        160deg,
         var(--theme-lead-strong) 0%,
         var(--theme-lead) 52%,
-        #8fc46b 100%);
+        #8fc46b 100%
+      );
   }
 
   .f4l-glass {
@@ -468,14 +492,18 @@
 
   .f4l-skeleton {
     background:
-      linear-gradient(110deg,
+      linear-gradient(
+        110deg,
         rgba(255, 255, 255, 0.45) 8%,
         rgba(255, 255, 255, 0.7) 18%,
-        rgba(255, 255, 255, 0.45) 33%),
-      linear-gradient(90deg,
+        rgba(255, 255, 255, 0.45) 33%
+      ),
+      linear-gradient(
+        90deg,
         var(--divider) 0%,
         var(--border) 50%,
-        var(--divider) 100%);
+        var(--divider) 100%
+      );
     background-size: 220% 100%;
     animation: shimmer 1.8s linear infinite;
     border-radius: 0.75rem;
@@ -512,17 +540,21 @@
     overflow: hidden;
     border-radius: var(--radius-2xl);
     padding: 2rem 1.5rem;
-    background: linear-gradient(180deg,
-        rgba(255, 255, 255, 0.82),
-        rgba(255, 243, 230, 0.86));
+    background: linear-gradient(
+      180deg,
+      rgba(255, 255, 255, 0.82),
+      rgba(255, 243, 230, 0.86)
+    );
     border: 1px solid rgba(233, 214, 197, 0.86);
     box-shadow: var(--shadow-card);
   }
 
   .gradient-text {
-    background: linear-gradient(135deg,
-        var(--accent) 0%,
-        var(--accent-alt) 100%);
+    background: linear-gradient(
+      135deg,
+      var(--accent) 0%,
+      var(--accent-alt) 100%
+    );
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
@@ -715,12 +747,10 @@
   .landing-marquee-right {
     animation: none !important;
   }
-
-
 }
 
 /* Range slider styling for filter modal */
-input[type="range"] {
+input[type='range'] {
   -webkit-appearance: none;
   appearance: none;
   background: transparent;
@@ -728,13 +758,13 @@ input[type="range"] {
   width: 100%;
 }
 
-input[type="range"]::-webkit-slider-runnable-track {
+input[type='range']::-webkit-slider-runnable-track {
   height: 6px;
   border-radius: 999px;
   background: var(--bg-3);
 }
 
-input[type="range"]::-webkit-slider-thumb {
+input[type='range']::-webkit-slider-thumb {
   -webkit-appearance: none;
   appearance: none;
   margin-top: -5px;
@@ -747,17 +777,17 @@ input[type="range"]::-webkit-slider-thumb {
   transition: transform 0.15s ease;
 }
 
-input[type="range"]::-webkit-slider-thumb:hover {
+input[type='range']::-webkit-slider-thumb:hover {
   transform: scale(1.15);
 }
 
-input[type="range"]::-moz-range-track {
+input[type='range']::-moz-range-track {
   height: 6px;
   border-radius: 999px;
   background: var(--bg-3);
 }
 
-input[type="range"]::-moz-range-thumb {
+input[type='range']::-moz-range-thumb {
   height: 16px;
   width: 16px;
   border-radius: 50%;
