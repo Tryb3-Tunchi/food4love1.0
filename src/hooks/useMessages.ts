@@ -1,47 +1,62 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { getMessages, sendMessage, markMessagesRead } from '@/services/messages'
-import { useAuthStore } from '@/stores/useAuthStore'
-import { useEffect } from 'react'
-import { createClient } from '@/lib/supabase/client'
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { createClient } from "@/lib/supabase/client";
 
 export function useMessages(matchId: string) {
-  const qc = useQueryClient()
-  const profile = useAuthStore((s) => s.profile)
+  const queryClient = useQueryClient();
+  const supabase = createClient();
 
-  const query = useQuery({
-    queryKey: ['messages', matchId],
-    queryFn: () => getMessages(matchId),
-    enabled: !!matchId,
-  })
+  const messagesQuery = useQuery({
+    queryKey: ["messages", matchId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("messages")
+        .select("*")
+        .eq("match_id", matchId)
+        .order("created_at", { ascending: true });
 
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  const sendMessage = useMutation({
+    mutationFn: async (content: string) => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Not authenticated");
+
+      const { error } = await supabase.from("messages").insert({
+        match_id: matchId,
+        sender_id: user.id,
+        content,
+      });
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["messages", matchId] });
+      queryClient.invalidateQueries({ queryKey: ["matches"] });
+    },
+  });
+
+  // Realtime subscription
   useEffect(() => {
-    const sb = createClient()
-    const channel = sb
+    const channel = supabase
       .channel(`messages:${matchId}`)
       .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'messages',
-          filter: `match_id=eq.${matchId}`,
-        },
-        () => qc.invalidateQueries({ queryKey: ['messages', matchId] }),
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "messages", filter: `match_id=eq.${matchId}` },
+        (payload) => {
+          queryClient.setQueryData(["messages", matchId], (old: any[]) => [...(old || []), payload.new]);
+        }
       )
-      .subscribe()
+      .subscribe();
+
     return () => {
-      sb.removeChannel(channel)
-    }
-  }, [matchId, qc])
+      supabase.removeChannel(channel);
+    };
+  }, [matchId, queryClient, supabase]);
 
-  const send = useMutation({
-    mutationFn: (content: string) => sendMessage(matchId, profile!.id, content),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['messages', matchId] }),
-  })
-
-  useEffect(() => {
-    if (profile?.id && matchId) markMessagesRead(matchId, profile.id)
-  }, [matchId, profile?.id])
-
-  return { ...query, send }
+  return { messages: messagesQuery.data || [], isLoading: messagesQuery.isLoading, sendMessage };
 }
+
+import { useEffect } from "react";

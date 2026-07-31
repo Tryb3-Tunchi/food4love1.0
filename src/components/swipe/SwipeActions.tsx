@@ -1,63 +1,53 @@
-'use client'
-import { X, Heart, Star } from 'lucide-react'
-import { cn } from '@/lib/utils'
+"use client";
+
+import { motion } from "framer-motion";
+import { X, Star, Heart } from "lucide-react";
 
 interface SwipeActionsProps {
-  onPass: () => void
-  onLike: () => void
-  onSuperlike?: () => void
-  disabled?: boolean
+  onPass: () => void;
+  onLike: () => void;
+  onSuperlike?: () => void;
+  disabled?: boolean;
 }
 
-export function SwipeActions({
-  onPass,
-  onLike,
-  onSuperlike,
-  disabled,
-}: SwipeActionsProps) {
+export function SwipeActions({ onPass, onLike, onSuperlike, disabled }: SwipeActionsProps) {
   return (
-    <div className="relative z-10 flex items-center justify-center gap-5">
-      {/* PASS BUTTON */}
-      <button
+    <div className="flex items-center justify-center gap-6 py-3 px-4 select-none">
+      {/* PASS */}
+      <motion.button
+        whileHover={{ scale: 1.15 }}
+        whileTap={{ scale: 0.85 }}
         onClick={onPass}
         disabled={disabled}
-        className={cn(
-          'flex h-14 w-14 items-center justify-center rounded-full border-2 bg-card shadow-float transition-all duration-200 active:scale-95',
-          'border-[color:var(--danger)] text-[color:var(--danger)] hover:bg-[color:var(--surface-muted)]',
-          disabled && 'pointer-events-none opacity-40',
-        )}
+        className="w-[72px] h-[72px] rounded-full bg-white border-2 border-[#ffe0e0] shadow-xl shadow-red-500/10 flex items-center justify-center transition-colors hover:bg-red-50 hover:border-red-300 disabled:opacity-30 disabled:cursor-not-allowed active:bg-red-100"
+        aria-label="Pass"
       >
-        <X className="h-6 w-6" strokeWidth={2.5} />
-      </button>
+        <X className="w-8 h-8 text-[#ff4458]" strokeWidth={2.5} />
+      </motion.button>
 
-      {/* SUPERLIKE BUTTON */}
-      {onSuperlike && (
-        <button
-          onClick={onSuperlike}
-          disabled={disabled}
-          className={cn(
-            'flex h-11 w-11 items-center justify-center rounded-full border-2 bg-card shadow-float transition-all duration-200 active:scale-95',
-            'border-[color:var(--accent-alt)] text-[color:var(--accent-alt)] hover:bg-[color:var(--surface-muted)]',
-            disabled && 'pointer-events-none opacity-40',
-          )}
-        >
-          <Star className="h-5 w-5 fill-current" />
-        </button>
-      )}
+      {/* SUPERLIKE */}
+      <motion.button
+        whileHover={{ scale: 1.15 }}
+        whileTap={{ scale: 0.85 }}
+        onClick={onSuperlike || onLike}
+        disabled={disabled}
+        className="w-[56px] h-[56px] rounded-full bg-white border-2 border-[#e0f7fa] shadow-xl shadow-cyan-500/10 flex items-center justify-center transition-colors hover:bg-cyan-50 hover:border-cyan-300 disabled:opacity-30 disabled:cursor-not-allowed active:bg-cyan-100"
+        aria-label="Superlike"
+      >
+        <Star className="w-6 h-6 text-[#26c6da] fill-[#26c6da]/20" strokeWidth={2.5} />
+      </motion.button>
 
-      {/* LIKE BUTTON */}
-      <button
+      {/* LIKE */}
+      <motion.button
+        whileHover={{ scale: 1.15 }}
+        whileTap={{ scale: 0.85 }}
         onClick={onLike}
         disabled={disabled}
-        className={cn(
-          'flex h-16 w-16 items-center justify-center rounded-full text-white shadow-glow transition-all duration-300 active:scale-95',
-          'bg-[color:var(--theme-lead)] hover:bg-[color:var(--theme-lead-strong)]',
-          'hover:shadow-[0_0_30px_var(--theme-ring)]',
-          disabled && 'pointer-events-none opacity-40',
-        )}
+        className="w-[72px] h-[72px] rounded-full bg-white border-2 border-[#e8f5e9] shadow-xl shadow-green-500/10 flex items-center justify-center transition-colors hover:bg-green-50 hover:border-green-300 disabled:opacity-30 disabled:cursor-not-allowed active:bg-green-100"
+        aria-label="Like"
       >
-        <Heart className="h-7 w-7 fill-white" />
-      </button>
+        <Heart className="w-8 h-8 text-[#4ade80] fill-[#4ade80]/20" strokeWidth={2.5} />
+      </motion.button>
     </div>
-  )
+  );
 }

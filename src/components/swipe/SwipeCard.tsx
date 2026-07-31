@@ -1,193 +1,194 @@
-'use client'
-import { useSpring, animated } from '@react-spring/web'
-import { useDrag } from '@use-gesture/react'
-import Image from 'next/image'
-import { MapPin, Star, Flame } from 'lucide-react'
-import { Badge } from '@/components/ui/Badge'
-import { Avatar } from '@/components/ui/Avatar'
-import { formatNaira } from '@/lib/utils'
-import { Profile } from '@/types/db'
+"use client";
 
-interface SwipeCardProps {
-  chef: Profile
-  onLike: () => void
-  onPass: () => void
-  onInfo: () => void
-  isTop: boolean
+import { useState } from "react";
+import { MapPin, Star, Flame, BadgeCheck, ChefHat, ChevronUp, ChevronDown } from "lucide-react";
+import Image from "next/image";
+
+export interface Chef {
+  id: string;
+  full_name?: string | null;
+  avatar_url?: string | null;
+  bio?: string | null;
+  location?: string | null;
+  cuisines?: string[] | null;
+  price_min?: number | null;
+  price_max?: number | null;
+  rating?: number | null;
+  streak?: number | null;
+  is_verified?: boolean | null;
+  photos?: string[] | null;
+  daily_specials?: Array<{ title: string; price: number; description?: string }> | null;
 }
 
-export function SwipeCard({
-  chef,
-  onLike,
-  onPass,
-  onInfo,
-  isTop,
-}: SwipeCardProps) {
-  const [{ x, rotate, scale, opacity }, api] = useSpring(() => ({
-    x: 0,
-    rotate: 0,
-    scale: isTop ? 1 : 0.95,
-    opacity: 1,
-    config: { tension: 300, friction: 20 },
-  }))
+interface SwipeCardProps {
+  chef: Chef;
+}
 
-  const bind = useDrag(
-    ({ active, movement: [mx], velocity: [vx], direction: [dx], last }) => {
-      if (!isTop) return
-      const trigger = Math.abs(mx) > 120 || (last && Math.abs(vx) > 0.5)
-      if (last && trigger) {
-        api.start({
-          x: dx > 0 ? 1000 : -1000,
-          rotate: dx > 0 ? 30 : -30,
-          opacity: 0,
-          config: { tension: 200, friction: 15 },
-        })
-        setTimeout(() => {
-          dx > 0 ? onLike() : onPass()
-        }, 300)
-      } else {
-        api.start({
-          x: active ? mx : 0,
-          rotate: active ? mx / 18 : 0,
-          scale: active ? 1.03 : isTop ? 1 : 0.95,
-          immediate: (key) => active && (key === 'x' || key === 'rotate'),
-        })
-      }
-    },
-    { filterTaps: true, bounds: { left: -500, right: 500 }, rubberband: true },
-  )
+export function SwipeCard({ chef }: SwipeCardProps) {
+  const [imageIndex, setImageIndex] = useState(0);
+  const [showDetails, setShowDetails] = useState(false);
 
-  const likeOpacity = x.to({ range: [-120, 0, 120], output: [0, 0, 1] })
-  const passOpacity = x.to({ range: [-120, 0, 120], output: [1, 0, 0] })
-  const photo = chef.photos?.[0] ?? chef.avatar_url
+  const photos = chef.photos && chef.photos.length > 0
+    ? chef.photos
+    : [chef.avatar_url].filter(Boolean) as string[];
+
+  const currentPhoto = photos[imageIndex] || null;
+  const name = chef.full_name || "Chef";
+  const location = chef.location || "Lagos, Nigeria";
 
   return (
-    <animated.div
-      {...(isTop ? bind() : {})}
-      style={{ x, rotate, scale, opacity, touchAction: 'none' }}
-      className="absolute inset-0 cursor-grab select-none active:cursor-grabbing"
-    >
-      <div className="relative h-full w-full overflow-hidden rounded-[var(--radius-2xl)] border border-[color:var(--border)] bg-card shadow-float">
-        {photo ? (
+    <div className="w-full h-full rounded-[32px] overflow-hidden shadow-2xl bg-[var(--card)] border border-[var(--border)] relative">
+      {/* Photo Section */}
+      <div className={`relative transition-all duration-500 ease-out ${showDetails ? 'h-[40%]' : 'h-full'}`}>
+        {currentPhoto ? (
           <Image
-            src={photo}
-            alt={chef.full_name ?? ''}
+            src={currentPhoto}
+            alt={name}
             fill
-            className="pointer-events-none object-cover"
-            sizes="(max-width: 500px) 100vw, 500px"
-            priority={isTop}
+            className="object-cover pointer-events-none select-none"
+            priority
+            draggable={false}
           />
         ) : (
-          <div className="absolute inset-0 flex items-center justify-center bg-[color:var(--bg-3)]">
-            <Avatar
-              src={chef.avatar_url}
-              name={chef.full_name ?? chef.name ?? ''}
-              size="2xl"
-            />
-          </div>
-        )}
-
-        <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/30 to-transparent" />
-
-        {/* STAMPS USING VARIANT VARIABLES */}
-        <animated.div
-          style={{ opacity: likeOpacity }}
-          className="absolute left-6 top-10 rotate-[-15deg] rounded-xl border-4 border-[color:var(--success)] bg-black/20 px-4 py-1 backdrop-blur-sm"
-        >
-          <span className="text-2xl font-black tracking-widest text-[color:var(--success)]">
-            LIKE
-          </span>
-        </animated.div>
-
-        <animated.div
-          style={{ opacity: passOpacity }}
-          className="absolute right-6 top-10 rotate-[15deg] rounded-xl border-4 border-[color:var(--danger)] bg-black/20 px-4 py-1 backdrop-blur-sm"
-        >
-          <span className="text-2xl font-black tracking-widest text-[color:var(--danger)]">
-            PASS
-          </span>
-        </animated.div>
-
-        {chef.daily_special && (
-          <div className="absolute left-4 right-4 top-4 flex justify-end">
-            <Badge
-              variant="ember"
-              size="md"
-              className="border-0 bg-[color:var(--accent-alt)] font-bold text-white shadow-warm"
-            >
-              🍽️ {chef.daily_special.title} ·{' '}
-              {formatNaira(chef.daily_special.price)}
-            </Badge>
-          </div>
-        )}
-
-        <div className="absolute bottom-0 left-0 right-0 z-10 p-6">
-          <div className="flex items-end justify-between">
-            <div className="min-w-0 flex-1">
-              <div className="mb-1.5 flex items-center gap-2">
-                <h2 className="truncate font-display text-2xl font-bold text-white">
-                  {chef.full_name}
-                </h2>
-                {chef.is_verified && (
-                  <span className="flex h-4 w-4 items-center justify-center rounded-full bg-white/90 text-center text-sm font-bold text-[color:var(--success)]">
-                    ✓
-                  </span>
-                )}
-                {chef.streak && chef.streak > 2 && (
-                  <span className="flex items-center gap-0.5 text-sm font-bold text-[color:var(--accent)]">
-                    <Flame className="h-4 w-4 fill-current" /> {chef.streak}
-                  </span>
-                )}
-              </div>
-
-              <div className="mb-3 flex items-center gap-2 text-sm text-white/80">
-                {chef.location && (
-                  <span className="flex items-center gap-1">
-                    <MapPin className="h-3.5 w-3.5" />
-                    {chef.location}
-                  </span>
-                )}
-                {chef.location && chef.price_min && <span>·</span>}
-                {chef.price_min && (
-                  <span className="font-semibold text-[color:var(--accent-alt)]">
-                    {formatNaira(chef.price_min)}+
-                  </span>
-                )}
-              </div>
-
-              {chef.cuisines && (
-                <div className="flex flex-wrap gap-1.5">
-                  {chef.cuisines.slice(0, 3).map((c) => (
-                    <span
-                      key={c}
-                      className="rounded-full border border-white/10 bg-white/15 px-3 py-0.5 text-xs text-white backdrop-blur-md"
-                    >
-                      {c}
-                    </span>
-                  ))}
-                </div>
-              )}
+          <div className="w-full h-full bg-gradient-to-br from-[var(--primary)]/30 via-[var(--bg-2)] to-[var(--bg)] flex items-center justify-center">
+            <div className="w-32 h-32 rounded-full bg-gradient-to-br from-[var(--primary)] to-[#ff6b35] flex items-center justify-center text-5xl font-bold text-white shadow-2xl">
+              {name.charAt(0).toUpperCase()}
             </div>
+          </div>
+        )}
 
-            <div className="ml-3 flex flex-col items-end gap-2">
-              {chef.rating && (
-                <div className="flex items-center gap-1 rounded-full border border-white/10 bg-white/15 px-2.5 py-0.5 backdrop-blur-md">
-                  <Star className="h-3.5 w-3.5 fill-[color:var(--accent-alt)] text-[color:var(--accent-alt)]" />
-                  <span className="text-xs font-semibold text-white">
-                    {chef.rating.toFixed(1)}
-                  </span>
-                </div>
-              )}
+        {/* Overlays */}
+        <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-transparent to-black/70 pointer-events-none" />
+        {!showDetails && <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent pointer-events-none" />}
+
+        {/* Photo Dots */}
+        {photos.length > 1 && (
+          <div className="absolute top-4 left-4 right-4 flex gap-1.5 z-10">
+            {photos.map((_, i) => (
               <button
-                onClick={onInfo}
-                className="flex h-9 w-9 items-center justify-center rounded-full border border-white/10 bg-white/15 text-white backdrop-blur-md transition-all hover:bg-white/25 active:scale-90"
-              >
-                ⓘ
-              </button>
-            </div>
+                key={i}
+                onClick={() => setImageIndex(i)}
+                className={`h-1 rounded-full flex-1 transition-all ${i === imageIndex ? "bg-white" : "bg-white/40"}`}
+              />
+            ))}
           </div>
-        </div>
+        )}
+
+        {/* Collapsed Info Overlay */}
+        {!showDetails && (
+          <div className="absolute bottom-0 left-0 right-0 p-6 pb-8 z-10">
+            <div className="flex items-end justify-between">
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 mb-1">
+                  <h2 className="text-3xl font-bold text-white drop-shadow-lg truncate">{name}</h2>
+                  {chef.is_verified && <BadgeCheck className="w-6 h-6 text-[#4ade80] fill-[#4ade80] drop-shadow flex-shrink-0" />}
+                </div>
+                <div className="flex items-center gap-3 text-white/90 text-sm drop-shadow">
+                  <span className="flex items-center gap-1">
+                    <MapPin className="w-3.5 h-3.5" />
+                    {location}
+                  </span>
+                  {chef.price_min && (
+                    <span className="font-bold text-[#ffd700]">₦{chef.price_min.toLocaleString()}+</span>
+                  )}
+                </div>
+              </div>
+              {chef.rating && (
+                <div className="flex items-center gap-1 bg-black/40 backdrop-blur-md px-3 py-1.5 rounded-full flex-shrink-0">
+                  <Star className="w-4 h-4 text-amber-400 fill-amber-400" />
+                  <span className="text-white font-bold">{chef.rating}</span>
+                </div>
+              )}
+            </div>
+
+            <button
+              onClick={() => setShowDetails(true)}
+              className="mt-4 flex items-center justify-center gap-1 w-full py-2 text-white/70 hover:text-white transition-colors"
+            >
+              <span className="text-xs font-bold tracking-wider uppercase">Full Profile</span>
+              <ChevronUp className="w-4 h-4" />
+            </button>
+          </div>
+        )}
       </div>
-    </animated.div>
-  )
+
+      {/* Expanded Details */}
+      {showDetails && (
+        <div className="h-[60%] bg-[var(--card)] px-6 pt-5 pb-6 overflow-y-auto scrollbar-none relative">
+          <button
+            onClick={() => setShowDetails(false)}
+            className="absolute top-3 right-3 p-2 rounded-full bg-[var(--bg-2)] hover:bg-[var(--border)] transition-colors z-10"
+          >
+            <ChevronDown className="w-4 h-4 text-[var(--text-muted)]" />
+          </button>
+
+          <div className="flex items-center gap-2 mb-1 pr-10">
+            <h2 className="text-2xl font-bold text-[var(--text)]">{name}</h2>
+            {chef.is_verified && <BadgeCheck className="w-5 h-5 text-[var(--success)] fill-[var(--success)] flex-shrink-0" />}
+            {chef.streak && chef.streak > 1 && (
+              <span className="flex items-center gap-0.5 text-xs font-bold text-[var(--primary)] bg-[var(--primary)]/10 px-2 py-0.5 rounded-full flex-shrink-0">
+                <Flame className="w-3 h-3" /> {chef.streak}
+              </span>
+            )}
+          </div>
+
+          <div className="flex items-center gap-3 text-sm text-[var(--text-muted)] mb-3">
+            <span className="flex items-center gap-1">
+              <MapPin className="w-3.5 h-3.5" />
+              {location}
+            </span>
+            {chef.price_min && (
+              <span className="font-bold text-[var(--primary)]">₦{chef.price_min.toLocaleString()}+</span>
+            )}
+          </div>
+
+          {chef.rating && (
+            <div className="flex items-center gap-1.5 mb-4">
+              <Star className="w-4 h-4 text-amber-400 fill-amber-400" />
+              <span className="font-bold text-[var(--text)]">{chef.rating}</span>
+              <span className="text-xs text-[var(--text-muted)]">(12 reviews)</span>
+            </div>
+          )}
+
+          {chef.cuisines && chef.cuisines.length > 0 && (
+            <div className="flex flex-wrap gap-2 mb-4">
+              {chef.cuisines.map((c) => (
+                <span key={c} className="px-3 py-1.5 rounded-xl bg-[var(--bg-2)] border border-[var(--border)] text-xs font-semibold text-[var(--text)]">
+                  {c}
+                </span>
+              ))}
+            </div>
+          )}
+
+          {chef.bio && (
+            <div className="mb-4">
+              <h3 className="text-xs font-bold uppercase tracking-wider text-[var(--text-muted)] mb-2">About</h3>
+              <p className="text-sm text-[var(--text)] leading-relaxed">{chef.bio}</p>
+            </div>
+          )}
+
+          {chef.daily_specials && chef.daily_specials.length > 0 && (
+            <div className="bg-gradient-to-r from-[var(--primary)]/10 to-transparent border border-[var(--primary)]/20 rounded-2xl p-4 mb-4">
+              <div className="flex items-center gap-1.5 mb-2">
+                <ChefHat className="w-4 h-4 text-[var(--primary)]" />
+                <span className="text-xs font-bold uppercase tracking-wider text-[var(--primary)]">Today&apos;s Special</span>
+              </div>
+              <p className="font-semibold text-[var(--text)]">{chef.daily_specials[0].title}</p>
+              {chef.daily_specials[0].description && (
+                <p className="text-xs text-[var(--text-muted)] mt-0.5">{chef.daily_specials[0].description}</p>
+              )}
+              <p className="text-sm font-bold text-[var(--primary)] mt-1">₦{chef.daily_specials[0].price.toLocaleString()}</p>
+            </div>
+          )}
+
+          <button
+            onClick={() => setShowDetails(false)}
+            className="w-full py-3 text-center text-xs font-bold text-[var(--text-muted)] hover:text-[var(--primary)] transition-colors"
+          >
+            Tap to close
+          </button>
+        </div>
+      )}
+    </div>
+  );
 }

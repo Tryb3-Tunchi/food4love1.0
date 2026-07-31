@@ -1,38 +1,39 @@
-import { createClient } from '@/lib/supabase/client'
-import { Booking } from '@/types/db'
-const sb = () => createClient()
+import { createClient } from "@/lib/supabase/client";
 
-export async function createBooking(
-  data: Omit<Booking, 'id' | 'created_at' | 'status'>,
-): Promise<Booking> {
-  const { data: booking, error } = await sb()
-    .from('bookings')
-    .insert({ ...data, status: 'pending' })
-    .select()
-    .single()
-  if (error) throw error
-  return booking
+export interface CreateBookingInput {
+  match_id: string;
+  cook_id: string;
+  buyer_id: string;
+  dish_title: string;
+  price: number;
+  scheduled_for: string | null;
+  status: "pending" | "confirmed" | "completed" | "cancelled";
 }
 
-export async function getBookings(userId: string): Promise<Booking[]> {
-  const { data } = await sb()
-    .from('bookings')
-    .select('*')
+export async function createBooking(input: CreateBookingInput) {
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from("bookings")
+    .insert(input)
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data;
+}
+
+export async function getBookingsByUser(userId: string) {
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from("bookings")
+    .select(`
+      *,
+      cook:profiles!bookings_cook_id_fkey(full_name, avatar_url),
+      buyer:profiles!bookings_buyer_id_fkey(full_name, avatar_url)
+    `)
     .or(`cook_id.eq.${userId},buyer_id.eq.${userId}`)
-    .order('created_at', { ascending: false })
-  return data ?? []
-}
+    .order("created_at", { ascending: false });
 
-export async function updateBookingStatus(
-  id: string,
-  status: Booking['status'],
-) {
-  const { data, error } = await sb()
-    .from('bookings')
-    .update({ status })
-    .eq('id', id)
-    .select()
-    .single()
-  if (error) throw error
-  return data
+  if (error) throw error;
+  return data;
 }
