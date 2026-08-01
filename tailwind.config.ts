@@ -96,8 +96,10 @@ const config: Config = {
         'slide-up': 'slideUp 0.45s cubic-bezier(0.16,1,0.3,1) forwards',
         shimmer: 'shimmer 1.8s linear infinite',
         float: 'float 6s ease-in-out infinite',
-        'float-gentle': 'floatGentle 8s ease-in-out infinite',
+        'float-gentle': 'floatGentle 10s ease-in-out infinite',
         drift: 'drift 14s ease-in-out infinite',
+        'drift-slow': 'driftSlow 20s ease-in-out infinite',
+        'drift-slow-reverse': 'driftSlowReverse 25s ease-in-out infinite',
         'pulse-dot': 'pulseDot 2s ease-in-out infinite',
         'pulse-soft': 'pulseSoft 2s ease-in-out infinite',
         'pulse-glow': 'pulseGlow 2.2s ease-in-out infinite',
@@ -135,13 +137,23 @@ const config: Config = {
           '50%': { transform: 'translateY(-8px)' },
         },
         floatGentle: {
-          '0%,100%': { transform: 'translate3d(0,0,0)' },
-          '50%': { transform: 'translate3d(0,-12px,0)' },
+          '0%,100%': { transform: 'translate3d(0,0,0) rotate(0deg)' },
+          '50%': { transform: 'translate3d(0,-20px,0) rotate(5deg)' },
         },
         drift: {
           '0%,100%': { transform: 'translate3d(0,0,0) scale(1)' },
           '33%': { transform: 'translate3d(16px,-10px,0) scale(1.02)' },
           '66%': { transform: 'translate3d(-12px,14px,0) scale(0.98)' },
+        },
+        driftSlow: {
+          '0%,100%': { transform: 'translate(0, 0) scale(1)' },
+          '33%': { transform: 'translate(30px, -30px) scale(1.1)' },
+          '66%': { transform: 'translate(-20px, 20px) scale(0.95)' },
+        },
+        driftSlowReverse: {
+          '0%,100%': { transform: 'translate(0, 0) scale(1)' },
+          '33%': { transform: 'translate(-40px, 20px) scale(1.05)' },
+          '66%': { transform: 'translate(20px, -40px) scale(0.9)' },
         },
         pulseDot: {
           '0%,100%': { opacity: '1', transform: 'scale(1)' },
@@ -162,7 +174,20 @@ const config: Config = {
       },
     },
   },
-  plugins: [],
+  plugins: [
+    // Scrollbar hide utility
+    function ({ addUtilities }: { addUtilities: Function }) {
+      addUtilities({
+        '.scrollbar-hide': {
+          '-ms-overflow-style': 'none',
+          'scrollbar-width': 'none',
+          '&::-webkit-scrollbar': {
+            display: 'none',
+          },
+        },
+      })
+    },
+  ],
 }
 
 export default config

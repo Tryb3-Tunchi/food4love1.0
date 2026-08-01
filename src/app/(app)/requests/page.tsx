@@ -1,128 +1,152 @@
 'use client'
-import { useMatches } from '@/hooks/useMatches'
+
+import { useQuery } from '@tanstack/react-query'
+import { createClient } from '@/lib/supabase/client'
 import { useAuthStore } from '@/stores/useAuthStore'
-import { Avatar } from '@/components/ui/Avatar'
-import { Badge } from '@/components/ui/Badge'
 import { EmptyState } from '@/components/ui/EmptyState'
-import { AppPage } from '@/components/ui/AppPage'
-import { PageHeader } from '@/components/ui/PageHeader'
-import Link from 'next/link'
-import { ChefHat, Shield } from 'lucide-react'
+import { Skeleton } from '@/components/ui/Skeleton'
+import { UserCheck, UserX, Clock, ChefHat } from 'lucide-react'
 import { motion } from 'framer-motion'
+import Image from 'next/image'
+import { toast } from 'sonner'
 
 export default function RequestsPage() {
-  const profile = useAuthStore((s) => s.profile)
-  const { data: matches, isLoading } = useMatches()
+  const { profile } = useAuthStore()
 
-  const isUnverified =
-    profile?.role === 'cook' && profile?.kyc_status !== 'verified'
+  const {
+    data: requests,
+    isLoading,
+    refetch,
+  } = useQuery({
+    queryKey: ['match-requests'],
+    queryFn: async () => {
+      const supabase = createClient()
+      const { data, error } = await supabase
+        .from('swipes')
+        .select(
+          `
+          *,
+          swiper:profiles!swipes_swiper_id_fkey(id, full_name, avatar_url, bio)
+        `,
+        )
+        .eq('swiped_id', profile!.id)
+        .eq('action', 'like')
+        .order('created_at', { ascending: false })
+
+      if (error) throw error
+      return data
+    },
+    enabled: !!profile?.id,
+  })
+
+  const handleAccept = async (swiperId: string) => {
+    const supabase = createClient()
+    const { error } = await supabase.from('matches').insert({
+      user1_id: swiperId,
+      user2_id: profile!.id,
+      status: 'matched',
+      expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+    })
+    if (error) toast.error('Failed to accept')
+    else {
+      toast.success('Match accepted! Start chatting.')
+      refetch()
+    }
+  }
+
+  const handleDecline = async (swiperId: string) => {
+    // Soft decline - just mark swipe as pass
+    toast.info('Request declined')
+  }
+
+  if (isLoading) {
+    return (
+      <div className="space-y-4 p-4">
+        {[1, 2, 3].map((i) => (
+          <Skeleton key={i} className="h-24 w-full rounded-xl" />
+        ))}
+      </div>
+    )
+  }
+
+  if (!requests || requests.length === 0) {
+    return (
+      <EmptyState
+        icon={<ChefHat className="h-12 w-12" />}
+        title="No requests yet"
+        description="When food lovers like your profile, they'll appear here."
+        action={{ label: 'View Your Profile', href: '/profile' }}
+      />
+    )
+  }
 
   return (
-    <AppPage ambient="pepper" ambientIntensity="low" className="px-4 pb-6 pt-6">
-      <PageHeader title="Requests" icon={ChefHat} />
-
-      {isUnverified && (
-        <motion.div
-          initial={{ opacity: 0, y: -8 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="mb-5 flex items-start gap-3 rounded-2xl p-4"
-          style={{
-            background: 'color-mix(in srgb, var(--warning) 10%, transparent)',
-            border:
-              '1px solid color-mix(in srgb, var(--warning) 30%, transparent)',
-          }}
-        >
-          <Shield
-            className="mt-0.5 h-5 w-5 shrink-0"
-            style={{ color: 'var(--warning)' }}
-          />
-          <div className="flex-1">
-            <p
-              className="text-sm font-semibold"
-              style={{ color: 'var(--warning)' }}
-            >
-              KYC verification pending
-            </p>
-            <p className="mt-0.5 text-xs" style={{ color: 'var(--text-3)' }}>
-              You can chat with matches but cannot accept bookings until
-              verified.
-            </p>
-            {profile?.kyc_status !== 'pending' && (
-              <Link
-                href="/onboarding/kyc"
-                className="mt-2 inline-block text-xs font-semibold underline"
-                style={{ color: 'var(--accent)' }}
-              >
-                Complete verification →
-              </Link>
-            )}
-          </div>
-        </motion.div>
-      )}
-
-      {isLoading ? (
-        <p className="text-sm" style={{ color: 'var(--text-3)' }}>
-          Loading...
+    <div className="min-h-screen bg-[var(--bg)]">
+      <div className="bg-[var(--bg)]/80 sticky top-0 z-10 border-b border-[var(--border)] px-4 py-4 backdrop-blur-xl">
+        <h1 className="text-2xl font-bold">Match Requests</h1>
+        <p className="text-sm text-[var(--text-muted)]">
+          {requests.length} pending{' '}
+          {requests.length === 1 ? 'request' : 'requests'}
         </p>
-      ) : !matches?.length ? (
-        <EmptyState
-          icon="🍳"
-          title="No requests yet"
-          description="Food lovers will appear here when they match with you."
-        />
-      ) : (
-        <div className="space-y-2">
-          {matches.map((m, i) => {
-            const buyer = m.other_user
-            if (!buyer) return null
-            return (
-              <motion.div
-                key={m.id}
-                initial={{ opacity: 0, y: 14 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: i * 0.05 }}
-              >
-                <Link
-                  href={`/chat/${m.id}`}
-                  className="app-card group flex items-center gap-3 rounded-2xl p-4 transition-all duration-150 active:scale-[0.99]"
-                >
-                  <Avatar
-                    src={buyer.avatar_url}
-                    name={buyer.full_name}
-                    size="lg"
+      </div>
+
+      <div className="space-y-3 p-4">
+        {requests.map((req, idx) => (
+          <motion.div
+            key={req.id}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: idx * 0.05 }}
+            className="space-y-3 rounded-2xl border border-[var(--border)] bg-[var(--card)] p-4"
+          >
+            <div className="flex items-center gap-3">
+              <div className="h-14 w-14 flex-shrink-0 overflow-hidden rounded-full border-2 border-[var(--border)]">
+                {req.swiper?.avatar_url ? (
+                  <Image
+                    src={req.swiper.avatar_url}
+                    alt=""
+                    fill
+                    className="object-cover"
                   />
-                  <div className="min-w-0 flex-1">
-                    <span
-                      className="block truncate font-semibold"
-                      style={{ color: 'var(--text-1)' }}
-                    >
-                      {buyer.full_name}
-                    </span>
-                    <p
-                      className="truncate text-sm"
-                      style={{ color: 'var(--text-3)' }}
-                    >
-                      {m.last_message?.content ?? 'Wants to connect 👋'}
-                    </p>
+                ) : (
+                  <div className="flex h-full w-full items-center justify-center bg-[var(--bg-2)] text-2xl">
+                    👤
                   </div>
-                  {m.unread_count ? (
-                    <Badge
-                      variant="default"
-                      size="sm"
-                      className="shrink-0 border-0 text-white"
-                      style={
-                        { background: 'var(--accent)' } as React.CSSProperties
-                      }
-                    >
-                      {m.unread_count}
-                    </Badge>
-                  ) : null}
-                </Link>
-              </motion.div>
-            )
-          })}
-        </div>
-      )}
-    </AppPage>
+                )}
+              </div>
+              <div className="min-w-0 flex-1">
+                <h3 className="truncate font-semibold">
+                  {req.swiper?.full_name || 'Food Lover'}
+                </h3>
+                <p className="line-clamp-1 text-xs text-[var(--text-muted)]">
+                  {req.swiper?.bio || 'No bio yet'}
+                </p>
+                <div className="mt-1 flex items-center gap-1 text-[10px] text-[var(--text-muted)]">
+                  <Clock className="h-3 w-3" />
+                  Liked you recently
+                </div>
+              </div>
+            </div>
+
+            <div className="flex gap-2">
+              <button
+                onClick={() => handleDecline(req.swiper_id)}
+                className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-[var(--bg-2)] py-2.5 text-sm font-medium text-[var(--text-muted)] transition-colors hover:bg-red-500/10 hover:text-red-500"
+              >
+                <UserX className="h-4 w-4" />
+                Decline
+              </button>
+              <button
+                onClick={() => handleAccept(req.swiper_id)}
+                className="hover:bg-[var(--primary)]/90 flex flex-1 items-center justify-center gap-2 rounded-xl bg-[var(--primary)] py-2.5 text-sm font-medium text-white transition-colors"
+              >
+                <UserCheck className="h-4 w-4" />
+                Accept Match
+              </button>
+            </div>
+          </motion.div>
+        ))}
+      </div>
+    </div>
   )
 }

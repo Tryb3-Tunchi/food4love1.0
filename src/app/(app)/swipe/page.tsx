@@ -1,21 +1,24 @@
 'use client'
-import { useState, useEffect } from 'react'
+
+import { useState, useEffect, useCallback } from 'react'
 import { useSwipeDeck } from '@/hooks/useSwipeDeck'
 import { useAuthStore } from '@/stores/useAuthStore'
-import { useSwipeStore } from '@/stores/useSwipeStore'
-import { SwipeCard } from '@/components/swipe/SwipeCard'
+import { SwipeCard, Chef } from '@/components/swipe/SwipeCard'
 import { SwipeActions } from '@/components/swipe/SwipeActions'
 import { MatchCelebration } from '@/components/swipe/MatchCelebration'
-import { CardSkeleton } from '@/components/ui/Skeleton'
 import { AppPage } from '@/components/ui/AppPage'
-import { PageHeader } from '@/components/ui/PageHeader'
 import { Button } from '@/components/ui/Button'
 import { recordSwipe, checkMutualLike } from '@/services/swipes'
 import { createMatch } from '@/services/matches'
 import { SlidersHorizontal, Flame, X, Check } from 'lucide-react'
-import { motion, AnimatePresence } from 'framer-motion'
+import {
+  motion,
+  AnimatePresence,
+  useMotionValue,
+  useTransform,
+  PanInfo,
+} from 'framer-motion'
 import toast from 'react-hot-toast'
-import { SwipeAmbientParticles } from '@/components/swipe/SwipeAmbientParticles'
 
 const CUISINES = [
   'Igbo Cuisine',
@@ -30,7 +33,6 @@ const CUISINES = [
   'Pastries',
   'Continental',
   'Suya & Grills',
-  'Cross River Cuisine',
 ]
 
 interface Filters {
@@ -41,19 +43,14 @@ interface Filters {
 
 export default function SwipePage() {
   const profile = useAuthStore((s) => s.profile)
-  const {
-    deck,
-    currentIndex,
-    nextCard,
-    setMatch,
-    showMatchCelebration,
-    matchedProfile,
-    clearMatch,
-  } = useSwipeStore()
 
-  const [matchId, setMatchId] = useState<string>()
+  const [deck, setDeck] = useState<Chef[]>([])
+  const [currentIndex, setCurrentIndex] = useState(0)
+  const [isAnimating, setIsAnimating] = useState(false)
+  const [showMatch, setShowMatch] = useState(false)
+  const [matchedChef, setMatchedChef] = useState<Chef | null>(null)
+
   const [showFilter, setShowFilter] = useState(false)
-
   const [filters, setFilters] = useState<Filters>({
     cuisines: [],
     priceMax: 50000,
@@ -64,10 +61,8 @@ export default function SwipePage() {
     priceMax: 50000,
     distance: 20,
   })
-
   const activeFilters = filters.cuisines.length > 0 || filters.priceMax < 50000
 
-  // 1. Fetching hook driven smoothly by the committed filter state variables
   const { data, isLoading, refetch } = useSwipeDeck(
     activeFilters
       ? {
@@ -78,45 +73,71 @@ export default function SwipePage() {
       : undefined,
   )
 
-  // 2. FIXED: Safe store hydration inside useEffect to prevent infinite rendering cycles
   useEffect(() => {
-    if (data && deck.length === 0) {
-      useSwipeStore.getState().setDeck(data)
+    if (data && data.length > 0 && deck.length === 0) {
+      setDeck(data)
+      setCurrentIndex(0)
     }
   }, [data, deck.length])
 
   const current = deck[currentIndex]
-  const next = deck[currentIndex + 1]
+  const remaining = deck.length - currentIndex
 
-  const handleSwipe = async (action: 'like' | 'pass') => {
-    if (!profile || !current) return
+  // Drag motion values for stamps
+  const dragX = useMotionValue(0)
+  const dragRotate = useTransform(dragX, [-200, 200], [-12, 12])
+  const opacityLike = useTransform(dragX, [80, 160], [0, 1])
+  const opacityPass = useTransform(dragX, [-160, -80], [1, 0])
 
-    // Trigger the animation first
-    // The SwipeCard component will handle its own animation based on user drag
-    // We delay the state update to allow animation to complete
-    setTimeout(async () => {
-      nextCard()
-      if (action === 'like') {
+  const handleSwipe = useCallback(
+    async (action: 'like' | 'pass') => {
+      if (!current || !profile || isAnimating) return
+
+      setIsAnimating(true)
+
+      // Wait for exit animation, then advance
+      setTimeout(async () => {
+        setCurrentIndex((prev) => prev + 1)
+        setIsAnimating(false)
+
+        // Record to DB
         try {
-          await recordSwipe(profile.id, current.id, 'like')
-          const mutual = await checkMutualLike(profile.id, current.id)
-          if (mutual) {
-            const m = await createMatch(profile.id, current.id)
-            setMatchId(m.id)
-            setMatch(current)
+          await recordSwipe(profile.id, current.id, action)
+          if (action === 'like') {
+            const mutual = await checkMutualLike(profile.id, current.id)
+            if (mutual) {
+              const m = await createMatch(profile.id, current.id)
+              setMatchedChef(current)
+              setShowMatch(true)
+            }
           }
-        } catch {
+        } catch (err) {
+          console.error('Swipe error:', err)
           toast.error('Something went wrong')
         }
-      } else {
-        await recordSwipe(profile.id, current.id, 'pass').catch(() => {})
+      }, 400)
+    },
+    [current, profile, isAnimating],
+  )
+
+  const handleDragEnd = useCallback(
+    (_: MouseEvent | TouchEvent | PointerEvent, info: PanInfo) => {
+      if (!current || !profile || isAnimating) return
+      const threshold = 100
+
+      if (info.offset.x > threshold) {
+        handleSwipe('like')
+      } else if (info.offset.x < -threshold) {
+        handleSwipe('pass')
       }
-    }, 300) // Match this delay with the animation duration in SwipeCard
-  }
+    },
+    [current, profile, isAnimating, handleSwipe],
+  )
 
   const applyFilters = () => {
     setFilters(pendingFilters)
-    useSwipeStore.getState().setDeck([])
+    setDeck([])
+    setCurrentIndex(0)
     setShowFilter(false)
   }
 
@@ -124,7 +145,8 @@ export default function SwipePage() {
     const reset = { cuisines: [], priceMax: 50000, distance: 20 }
     setFilters(reset)
     setPendingFilters(reset)
-    useSwipeStore.getState().setDeck([])
+    setDeck([])
+    setCurrentIndex(0)
   }
 
   const toggleCuisine = (c: string) => {
@@ -136,112 +158,152 @@ export default function SwipePage() {
     }))
   }
 
-  if (isLoading)
-    return (
-      <AppPage
-        ambient="pepper"
-        ambientIntensity="low"
-        fullHeight
-        className="px-4 pt-6"
-      >
-        <SwipeAmbientParticles />
-        <PageHeader title="Discover" icon={Flame} />
-        <CardSkeleton />
-      </AppPage>
-    )
-
   return (
     <AppPage
       ambient="pepper"
       ambientIntensity="low"
       fullHeight
-      className="px-4 pb-24 pt-5"
+      className="relative overflow-hidden"
     >
-      <PageHeader
-        title="Discover"
-        icon={Flame}
-        badge={
-          profile?.streak && profile.streak > 1
-            ? `🔥 ${profile.streak}`
-            : undefined
+      {/* Inline background animations */}
+      <style jsx global>{`
+        @keyframes orb1 {
+          0%,
+          100% {
+            transform: translate(0, 0) scale(1);
+          }
+          50% {
+            transform: translate(50px, -40px) scale(1.08);
+          }
         }
-        badgeColor="var(--accent-alt)"
-        right={
-          <div className="flex items-center gap-2">
-            {activeFilters && (
-              <button
-                onClick={clearFilters}
-                className="rounded-full px-3 py-1.5 text-xs font-semibold transition-all"
-                style={{
-                  background: 'var(--accent-soft)',
-                  color: 'var(--accent)',
-                }}
-              >
-                Clear filters
-              </button>
-            )}
-            <button
-              id="filter-btn"
-              onClick={() => {
-                setPendingFilters(filters)
-                setShowFilter(true)
-              }}
-              className="relative flex h-9 w-9 items-center justify-center rounded-xl transition-all active:scale-95"
-              style={{
-                background: activeFilters
-                  ? 'var(--accent-soft)'
-                  : 'var(--card)',
-                border: `1px solid ${activeFilters ? 'var(--accent)' : 'var(--border)'}`,
-              }}
-            >
-              <SlidersHorizontal
-                className="h-4 w-4"
-                style={{
-                  color: activeFilters ? 'var(--accent)' : 'var(--text-3)',
-                }}
-              />
-              {activeFilters && (
-                <span className="absolute -right-1 -top-1 h-2.5 w-2.5 rounded-full bg-[color:var(--accent)]" />
-              )}
-            </button>
-          </div>
+        @keyframes orb2 {
+          0%,
+          100% {
+            transform: translate(0, 0) scale(1);
+          }
+          50% {
+            transform: translate(-40px, 30px) scale(1.05);
+          }
         }
-      />
+        @keyframes orb3 {
+          0%,
+          100% {
+            transform: translate(0, 0);
+            opacity: 0.5;
+          }
+          50% {
+            transform: translate(30px, -20px);
+            opacity: 1;
+          }
+        }
+        @keyframes floatEmoji {
+          0%,
+          100% {
+            transform: translateY(0) rotate(0deg);
+          }
+          50% {
+            transform: translateY(-25px) rotate(8deg);
+          }
+        }
+      `}</style>
 
-      {/* Card stack */}
-      <div
-        id="swipe-card-area"
-        className="relative mx-auto w-full max-w-sm flex-1"
-      >
-        {!current ? (
-          <motion.div
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            className="flex h-full flex-col items-center justify-center gap-5 text-center"
+      <div className="pointer-events-none fixed inset-0 -z-10 overflow-hidden">
+        <div
+          className="absolute left-[-15%] top-[-15%] h-[600px] w-[600px] rounded-full bg-[#e85a2a] opacity-[0.12] blur-[120px]"
+          style={{ animation: 'orb1 18s ease-in-out infinite' }}
+        />
+        <div
+          className="absolute bottom-[-15%] right-[-15%] h-[500px] w-[500px] rounded-full bg-amber-400 opacity-[0.10] blur-[100px]"
+          style={{ animation: 'orb2 22s ease-in-out infinite' }}
+        />
+        <div
+          className="absolute left-[50%] top-[40%] h-[400px] w-[400px] rounded-full bg-green-400 opacity-[0.08] blur-[90px]"
+          style={{ animation: 'orb3 14s ease-in-out infinite' }}
+        />
+
+        {['🍲', '🍛', '🥘', '🍗', '🌶️', '🥥'].map((emoji, i) => (
+          <span
+            key={i}
+            className="absolute select-none text-3xl"
+            style={{
+              left: `${8 + i * 16}%`,
+              top: `${5 + (i % 3) * 30}%`,
+              opacity: 0.18,
+              animation: `floatEmoji ${9 + i * 2}s ease-in-out infinite`,
+              animationDelay: `${i * 0.6}s`,
+            }}
           >
-            <motion.div
-              animate={{ rotate: [0, -8, 8, 0] }}
-              transition={{ duration: 2.5, repeat: Infinity, repeatDelay: 2 }}
-              className="text-7xl"
+            {emoji}
+          </span>
+        ))}
+
+        <div
+          className="absolute inset-0 opacity-[0.03]"
+          style={{
+            backgroundImage: `radial-gradient(circle, #2f211b 1.5px, transparent 1.5px)`,
+            backgroundSize: '30px 30px',
+          }}
+        />
+      </div>
+
+      {/* Header */}
+      <div className="relative z-10 flex shrink-0 items-center justify-between px-4 pb-2 pt-4">
+        <div className="flex items-center gap-2">
+          <Flame className="h-5 w-5 text-[var(--primary)]" />
+          <h1 className="text-lg font-bold text-[var(--text)]">Discover</h1>
+          {profile?.streak && profile.streak > 1 && (
+            <span className="bg-[var(--primary)]/10 flex items-center gap-0.5 rounded-full px-2 py-0.5 text-xs font-bold text-[var(--primary)]">
+              <Flame className="h-3 w-3" /> {profile.streak}
+            </span>
+          )}
+        </div>
+
+        <div className="flex items-center gap-2">
+          {activeFilters && (
+            <button
+              onClick={clearFilters}
+              className="bg-[var(--primary)]/10 hover:bg-[var(--primary)]/20 rounded-full px-3 py-1.5 text-xs font-semibold text-[var(--primary)] transition-colors"
             >
-              🍽️
-            </motion.div>
-            <div>
-              <h3
-                className="mb-2 text-xl font-bold"
-                style={{ color: 'var(--text-1)' }}
-              >
-                {activeFilters
-                  ? 'No chefs match your filters'
-                  : "You've seen everyone!"}
-              </h3>
-              <p className="text-sm" style={{ color: 'var(--text-3)' }}>
-                {activeFilters
-                  ? 'Try broadening your search'
-                  : 'New chefs join every day. Check back soon.'}
-              </p>
-            </div>
-            <div className="flex gap-2">
+              Clear
+            </button>
+          )}
+          <button
+            onClick={() => {
+              setPendingFilters(filters)
+              setShowFilter(true)
+            }}
+            className="hover:border-[var(--primary)]/50 relative flex h-9 w-9 items-center justify-center rounded-xl border border-[var(--border)] bg-[var(--card)] transition-colors active:scale-95"
+          >
+            <SlidersHorizontal className="h-4 w-4 text-[var(--text-muted)]" />
+            {activeFilters && (
+              <span className="absolute -right-1 -top-1 h-2.5 w-2.5 rounded-full bg-[var(--primary)]" />
+            )}
+          </button>
+        </div>
+      </div>
+
+      {/* Card Area */}
+      <div className="relative z-10 flex min-h-0 flex-1 flex-col items-center justify-center px-4 py-4">
+        {isLoading && deck.length === 0 ? (
+          <div className="aspect-[3/4] w-full max-w-sm animate-pulse rounded-[32px] border border-[var(--border)] bg-[var(--card)] shadow-xl" />
+        ) : !current ? (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="flex flex-col items-center justify-center gap-4 px-6 text-center"
+          >
+            <div className="mb-2 text-6xl">🍽️</div>
+            <h3 className="text-xl font-bold text-[var(--text)]">
+              {activeFilters
+                ? 'No chefs match filters'
+                : "You've seen everyone!"}
+            </h3>
+            <p className="max-w-[240px] text-sm text-[var(--text-muted)]">
+              {activeFilters
+                ? 'Try broadening your search'
+                : 'New chefs join daily. Check back soon!'}
+            </p>
+            <div className="mt-2 flex gap-3">
               {activeFilters && (
                 <Button
                   onClick={clearFilters}
@@ -249,11 +311,15 @@ export default function SwipePage() {
                   size="md"
                   pill
                 >
-                  Clear filters
+                  Clear Filters
                 </Button>
               )}
               <Button
-                onClick={() => refetch()}
+                onClick={() => {
+                  setDeck([])
+                  setCurrentIndex(0)
+                  refetch()
+                }}
                 variant="primary"
                 size="md"
                 pill
@@ -264,43 +330,65 @@ export default function SwipePage() {
           </motion.div>
         ) : (
           <>
-            {next && (
-              <SwipeCard
-                key={`bg-${next.id}`}
-                chef={next}
-                onLike={() => {}}
-                onPass={() => {}}
-                onInfo={() => {}}
-                isTop={false}
+            {/* CARD WRAPPER — handles drag, stamps, and exit */}
+            <div className="relative aspect-[3/4] max-h-[65vh] w-full max-w-sm">
+              <AnimatePresence mode="popLayout">
+                <motion.div
+                  key={current.id}
+                  drag="x"
+                  dragConstraints={{ left: 0, right: 0 }}
+                  dragElastic={0.9}
+                  onDragEnd={handleDragEnd}
+                  style={{ x: dragX, rotate: dragRotate }}
+                  initial={{ opacity: 0, scale: 0.9, y: 30 }}
+                  animate={{ opacity: 1, scale: 1, y: 0, x: 0, rotate: 0 }}
+                  exit={{
+                    x: isAnimating ? (dragX.get() > 0 ? 500 : -500) : 0,
+                    opacity: 0,
+                    rotate: isAnimating ? (dragX.get() > 0 ? 20 : -20) : 0,
+                    transition: { duration: 0.4, ease: [0.32, 0.72, 0, 1] },
+                  }}
+                  transition={{ type: 'spring', stiffness: 350, damping: 30 }}
+                  className="absolute inset-0 touch-none"
+                >
+                  {/* LIKE / NOPE Stamps */}
+                  <motion.div
+                    style={{ opacity: opacityLike }}
+                    className="pointer-events-none absolute left-8 top-10 z-20 -rotate-12 rounded-2xl border-[3px] border-[#4ade80] px-5 py-2 text-3xl font-black uppercase tracking-[0.15em] text-[#4ade80] shadow-lg"
+                  >
+                    LIKE
+                  </motion.div>
+                  <motion.div
+                    style={{ opacity: opacityPass }}
+                    className="pointer-events-none absolute right-8 top-10 z-20 rotate-12 rounded-2xl border-[3px] border-[#ff4458] px-5 py-2 text-3xl font-black uppercase tracking-[0.15em] text-[#ff4458] shadow-lg"
+                  >
+                    NOPE
+                  </motion.div>
+
+                  {/* Card Content */}
+                  <SwipeCard chef={current} />
+                </motion.div>
+              </AnimatePresence>
+            </div>
+
+            {/* Action Buttons */}
+            <div className="mt-6 shrink-0">
+              <SwipeActions
+                onPass={() => handleSwipe('pass')}
+                onLike={() => handleSwipe('like')}
+                onSuperlike={() => handleSwipe('like')}
+                disabled={!current || isAnimating}
               />
-            )}
-            <SwipeCard
-              key={`top-${current.id}`}
-              chef={current}
-              onLike={() => handleSwipe('like')}
-              onPass={() => handleSwipe('pass')}
-              onInfo={() => {}}
-              isTop
-            />
+            </div>
+
+            <p className="mt-3 text-xs font-medium text-[var(--text-muted)]">
+              {remaining} chef{remaining !== 1 ? 's' : ''} remaining
+            </p>
           </>
         )}
       </div>
 
-      {/* Swipe actions */}
-      {current && (
-        <motion.div
-          initial={{ opacity: 0, y: 16 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="shrink-0 pb-2 pt-4"
-        >
-          <SwipeActions
-            onPass={() => handleSwipe('pass')}
-            onLike={() => handleSwipe('like')}
-          />
-        </motion.div>
-      )}
-
-      {/* Filter bottom sheet */}
+      {/* Filter Modal */}
       <AnimatePresence>
         {showFilter && (
           <>
@@ -308,51 +396,35 @@ export default function SwipePage() {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="fixed inset-0 z-40"
-              style={{
-                background: 'rgba(0,0,0,0.4)',
-                backdropFilter: 'blur(4px)',
-              }}
+              className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm"
               onClick={() => setShowFilter(false)}
             />
             <motion.div
-              initial={{ y: '100%' }}
-              animate={{ y: 0 }}
-              exit={{ y: '100%' }}
-              transition={{ type: 'spring', damping: 30, stiffness: 300 }}
-              className="fixed bottom-0 left-0 right-0 z-50 mx-auto max-w-lg overflow-hidden rounded-t-3xl"
-              style={{
-                background: 'var(--bg-2)',
-                borderTop: '1px solid var(--border)',
-              }}
+              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 20 }}
+              transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+              className="pointer-events-none fixed inset-0 z-50 flex items-center justify-center p-4"
             >
-              <div className="flex justify-center pb-1 pt-3">
-                <div
-                  className="h-1 w-10 rounded-full"
-                  style={{ background: 'var(--border)' }}
-                />
-              </div>
-
-              <div className="max-h-[80vh] overflow-y-auto px-5 pb-6">
-                <div className="flex items-center justify-between py-4">
-                  <h3
-                    className="text-base font-bold"
-                    style={{ color: 'var(--text-1)' }}
-                  >
+              <div
+                className="scrollbar-none pointer-events-auto max-h-[85vh] w-full max-w-sm overflow-y-auto rounded-3xl border border-[var(--border)] bg-[var(--card)] p-6 shadow-2xl"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div className="mb-6 flex items-center justify-between">
+                  <h3 className="text-lg font-bold text-[var(--text)]">
                     Filter Chefs
                   </h3>
-                  <button onClick={() => setShowFilter(false)}>
-                    <X className="h-5 w-5" style={{ color: 'var(--text-3)' }} />
+                  <button
+                    onClick={() => setShowFilter(false)}
+                    className="rounded-full p-2 transition-colors hover:bg-[var(--bg-2)]"
+                  >
+                    <X className="h-5 w-5 text-[var(--text-muted)]" />
                   </button>
                 </div>
 
-                {/* Cuisines */}
                 <div className="mb-6">
-                  <p
-                    className="mb-3 text-sm font-semibold"
-                    style={{ color: 'var(--text-1)' }}
-                  >
-                    Cuisine type
+                  <p className="mb-3 text-sm font-bold text-[var(--text)]">
+                    Cuisine Type
                   </p>
                   <div className="flex flex-wrap gap-2">
                     {CUISINES.map((c) => {
@@ -361,15 +433,7 @@ export default function SwipePage() {
                         <button
                           key={c}
                           onClick={() => toggleCuisine(c)}
-                          className="flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold transition-all"
-                          style={{
-                            // FIXED: Using tokens instead of hardcoded hex values
-                            background: selected
-                              ? 'var(--accent)'
-                              : 'var(--bg-3)',
-                            color: selected ? 'white' : 'var(--text-2)',
-                            border: `1px solid ${selected ? 'var(--accent)' : 'var(--border)'}`,
-                          }}
+                          className={`flex items-center gap-1.5 rounded-full border px-3.5 py-2 text-xs font-semibold transition-all ${selected ? 'border-[var(--primary)] bg-[var(--primary)] text-white' : 'hover:border-[var(--primary)]/50 border-[var(--border)] bg-[var(--bg-2)] text-[var(--text-muted)]'}`}
                         >
                           {selected && <Check className="h-3 w-3" />}
                           {c}
@@ -379,19 +443,12 @@ export default function SwipePage() {
                   </div>
                 </div>
 
-                {/* Max price */}
                 <div className="mb-6">
                   <div className="mb-3 flex items-center justify-between">
-                    <p
-                      className="text-sm font-semibold"
-                      style={{ color: 'var(--text-1)' }}
-                    >
-                      Max price per meal
+                    <p className="text-sm font-bold text-[var(--text)]">
+                      Max Price
                     </p>
-                    <span
-                      className="text-sm font-bold"
-                      style={{ color: 'var(--accent)' }}
-                    >
+                    <span className="text-sm font-bold text-[var(--primary)]">
                       ₦{pendingFilters.priceMax.toLocaleString()}
                     </span>
                   </div>
@@ -407,18 +464,14 @@ export default function SwipePage() {
                         priceMax: Number(e.target.value),
                       }))
                     }
-                    className="w-full accent-[color:var(--accent)]"
+                    className="w-full"
                   />
-                  <div
-                    className="mt-1 flex justify-between text-xs"
-                    style={{ color: 'var(--text-3)' }}
-                  >
+                  <div className="mt-1 flex justify-between text-xs text-[var(--text-muted)]">
                     <span>₦2,000</span>
                     <span>₦50,000</span>
                   </div>
                 </div>
 
-                {/* Apply */}
                 <Button
                   onClick={applyFilters}
                   variant="primary"
@@ -442,16 +495,16 @@ export default function SwipePage() {
         )}
       </AnimatePresence>
 
-      {/* Match celebration */}
-      {profile && (
-        <MatchCelebration
-          isOpen={showMatchCelebration}
-          matchedChef={matchedProfile}
-          currentUser={profile}
-          matchId={matchId}
-          onClose={clearMatch}
-        />
-      )}
+      {/* Match Celebration */}
+      <MatchCelebration
+        isOpen={showMatch}
+        matchedChef={matchedChef}
+        currentUser={profile}
+        onClose={() => {
+          setShowMatch(false)
+          setMatchedChef(null)
+        }}
+      />
     </AppPage>
   )
 }

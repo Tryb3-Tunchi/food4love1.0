@@ -60,6 +60,7 @@ export function BookingForm({
         dish_title: dishTitle.trim(),
         price: estimatedPrice ?? chef.price_min ?? 0,
         scheduled_for: scheduledFor,
+        status: 'pending',
       })
       toast.success('Booking request sent! 🎉')
       onSuccess?.(booking.id)

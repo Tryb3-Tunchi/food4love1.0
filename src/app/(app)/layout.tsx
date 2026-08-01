@@ -1,5 +1,6 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
+import { BottomNav } from '@/components/layout/BottomNav'
 
 export default async function AppLayout({
   children,
@@ -11,5 +12,10 @@ export default async function AppLayout({
     data: { user },
   } = await sb.auth.getUser()
   if (!user) redirect('/login')
-  return <>{children}</>
+  return (
+    <>
+      {children}
+      <BottomNav />
+    </>
+  )
 }

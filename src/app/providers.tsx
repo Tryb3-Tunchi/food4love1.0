@@ -1,41 +1,54 @@
 'use client'
+
+import { ThemeProvider } from 'next-themes'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { Toaster } from 'react-hot-toast'
 import { useState } from 'react'
-import { Shell } from '@/components/layout/Shell'
-import { AppTour } from '@/components/tour/AppTour'
-import { HungerModeProvider } from '@/components/providers/HungerModeProviders'
+import { Toaster } from 'react-hot-toast'
 
 export function Providers({ children }: { children: React.ReactNode }) {
-  const [qc] = useState(
+  const [queryClient] = useState(
     () =>
       new QueryClient({
-        defaultOptions: { queries: { staleTime: 60_000, retry: 1 } },
+        defaultOptions: {
+          queries: {
+            staleTime: 1000 * 60 * 5,
+            refetchOnWindowFocus: false,
+          },
+        },
       }),
   )
 
   return (
-    <QueryClientProvider client={qc}>
-      <HungerModeProvider>
-        <Shell>{children}</Shell>
-        <AppTour />
+    <QueryClientProvider client={queryClient}>
+      <ThemeProvider attribute="class" defaultTheme="dark" enableSystem={false}>
+        {children}
         <Toaster
           position="top-center"
           toastOptions={{
+            duration: 4000,
             style: {
-              background: '#FFFFFF',
-              color: '#0D0D0D',
-              border: '1px solid #EAE4DA',
+              background: 'var(--card)',
+              color: 'var(--text)',
+              border: '1px solid var(--border)',
               borderRadius: '12px',
+              padding: '12px 16px',
               fontSize: '14px',
-              fontWeight: '500',
-              boxShadow: '0 4px 24px rgba(0,0,0,0.08)',
             },
-            success: { iconTheme: { primary: '#22C55E', secondary: '#fff' } },
-            error: { iconTheme: { primary: '#E8390E', secondary: '#fff' } },
+            success: {
+              iconTheme: {
+                primary: 'var(--success)',
+                secondary: 'var(--bg)',
+              },
+            },
+            error: {
+              iconTheme: {
+                primary: '#ef4444',
+                secondary: 'var(--bg)',
+              },
+            },
           }}
         />
-      </HungerModeProvider>
+      </ThemeProvider>
     </QueryClientProvider>
   )
 }
