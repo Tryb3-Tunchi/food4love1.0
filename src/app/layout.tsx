@@ -52,6 +52,7 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning>
       <body className={`${spaceGrotesk.variable} font-sans antialiased`}>
         <Providers>{children}</Providers>
+        <script src="https://js.paystack.co/v1/inline.js" async></script>
       </body>
     </html>
   )

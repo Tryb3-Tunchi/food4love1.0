@@ -11,7 +11,11 @@ import { Send, ArrowLeft, Calendar } from 'lucide-react'
 import Link from 'next/link'
 import Image from 'next/image'
 import { format } from 'date-fns'
-import { BookingModal } from '@/components/booking/BookingModal'
+import BookingModal from '@/components/booking/BookingModal'
+// import { BookingModal } from '@/components/booking/BookingModal'
+// import BookingModal from '@/components/booking/BookingModal'
+// import { useState } from 'react'
+// import { Calendar } from 'lucide-react'
 
 interface Profile {
   id: string
@@ -256,15 +260,11 @@ export default function ChatDetailPage() {
         <BookingModal
           isOpen={showBooking}
           onClose={() => setShowBooking(false)}
-          cook={{
-            id: otherUser.id,
-            full_name: otherUser.full_name,
-            avatar_url: otherUser.avatar_url || undefined,
-            daily_specials: [],
-            price_min: otherUser.price_min || 2500,
-          }}
+          cookId={otherUser.id}
+          cookName={otherUser.full_name}
+          cookAvatar={otherUser.avatar_url}
+          priceMin={otherUser.price_min || 2500}
           matchId={matchId as string}
-          buyerId={profile.id}
         />
       )}
     </div>

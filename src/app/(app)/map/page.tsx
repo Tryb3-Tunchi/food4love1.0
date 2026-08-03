@@ -1,338 +1,201 @@
 'use client'
-import dynamic from 'next/dynamic'
-import { useState } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
-import { Search, X, Star, MapPin, BadgeCheck } from 'lucide-react'
-import { MOCK_CHEFS, MOCK_MAP_LOCATIONS } from '@/lib/mockData'
-import { formatNaira } from '@/lib/utils'
+
+import { useEffect, useMemo, useState } from 'react'
+import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet'
+import L from 'leaflet'
+import 'leaflet/dist/leaflet.css'
 import { useRouter } from 'next/navigation'
+import { getCookLocations, getCookById, MapLocation } from '@/services/map'
+import { useQuery } from '@tanstack/react-query'
+import { ChefHat, Star, MapPin, X } from 'lucide-react'
 
-const MapContainer = dynamic(
-  () => import('react-leaflet').then((m) => m.MapContainer),
-  { ssr: false },
-)
-const TileLayer = dynamic(
-  () => import('react-leaflet').then((m) => m.TileLayer),
-  { ssr: false },
-)
-const Marker = dynamic(() => import('react-leaflet').then((m) => m.Marker), {
-  ssr: false,
+// Fix Leaflet default marker icons in Next.js
+const markerIcon = new L.Icon({
+  iconUrl: '/marker-icon.png',
+  iconRetinaUrl: '/marker-icon-2x.png',
+  shadowUrl: '/marker-shadow.png',
+  iconSize: [25, 41],
+  iconAnchor: [12, 41],
+  popupAnchor: [1, -34],
+  shadowSize: [41, 41],
 })
-const Popup = dynamic(() => import('react-leaflet').then((m) => m.Popup), {
-  ssr: false,
+
+const activeMarkerIcon = new L.Icon({
+  iconUrl: '/marker-icon.png',
+  iconRetinaUrl: '/marker-icon-2x.png',
+  shadowUrl: '/marker-shadow.png',
+  iconSize: [30, 46],
+  iconAnchor: [15, 46],
+  popupAnchor: [1, -34],
+  shadowSize: [41, 41],
+  className: 'hue-rotate-[-30deg] saturate-150',
 })
 
-function ChefMapCard({
-  chefId,
-  onClose,
-}: {
-  chefId: string
-  onClose: () => void
-}) {
-  const router = useRouter()
-  const chef = MOCK_CHEFS.find((c) => c.id === chefId)
-  if (!chef) return null
-
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: 20 }}
-      className="absolute bottom-24 left-4 right-4 z-[1000] overflow-hidden rounded-3xl shadow-xl"
-      style={{ background: 'var(--card)', border: '1px solid var(--border)' }}
-    >
-      <div className="p-4">
-        <button
-          onClick={onClose}
-          className="absolute right-3 top-3 flex h-7 w-7 items-center justify-center rounded-full"
-          style={{ background: 'var(--bg-2)' }}
-        >
-          <X className="h-3.5 w-3.5" style={{ color: 'var(--text-3)' }} />
-        </button>
-
-        <div className="flex items-start gap-3">
-          <div
-            className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl text-4xl"
-            style={{ background: 'var(--bg-2)' }}
-          >
-            {chef.emoji}
-          </div>
-          <div className="min-w-0 flex-1 pr-6">
-            <div className="mb-0.5 flex items-center gap-1.5">
-              <h3
-                className="truncate font-heading text-base font-bold"
-                style={{ color: 'var(--text-1)' }}
-              >
-                {chef.full_name}
-              </h3>
-              {chef.is_verified && (
-                <BadgeCheck
-                  className="h-4 w-4 shrink-0"
-                  style={{ color: 'var(--success)' }}
-                />
-              )}
-            </div>
-            <p
-              className="mb-1 text-xs font-medium"
-              style={{ color: 'var(--accent)' }}
-            >
-              {chef.tagline}
-            </p>
-            <div className="flex items-center gap-3">
-              <span
-                className="flex items-center gap-0.5 text-xs font-semibold"
-                style={{ color: 'var(--text-2)' }}
-              >
-                <Star
-                  className="h-3 w-3"
-                  style={{
-                    fill: 'var(--accent-alt)',
-                    color: 'var(--accent-alt)',
-                  }}
-                />
-                {chef.rating}
-              </span>
-              <span
-                className="flex items-center gap-0.5 text-xs"
-                style={{ color: 'var(--text-3)' }}
-              >
-                <MapPin className="h-3 w-3" />
-                {chef.location}
-              </span>
-            </div>
-          </div>
-        </div>
-
-        {chef.daily_special && (
-          <div
-            className="mt-3 flex items-center justify-between rounded-xl p-3"
-            style={{
-              background: 'var(--accent-soft)',
-              border:
-                '1px solid color-mix(in srgb, var(--accent) 18%, transparent)',
-            }}
-          >
-            <div className="min-w-0 flex-1">
-              <p
-                className="mb-0.5 text-xs font-bold"
-                style={{ color: 'var(--accent)' }}
-              >
-                🍽 Today's Special
-              </p>
-              <p
-                className="truncate text-xs"
-                style={{ color: 'var(--text-2)' }}
-              >
-                {chef.daily_special.title}
-              </p>
-            </div>
-            <span
-              className="ml-3 shrink-0 text-sm font-bold"
-              style={{ color: 'var(--accent)' }}
-            >
-              {formatNaira(chef.daily_special.price)}
-            </span>
-          </div>
-        )}
-
-        <div className="mt-3 flex gap-2">
-          <button
-            onClick={() => router.push('/swipe')}
-            className="flex-1 rounded-2xl py-3 text-sm font-bold text-white transition-all active:scale-95"
-            style={{
-              background: 'var(--accent)',
-              boxShadow: 'var(--shadow-warm, 0 4px 16px rgba(232,116,40,0.3))',
-            }}
-          >
-            Like Chef ❤️
-          </button>
-          <button
-            onClick={() => router.push('/chat')}
-            className="flex-1 rounded-2xl py-3 text-sm font-bold transition-all active:scale-95"
-            style={{
-              background: 'var(--bg-2)',
-              border: '1px solid var(--border)',
-              color: 'var(--text-1)',
-            }}
-          >
-            Message
-          </button>
-        </div>
-      </div>
-    </motion.div>
-  )
+function MapController({ center }: { center: [number, number] }) {
+  const map = useMap()
+  useEffect(() => {
+    map.setView(center, 13)
+  }, [center, map])
+  return null
 }
 
 export default function MapPage() {
-  const [selected, setSelected] = useState<string | null>(null)
-  const [search, setSearch] = useState('')
+  const router = useRouter()
+  const [selectedChefId, setSelectedChefId] = useState<string | null>(null)
+  const [filterCuisine, setFilterCuisine] = useState<string>('all')
 
-  const filtered = MOCK_MAP_LOCATIONS.filter(
-    (l) =>
-      search === '' ||
-      l.name.toLowerCase().includes(search.toLowerCase()) ||
-      l.cuisine.toLowerCase().includes(search.toLowerCase()),
-  )
+  const { data: locations = [], isLoading } = useQuery({
+    queryKey: ['cook-locations'],
+    queryFn: getCookLocations,
+  })
+
+  const { data: selectedChef } = useQuery({
+    queryKey: ['chef', selectedChefId],
+    queryFn: () => getCookById(selectedChefId!),
+    enabled: !!selectedChefId,
+  })
+
+  const cuisines = useMemo(() => {
+    const set = new Set(locations.map((l) => l.cuisine))
+    return ['all', ...Array.from(set)]
+  }, [locations])
+
+  const filtered = useMemo(() => {
+    if (filterCuisine === 'all') return locations
+    return locations.filter((l) => l.cuisine === filterCuisine)
+  }, [locations, filterCuisine])
+
+  const center: [number, number] = useMemo(() => {
+    if (filtered.length === 0) return [6.5244, 3.3792] // Lagos default
+    const avgLat = filtered.reduce((sum, l) => sum + l.lat, 0) / filtered.length
+    const avgLng = filtered.reduce((sum, l) => sum + l.lng, 0) / filtered.length
+    return [avgLat, avgLng]
+  }, [filtered])
+
+  if (isLoading) {
+    return (
+      <div className="flex h-[calc(100dvh-80px)] items-center justify-center">
+        <div className="h-10 w-10 animate-spin rounded-full border-2 border-white/20 border-t-[#E8390E]" />
+      </div>
+    )
+  }
 
   return (
-    <div
-      className="relative h-[100dvh] overflow-hidden"
-      style={{ background: 'var(--bg)' }}
-    >
-      {/* Search bar — floating above map */}
-      <div className="absolute left-4 right-4 top-4 z-[1000]">
-        <div
-          className="flex items-center gap-2 rounded-2xl px-4 py-3 shadow-lift"
-          style={{
-            background: 'var(--card)',
-            border: '1px solid var(--border)',
-          }}
-        >
-          <Search
-            className="h-4 w-4 shrink-0"
-            style={{ color: 'var(--text-3)' }}
-          />
-          <input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search chefs or cuisine..."
-            className="flex-1 bg-transparent text-sm outline-none"
-            style={{ color: 'var(--text-1)' }}
-          />
-          {search && (
-            <button onClick={() => setSearch('')}>
-              <X className="h-4 w-4" style={{ color: 'var(--text-3)' }} />
-            </button>
+    <div className="relative h-[calc(100dvh-80px)] w-full">
+      {/* Filter bar */}
+      <div className="absolute left-4 right-4 top-4 z-[400] flex gap-2 overflow-x-auto pb-2">
+        {cuisines.map((c) => (
+          <button
+            key={c}
+            onClick={() => setFilterCuisine(c)}
+            className={`shrink-0 rounded-full px-4 py-2 text-sm font-medium backdrop-blur-md transition-colors ${
+              filterCuisine === c
+                ? 'bg-[#E8390E] text-white'
+                : 'bg-[#1A1008]/80 text-white/70 hover:bg-[#1A1008]'
+            }`}
+          >
+            {c === 'all' ? 'All Cuisines' : c}
+          </button>
+        ))}
+      </div>
+
+      {/* Chef count */}
+      <div className="absolute bottom-6 left-4 z-[400] rounded-full bg-[#1A1008]/90 px-4 py-2 text-sm text-white/80 backdrop-blur-md">
+        <ChefHat className="mr-2 inline h-4 w-4 text-[#E8390E]" />
+        {filtered.length} chef{filtered.length !== 1 ? 's' : ''} nearby
+      </div>
+
+      {/* Selected chef detail panel */}
+      {selectedChef && (
+        <div className="absolute bottom-6 right-4 z-[400] w-72 rounded-2xl border border-white/10 bg-[#1A1008]/95 p-4 backdrop-blur-md">
+          <button
+            onClick={() => setSelectedChefId(null)}
+            className="absolute right-3 top-3 rounded-full p-1 text-white/40 hover:bg-white/10 hover:text-white"
+          >
+            <X className="h-4 w-4" />
+          </button>
+          <div className="flex items-center gap-3">
+            <div className="flex h-12 w-12 items-center justify-center overflow-hidden rounded-full bg-white/10">
+              {selectedChef.avatar_url ? (
+                <img
+                  src={selectedChef.avatar_url}
+                  alt={selectedChef.full_name}
+                  className="h-full w-full object-cover"
+                />
+              ) : (
+                <span className="text-xl">🧑‍🍳</span>
+              )}
+            </div>
+            <div className="min-w-0">
+              <h3 className="truncate font-semibold text-white">
+                {selectedChef.full_name}
+              </h3>
+              <div className="flex items-center gap-1 text-sm text-white/60">
+                <MapPin className="h-3 w-3" />
+                <span className="truncate">
+                  {selectedChef.location ?? 'Lagos'}
+                </span>
+              </div>
+            </div>
+          </div>
+          {selectedChef.bio && (
+            <p className="mt-2 line-clamp-2 text-sm text-white/60">
+              {selectedChef.bio}
+            </p>
           )}
+          <div className="mt-3 flex items-center justify-between">
+            <div className="flex items-center gap-1 text-sm">
+              <Star className="h-4 w-4 fill-[#F59E0B] text-[#F59E0B]" />
+              <span className="text-white">{selectedChef.rating ?? '—'}</span>
+              <span className="text-white/40">
+                ({selectedChef.review_count ?? 0})
+              </span>
+            </div>
+            <span className="text-sm font-semibold text-[#E8390E]">
+              ₦{(selectedChef.price_min ?? 0).toLocaleString()}+
+            </span>
+          </div>
+          <button
+            onClick={() => router.push(`/cook/${selectedChef.id}`)}
+            className="mt-3 w-full rounded-xl bg-[#E8390E] py-2.5 text-sm font-semibold text-white transition-colors hover:bg-[#d1300d]"
+          >
+            View Profile
+          </button>
         </div>
+      )}
 
-        {/* Filter chips */}
-        <div className="scrollbar-none mt-2 flex gap-2 overflow-x-auto pb-1">
-          {['All', 'Verified', 'Daily Special', '< ₦10k'].map((chip) => (
-            <button
-              key={chip}
-              className="shrink-0 rounded-full px-3 py-1.5 text-xs font-bold transition-all"
-              style={{
-                background: chip === 'All' ? 'var(--accent)' : 'var(--card)',
-                color: chip === 'All' ? 'white' : 'var(--text-2)',
-                border: `1px solid ${chip === 'All' ? 'var(--accent)' : 'var(--border)'}`,
-                boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
-              }}
-            >
-              {chip}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Map */}
-      <div className="absolute inset-0">
-        <MapContainer
-          center={[6.5244, 3.3792]}
-          zoom={12}
-          className="h-full w-full"
-          style={{ background: '#FFF5E8' }}
-          zoomControl={false}
-        >
-          <TileLayer
-            url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
-            attribution='© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-          />
-          {filtered.map((loc) => {
-            if (typeof window === 'undefined') return null
-            // eslint-disable-next-line @typescript-eslint/no-var-requires
-            const L = require('leaflet')
-            // CSS vars can't be used inside Leaflet's divIcon HTML string;
-            // read computed values at runtime so markers still respect the theme.
-            const root = document.documentElement
-            const accentHex =
-              getComputedStyle(root).getPropertyValue('--accent').trim() ||
-              '#E87428'
-            const accentDark =
-              getComputedStyle(root).getPropertyValue('--accent-dark').trim() ||
-              '#D9651C'
-            const icon = L.divIcon({
-              html: `<div style="
-                width:44px;height:44px;border-radius:50%;
-                background:${selected === loc.id ? accentHex : '#FFFFFF'};
-                border:3px solid ${selected === loc.id ? accentDark : '#E8DED5'};
-                display:flex;align-items:center;justify-content:center;
-                font-size:22px;cursor:pointer;
-                box-shadow:0 4px 16px rgba(0,0,0,${selected === loc.id ? '0.25' : '0.1'});
-                transition:all 0.2s ease;
-              ">${loc.emoji}</div>`,
-              className: '',
-              iconSize: [44, 44],
-              iconAnchor: [22, 22],
-            })
-
-            return (
-              <Marker
-                key={loc.id}
-                position={[loc.lat, loc.lng]}
-                icon={icon}
-                eventHandlers={{
-                  click: () => setSelected(loc.id === selected ? null : loc.id),
-                }}
-              >
-                <Popup
-                  className="f4l-map-popup"
-                  closeButton={false}
-                  offset={[0, -22]}
-                >
-                  <div
-                    style={{
-                      fontFamily: "'Plus Jakarta Sans Variable', sans-serif",
-                      padding: '4px 2px',
-                    }}
-                  >
-                    <p
-                      style={{
-                        fontWeight: 700,
-                        fontSize: 13,
-                        color: 'var(--text-1)',
-                        marginBottom: 2,
-                      }}
-                    >
-                      {loc.name}
-                    </p>
-                    <p style={{ fontSize: 11, color: 'var(--text-3)' }}>
-                      {loc.cuisine}
-                    </p>
-                    <p
-                      style={{
-                        fontSize: 12,
-                        fontWeight: 700,
-                        color: 'var(--accent)',
-                        marginTop: 4,
-                      }}
-                    >
-                      {formatNaira(loc.price)}+
-                    </p>
-                  </div>
-                </Popup>
-              </Marker>
-            )
-          })}
-        </MapContainer>
-      </div>
-
-      {/* Chef card on select */}
-      <AnimatePresence>
-        {selected && (
-          <ChefMapCard chefId={selected} onClose={() => setSelected(null)} />
-        )}
-      </AnimatePresence>
-
-      {/* Chef count pill */}
-      <div
-        className="absolute bottom-24 right-4 z-[1000] rounded-full px-3 py-2 shadow-lift"
-        style={{ background: 'var(--card)', border: '1px solid var(--border)' }}
+      <MapContainer
+        center={center}
+        zoom={13}
+        className="h-full w-full"
+        zoomControl={false}
       >
-        <p className="text-xs font-bold" style={{ color: 'var(--text-2)' }}>
-          {filtered.length} chefs nearby
-        </p>
-      </div>
+        <MapController center={center} />
+        <TileLayer
+          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+        />
+        {filtered.map((loc) => (
+          <Marker
+            key={loc.id}
+            position={[loc.lat, loc.lng]}
+            icon={selectedChefId === loc.id ? activeMarkerIcon : markerIcon}
+            eventHandlers={{
+              click: () => setSelectedChefId(loc.id),
+            }}
+          >
+            <Popup className="custom-popup">
+              <div className="min-w-[160px]">
+                <p className="font-semibold text-[#0F0A05]">{loc.name}</p>
+                <p className="text-sm text-[#0F0A05]/60">{loc.cuisine}</p>
+                <p className="mt-1 text-sm font-semibold text-[#E8390E]">
+                  ₦{loc.price.toLocaleString()}+
+                </p>
+              </div>
+            </Popup>
+          </Marker>
+        ))}
+      </MapContainer>
     </div>
   )
 }
