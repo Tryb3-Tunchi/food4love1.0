@@ -1,4 +1,4 @@
-"use client"
+'use client'
 
 import { useEffect, useMemo, useState } from 'react'
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet'
@@ -7,7 +7,7 @@ import 'leaflet/dist/leaflet.css'
 import { useRouter } from 'next/navigation'
 import { getCookLocations, getCookById } from '@/services/map'
 import { useQuery } from '@tanstack/react-query'
-import { ChefHat, Star, MapPin, X } from 'lucide-react'
+import { Star, X } from 'lucide-react'
 import Image from 'next/image'
 
 // Fix Leaflet default marker icons in Next.js
@@ -21,6 +21,7 @@ const markerIcon = new L.Icon({
   shadowSize: [41, 41],
 })
 
+// Extend the type so className is accepted without TS errors
 const activeMarkerIcon = new L.Icon({
   iconUrl: '/marker-icon.png',
   iconRetinaUrl: '/marker-icon-2x.png',
@@ -30,7 +31,7 @@ const activeMarkerIcon = new L.Icon({
   popupAnchor: [1, -34],
   shadowSize: [41, 41],
   className: 'hue-rotate-[-30deg] saturate-150',
-})
+} as L.IconOptions & { className?: string })
 
 function MapController({ center }: { center: [number, number] }) {
   const map = useMap()
@@ -88,6 +89,7 @@ export default function ClientMap() {
         {cuisines.map((c) => (
           <button
             key={c}
+            type="button"
             onClick={() => setFilterCuisine(c)}
             className="shrink-0 rounded-full px-4 py-2 text-sm font-medium backdrop-blur-md transition-colors"
           >
@@ -133,6 +135,7 @@ export default function ClientMap() {
       {selectedChef && (
         <div className="absolute bottom-4 left-4 right-4 z-[400] rounded-2xl bg-white p-4 shadow-lg">
           <button
+            type="button"
             onClick={() => setSelectedChefId(null)}
             className="absolute right-3 top-3 text-gray-400 hover:text-gray-600"
           >
@@ -162,7 +165,8 @@ export default function ClientMap() {
           </div>
           <div className="mt-4 flex gap-2">
             <button
-              onClick={() => router.push(\`/cook/\${selectedChef.id}\`)}
+              type="button"
+              onClick={() => router.push('/cook/' + selectedChef.id)}
               className="flex-1 rounded-xl bg-[#E8390E] py-2 text-white"
             >
               View Profile
