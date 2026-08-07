@@ -123,8 +123,8 @@ export default function ClientMap() {
           >
             <Popup>
               <div className="flex flex-col">
-                <h3 className="text-sm font-semibold">{loc.full_name}</h3>
-                <p className="text-xs text-gray-500">{loc.location}</p>
+                <h3 className="text-sm font-semibold">{loc.name}</h3>
+                <p className="text-xs text-gray-500">{loc.cuisine}</p>
               </div>
             </Popup>
           </Marker>
