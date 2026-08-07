@@ -47,6 +47,9 @@ export default function SwipePage() {
   const [deck, setDeck] = useState<Chef[]>([])
   const [currentIndex, setCurrentIndex] = useState(0)
   const [isAnimating, setIsAnimating] = useState(false)
+  const [exitDirection, setExitDirection] = useState<'left' | 'right' | null>(
+    null,
+  )
   const [showMatch, setShowMatch] = useState(false)
   const [matchedChef, setMatchedChef] = useState<Chef | null>(null)
 
@@ -93,14 +96,15 @@ export default function SwipePage() {
     async (action: 'like' | 'pass') => {
       if (!current || !profile || isAnimating) return
 
+      const direction = action === 'like' ? 'right' : 'left'
+      setExitDirection(direction)
       setIsAnimating(true)
 
-      // Wait for exit animation, then advance
       setTimeout(async () => {
         setCurrentIndex((prev) => prev + 1)
         setIsAnimating(false)
+        setExitDirection(null)
 
-        // Record to DB
         try {
           await recordSwipe(profile.id, current.id, action)
           if (action === 'like') {
@@ -126,8 +130,10 @@ export default function SwipePage() {
       const threshold = 100
 
       if (info.offset.x > threshold) {
+        setExitDirection('right')
         handleSwipe('like')
       } else if (info.offset.x < -threshold) {
+        setExitDirection('left')
         handleSwipe('pass')
       }
     },
@@ -343,9 +349,23 @@ export default function SwipePage() {
                   initial={{ opacity: 0, scale: 0.9, y: 30 }}
                   animate={{ opacity: 1, scale: 1, y: 0, x: 0, rotate: 0 }}
                   exit={{
-                    x: isAnimating ? (dragX.get() > 0 ? 500 : -500) : 0,
+                    x:
+                      exitDirection === 'right'
+                        ? 500
+                        : exitDirection === 'left'
+                          ? -500
+                          : dragX.get() > 0
+                            ? 500
+                            : -500,
                     opacity: 0,
-                    rotate: isAnimating ? (dragX.get() > 0 ? 20 : -20) : 0,
+                    rotate:
+                      exitDirection === 'right'
+                        ? 20
+                        : exitDirection === 'left'
+                          ? -20
+                          : dragX.get() > 0
+                            ? 20
+                            : -20,
                     transition: { duration: 0.4, ease: [0.32, 0.72, 0, 1] },
                   }}
                   transition={{ type: 'spring', stiffness: 350, damping: 30 }}

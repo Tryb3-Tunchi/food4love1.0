@@ -1,30 +1,32 @@
-import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { NextRequest, NextResponse } from 'next/server'
 
-// Force this route to render dynamically at runtime
-export const dynamic = 'force-dynamic'
-
-export async function GET(req: NextRequest) {
+export async function POST(req: NextRequest) {
   try {
-    const { searchParams } = new URL(req.url)
-    const reference =
-      searchParams.get('reference') || searchParams.get('trxref')
+    const body = await req.json()
+    const { reference, booking_id } = body
 
-    if (!reference) {
+    if (!reference || !booking_id) {
       return NextResponse.json(
-        { error: 'No reference provided' },
+        { error: 'Missing reference or booking_id' },
         { status: 400 },
       )
     }
 
-    // FIX: await the server client
-    const supabase = await createClient()
+    const secretKey = process.env.PAYSTACK_SECRET_KEY
+    if (!secretKey) {
+      return NextResponse.json(
+        { error: 'Paystack not configured' },
+        { status: 500 },
+      )
+    }
 
+    // Verify with Paystack
     const response = await fetch(
       `https://api.paystack.co/transaction/verify/${reference}`,
       {
         headers: {
-          Authorization: `Bearer ${process.env.PAYSTACK_SECRET_KEY}`,
+          Authorization: `Bearer ${secretKey}`,
         },
       },
     )
@@ -33,23 +35,51 @@ export async function GET(req: NextRequest) {
 
     if (!data.status || data.data.status !== 'success') {
       return NextResponse.json(
-        { error: 'Payment verification failed' },
+        { error: 'Payment verification failed', success: false },
         { status: 400 },
       )
     }
 
-    const bookingId = data.data.metadata?.booking_id
+    // Update booking in Supabase
+    const supabase = await createClient()
+    const { error: bookingError } = await supabase
+      .from('bookings')
+      .update({
+        status: 'confirmed',
+        payment_status: 'paid',
+        payment_reference: reference,
+        paid_at: new Date().toISOString(),
+      })
+      .eq('id', booking_id)
 
-    if (bookingId) {
-      await supabase
-        .from('bookings')
-        .update({ status: 'confirmed' })
-        .eq('id', bookingId)
+    if (bookingError) {
+      console.error('Booking update error:', bookingError)
+      return NextResponse.json(
+        { error: 'Failed to update booking', success: false },
+        { status: 500 },
+      )
     }
 
-    return NextResponse.json({ success: true, data: data.data })
-  } catch (error) {
-    console.error('Payment verify error:', error)
-    return NextResponse.json({ error: 'Verification failed' }, { status: 500 })
+    // Create payment record
+    const { error: paymentError } = await supabase.from('payments').insert({
+      booking_id,
+      reference,
+      amount: data.data.amount / 100,
+      status: 'success',
+      channel: data.data.channel,
+      paid_at: data.data.paid_at,
+    })
+
+    if (paymentError) {
+      console.error('Payment record error:', paymentError)
+    }
+
+    return NextResponse.json({ success: true, message: 'Payment verified' })
+  } catch (err: any) {
+    console.error('Paystack verify error:', err)
+    return NextResponse.json(
+      { error: err.message || 'Verification failed', success: false },
+      { status: 500 },
+    )
   }
 }

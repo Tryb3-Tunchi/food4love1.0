@@ -398,6 +398,14 @@ export default function AdminDashboard() {
         <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
           {[
             {
+              title: 'Swipe Activity',
+              desc: 'View and manage user swipes',
+              href: '/admin/swipes',
+              icon: Heart,
+              color: 'text-pink-500',
+              urgent: false,
+            },
+            {
               href: '/admin/kyc',
               title: 'KYC Review Queue',
               desc: 'Review chef video verifications',
@@ -425,7 +433,7 @@ export default function AdminDashboard() {
               icon: '📋',
               urgent: false,
             },
-          ].map((l) => (
+          ].map((l: any) => (
             <Link
               key={l.href}
               href={l.href}
@@ -439,7 +447,13 @@ export default function AdminDashboard() {
                   : 'rgba(255,255,255,0.02)',
               }}
             >
-              <span className="shrink-0 text-2xl">{l.icon}</span>
+              <span className="shrink-0 text-2xl">
+                {typeof l.icon === 'string' ? (
+                  l.icon
+                ) : (
+                  <l.icon className={`h-6 w-6 ${l.color || ''}`} />
+                )}
+              </span>
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2">
                   <span className="text-sm font-bold text-white">

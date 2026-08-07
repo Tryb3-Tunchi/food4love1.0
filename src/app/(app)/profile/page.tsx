@@ -1,4 +1,8 @@
 'use client'
+
+import { useQuery } from '@tanstack/react-query'
+import { getDailySpecialsByCook } from '@/services/dailySpecials'
+import { getReviewsForProfile, getReviewStats } from '@/services/reviews'
 import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
@@ -17,69 +21,19 @@ import {
   Camera,
   Edit3,
   Shield,
+  UtensilsCrossed,
+  LogOut,
+  Loader2,
 } from 'lucide-react'
 import { useAuthStore } from '@/stores/useAuthStore'
 import { formatNaira } from '@/lib/utils'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import toast from 'react-hot-toast'
-
+import { useProfile } from '@/hooks/useProfile'
+;('')
 const TABS = ['Overview', 'Specials', 'Reviews', 'Info'] as const
 type Tab = (typeof TABS)[number]
-
-const MOCK_REVIEWS = [
-  {
-    id: 1,
-    reviewer: 'Tunde A.',
-    rating: 5,
-    comment: 'Absolutely incredible Ofe Akwu. My whole family loved it.',
-    date: '2 weeks ago',
-    avatar: '🧑🏿',
-  },
-  {
-    id: 2,
-    reviewer: 'Chisom N.',
-    rating: 5,
-    comment: 'Fresh pounded yam, generous portions. Will order again.',
-    date: '1 month ago',
-    avatar: '👩🏾',
-  },
-  {
-    id: 3,
-    reviewer: 'Emeka O.',
-    rating: 4,
-    comment: 'Solid food, good value. The Ofe Onugbu was the standout.',
-    date: '1 month ago',
-    avatar: '👨🏿',
-  },
-]
-
-const MOCK_SPECIALS = [
-  {
-    id: 1,
-    title: 'Ofe Akwu + Pounded Yam',
-    desc: 'Palm fruit soup, assorted protein, fresh pounded yam.',
-    price: 9500,
-    emoji: '🍲',
-    available: true,
-  },
-  {
-    id: 2,
-    title: 'Ofe Nsala Special',
-    desc: 'White soup with fresh catfish and pounded yam.',
-    price: 11000,
-    emoji: '🍜',
-    available: true,
-  },
-  {
-    id: 3,
-    title: 'Sunday Egusi Package',
-    desc: 'Egusi soup for 4, with assorted meats and starch.',
-    price: 18000,
-    emoji: '🥘',
-    available: false,
-  },
-]
 
 function StatPill({ icon, label }: { icon: string; label: string }) {
   return (
@@ -106,9 +60,31 @@ function SkeletonLine({ w = '100%', h = '1rem' }: { w?: string; h?: string }) {
 
 export default function ProfilePage() {
   const router = useRouter()
-  const profile = useAuthStore((s) => s.profile)
+  const { data: profile, isLoading: profileLoading } = useProfile()
   const [tab, setTab] = useState<Tab>('Overview')
   const [editing, setEditing] = useState(false)
+
+  const isCook = profile?.role === 'cook'
+  const isVerified = profile?.kyc_status === 'verified'
+
+  const { data: specials = [], isLoading: specialsLoading } = useQuery({
+    queryKey: ['daily-specials', profile?.id],
+    queryFn: () => getDailySpecialsByCook(profile!.id),
+    enabled: !!profile?.id && isCook,
+  })
+
+  const { data: reviews = [], isLoading: reviewsLoading } = useQuery({
+    queryKey: ['reviews', profile?.id],
+    queryFn: () => getReviewsForProfile(profile!.id),
+    enabled: !!profile?.id,
+  })
+
+  const { data: reviewStats = { average: 0, count: 0, distribution: [] } } =
+    useQuery({
+      queryKey: ['review-stats', profile?.id],
+      queryFn: () => getReviewStats(profile!.id),
+      enabled: !!profile?.id,
+    })
 
   const handleLogout = async () => {
     await createClient().auth.signOut()
@@ -135,15 +111,13 @@ export default function ProfilePage() {
     )
   }
 
-  const isCook = profile.role === 'cook'
-  const isVerified = profile.kyc_status === 'verified'
-  const ratingDisplay = (profile.rating ?? 4.8).toFixed(1)
+  const ratingDisplay = (profile.rating ?? 0).toFixed(1)
+  const visibleTabs = isCook ? TABS : (['Overview', 'Info'] as Tab[])
 
   return (
     <div className="pb-24" style={{ background: 'var(--bg)' }}>
-      {/* ── Hero ── */}
+      {/* Hero */}
       <div className="relative">
-        {/* Cover */}
         <div
           className="relative h-36 w-full overflow-hidden"
           style={{
@@ -151,17 +125,13 @@ export default function ProfilePage() {
               'linear-gradient(135deg, var(--accent-l), var(--divider))',
           }}
         >
-          {/* Decorative food pattern */}
           <div className="absolute inset-0 flex items-center justify-center opacity-20">
             <span className="text-8xl">{isCook ? '🍲' : '🍽️'}</span>
           </div>
           {isCook && (
             <button
               className="absolute bottom-3 right-3 flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-bold"
-              style={{
-                background: 'var(--card)',
-                color: 'var(--text-2)',
-              }}
+              style={{ background: 'var(--card)', color: 'var(--text-2)' }}
             >
               <Camera className="h-3.5 w-3.5" />
               Edit cover
@@ -169,10 +139,8 @@ export default function ProfilePage() {
           )}
         </div>
 
-        {/* Avatar row */}
         <div className="px-4 pb-0">
           <div className="-mt-10 mb-3 flex items-end justify-between">
-            {/* Avatar */}
             <div className="relative">
               <div
                 className="flex h-20 w-20 items-center justify-center rounded-2xl border-4 text-4xl shadow-lift"
@@ -204,7 +172,6 @@ export default function ProfilePage() {
               )}
             </div>
 
-            {/* Action buttons */}
             <div className="mb-1 flex gap-2">
               <button
                 onClick={handleShare}
@@ -213,6 +180,7 @@ export default function ProfilePage() {
                   background: 'var(--bg-2)',
                   border: '1px solid var(--border)',
                 }}
+                aria-label="Share profile"
               >
                 <Share2
                   className="h-4 w-4"
@@ -226,6 +194,7 @@ export default function ProfilePage() {
                   background: 'var(--bg-2)',
                   border: '1px solid var(--border)',
                 }}
+                aria-label="Edit profile"
               >
                 <Edit3 className="h-4 w-4" style={{ color: 'var(--text-2)' }} />
               </button>
@@ -236,6 +205,7 @@ export default function ProfilePage() {
                   background: 'var(--bg-2)',
                   border: '1px solid var(--border)',
                 }}
+                aria-label="Settings"
               >
                 <Settings
                   className="h-4 w-4"
@@ -245,7 +215,6 @@ export default function ProfilePage() {
             </div>
           </div>
 
-          {/* Name + meta */}
           <h1
             className="mb-0.5 font-heading text-2xl font-bold"
             style={{ color: 'var(--text-1)' }}
@@ -283,7 +252,6 @@ export default function ProfilePage() {
             </div>
           )}
 
-          {/* Bio */}
           {profile.bio && (
             <p
               className="mb-4 text-sm leading-relaxed"
@@ -293,7 +261,6 @@ export default function ProfilePage() {
             </p>
           )}
 
-          {/* KYC banner for cooks */}
           {isCook && profile.kyc_status !== 'verified' && (
             <motion.div
               initial={{ opacity: 0, y: -8 }}
@@ -343,7 +310,6 @@ export default function ProfilePage() {
             </motion.div>
           )}
 
-          {/* Stats row — cook only */}
           {isCook && (
             <div className="mb-5 flex gap-2">
               <StatPill icon="⭐" label={`${ratingDisplay} Rating`} />
@@ -355,10 +321,9 @@ export default function ProfilePage() {
             </div>
           )}
 
-          {/* Cuisines */}
           {isCook && profile.cuisines && profile.cuisines.length > 0 && (
             <div className="mb-5 flex flex-wrap gap-2">
-              {profile.cuisines.map((c) => (
+              {profile.cuisines.map((c: string) => (
                 <span key={c} className="f4l-badge f4l-badge-accent">
                   {c}
                 </span>
@@ -366,7 +331,6 @@ export default function ProfilePage() {
             </div>
           )}
 
-          {/* Price range — cook only */}
           {isCook && profile.price_min && (
             <div
               className="mb-5 flex items-center justify-between rounded-2xl p-4"
@@ -389,21 +353,36 @@ export default function ProfilePage() {
                 </p>
               </div>
               <button
+                onClick={() => router.push('/cook/specials')}
                 className="flex items-center gap-2 rounded-full px-4 py-2.5 text-sm font-bold text-white transition-all active:scale-95"
                 style={{
                   background: 'var(--accent)',
                   boxShadow: 'var(--shadow-warm)',
                 }}
               >
-                <Calendar className="h-4 w-4" />
-                Book
+                <UtensilsCrossed className="h-4 w-4" />
+                Manage
               </button>
             </div>
+          )}
+
+          {!isCook && (
+            <button
+              onClick={() => router.push('/swipe')}
+              className="mb-5 flex w-full items-center justify-center gap-2 rounded-2xl py-3 text-sm font-bold text-white transition-all active:scale-95"
+              style={{
+                background: 'var(--accent)',
+                boxShadow: 'var(--shadow-warm)',
+              }}
+            >
+              <Calendar className="h-4 w-4" />
+              Find a Chef
+            </button>
           )}
         </div>
       </div>
 
-      {/* ── Sticky Tabs ── */}
+      {/* Sticky Tabs */}
       <div
         className="sticky top-0 z-20 px-4 pb-0 pt-2"
         style={{
@@ -412,7 +391,7 @@ export default function ProfilePage() {
         }}
       >
         <div className="flex gap-1">
-          {(isCook ? TABS : (['Overview', 'Info'] as Tab[])).map((t) => (
+          {visibleTabs.map((t) => (
             <button
               key={t}
               onClick={() => setTab(t)}
@@ -432,7 +411,7 @@ export default function ProfilePage() {
         </div>
       </div>
 
-      {/* ── Tab content ── */}
+      {/* Tab Content */}
       <AnimatePresence mode="wait">
         <motion.div
           key={tab}
@@ -442,9 +421,9 @@ export default function ProfilePage() {
           transition={{ duration: 0.2 }}
           className="px-4 pt-5"
         >
+          {/* Overview */}
           {tab === 'Overview' && (
             <div className="space-y-5">
-              {/* About section */}
               <div>
                 <p className="f4l-section-label mb-3">About</p>
                 <div className="f4l-card p-4">
@@ -457,7 +436,6 @@ export default function ProfilePage() {
                 </div>
               </div>
 
-              {/* Quick stats for cook */}
               {isCook && (
                 <div>
                   <p className="f4l-section-label mb-3">Details</p>
@@ -503,7 +481,6 @@ export default function ProfilePage() {
                 </div>
               )}
 
-              {/* Referral for all users */}
               <div>
                 <p className="f4l-section-label mb-3">Share & Earn</p>
                 <div className="f4l-card flex items-center gap-3 p-4">
@@ -524,7 +501,7 @@ export default function ProfilePage() {
                       Refer a friend
                     </p>
                     <p className="text-xs" style={{ color: 'var(--text-3)' }}>
-                      {profile.role === 'cook'
+                      {isCook
                         ? 'Invite a food lover — earn when they book'
                         : 'Invite a friend — earn rewards'}
                     </p>
@@ -540,7 +517,6 @@ export default function ProfilePage() {
                 </div>
               </div>
 
-              {/* Sign out */}
               <button
                 onClick={handleLogout}
                 className="flex w-full items-center gap-3 rounded-2xl p-4 transition-all active:scale-[0.99]"
@@ -551,6 +527,10 @@ export default function ProfilePage() {
                     '1px solid color-mix(in srgb, var(--danger) 18%, transparent)',
                 }}
               >
+                <LogOut
+                  className="h-4 w-4"
+                  style={{ color: 'var(--danger)' }}
+                />
                 <span
                   className="text-sm font-semibold"
                   style={{ color: 'var(--danger)' }}
@@ -561,166 +541,227 @@ export default function ProfilePage() {
             </div>
           )}
 
+          {/* Specials */}
           {tab === 'Specials' && isCook && (
-            <div className="space-y-3">
-              <div className="mb-4 flex items-center justify-between">
-                <p className="f4l-section-label">Today's Specials</p>
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <h3 className="text-lg font-semibold text-white">
+                  Today's Specials
+                </h3>
                 <button
+                  onClick={() => router.push('/cook/specials')}
                   className="text-xs font-bold"
                   style={{ color: 'var(--accent)' }}
                 >
                   + Add special
                 </button>
               </div>
-              {MOCK_SPECIALS.map((s) => (
-                <motion.div
-                  key={s.id}
-                  initial={{ opacity: 0, y: 8 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className="f4l-card flex items-center gap-3 p-4"
-                >
-                  <span className="text-3xl">{s.emoji}</span>
-                  <div className="min-w-0 flex-1">
-                    <p
-                      className="truncate text-sm font-bold"
-                      style={{ color: 'var(--text-1)' }}
-                    >
-                      {s.title}
-                    </p>
-                    <p
-                      className="mt-0.5 text-xs leading-snug"
-                      style={{ color: 'var(--text-3)' }}
-                    >
-                      {s.desc}
-                    </p>
-                    <div className="mt-2 flex items-center gap-2">
-                      <span
-                        className="text-sm font-bold"
-                        style={{ color: 'var(--accent)' }}
-                      >
-                        {formatNaira(s.price)}
-                      </span>
-                      <span
-                        className={`f4l-badge ${s.available ? 'f4l-badge-success' : 'f4l-badge-muted'}`}
-                      >
-                        {s.available ? 'Available' : 'Unavailable'}
-                      </span>
-                    </div>
-                  </div>
-                  <button>
-                    <ChevronRight
-                      className="h-4 w-4"
-                      style={{ color: 'var(--text-3)' }}
-                    />
-                  </button>
-                </motion.div>
-              ))}
-            </div>
-          )}
-
-          {tab === 'Reviews' && (
-            <div className="space-y-3">
-              {/* Rating summary */}
-              <div className="f4l-card mb-4 flex items-center gap-6 p-5">
-                <div className="shrink-0 text-center">
-                  <p
-                    className="font-heading text-4xl font-bold"
-                    style={{ color: 'var(--text-1)' }}
-                  >
-                    {ratingDisplay}
-                  </p>
-                  <div className="my-1 flex items-center justify-center gap-0.5">
-                    {[...Array(5)].map((_, i) => (
-                      <Star
-                        key={i}
-                        className="h-3.5 w-3.5"
-                        style={{
-                          fill:
-                            i < Math.round(profile.rating ?? 4.8)
-                              ? 'var(--accent-alt)'
-                              : 'transparent',
-                          color: 'var(--accent-alt)',
-                        }}
-                      />
-                    ))}
-                  </div>
-                  <p className="text-xs" style={{ color: 'var(--text-3)' }}>
-                    {profile.review_count ?? 0} reviews
-                  </p>
+              {specialsLoading ? (
+                <div className="flex items-center justify-center py-12">
+                  <Loader2 className="h-8 w-8 animate-spin text-white/40" />
                 </div>
-                <div className="flex-1 space-y-1.5">
-                  {[5, 4, 3].map((star) => (
-                    <div key={star} className="flex items-center gap-2">
-                      <span
-                        className="w-3 text-xs"
-                        style={{ color: 'var(--text-3)' }}
-                      >
-                        {star}
-                      </span>
-                      <div
-                        className="h-1.5 flex-1 overflow-hidden rounded-full"
-                        style={{ background: 'var(--divider)' }}
-                      >
-                        <div
-                          className="h-full rounded-full"
-                          style={{
-                            background: 'var(--accent-alt)',
-                            width:
-                              star === 5 ? '75%' : star === 4 ? '20%' : '5%',
-                          }}
-                        />
+              ) : specials.length === 0 ? (
+                <div className="rounded-xl border border-white/10 bg-white/5 p-8 text-center">
+                  <div className="mb-3 text-3xl">🍽️</div>
+                  <p className="text-white/60">No specials posted yet.</p>
+                  <p className="mt-1 text-sm text-white/40">
+                    Add a daily special to attract more buyers.
+                  </p>
+                  <button
+                    onClick={() => router.push('/cook/specials')}
+                    className="mt-4 rounded-full px-4 py-2 text-xs font-bold text-white"
+                    style={{ background: 'var(--accent)' }}
+                  >
+                    Create your first special
+                  </button>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {specials.map((s) => (
+                    <motion.div
+                      key={s.id}
+                      initial={{ opacity: 0, y: 8 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="flex items-start gap-4 rounded-xl border border-white/10 bg-white/5 p-4"
+                    >
+                      <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-white/10 text-2xl">
+                        🍽️
                       </div>
-                    </div>
+                      <div className="min-w-0 flex-1">
+                        <h4 className="font-medium text-white">{s.title}</h4>
+                        {s.description && (
+                          <p className="mt-1 text-sm text-white/60">
+                            {s.description}
+                          </p>
+                        )}
+                        <div className="mt-2 flex items-center gap-3">
+                          <span
+                            className="text-sm font-semibold"
+                            style={{ color: 'var(--accent)' }}
+                          >
+                            {formatNaira(s.price)}
+                          </span>
+                          <span className="rounded-full bg-[#84CC16]/20 px-2 py-0.5 text-xs text-[#84CC16]">
+                            Available until{' '}
+                            {new Date(s.available_until).toLocaleTimeString(
+                              'en-NG',
+                              { hour: 'numeric', minute: '2-digit' },
+                            )}
+                          </span>
+                        </div>
+                      </div>
+                      <ChevronRight className="h-4 w-4 shrink-0 text-white/30" />
+                    </motion.div>
                   ))}
                 </div>
-              </div>
-
-              {MOCK_REVIEWS.map((r, i) => (
-                <motion.div
-                  key={r.id}
-                  initial={{ opacity: 0, y: 8 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: i * 0.06 }}
-                  className="f4l-card p-4"
-                >
-                  <div className="flex items-start gap-3">
-                    <span className="shrink-0 text-2xl">{r.avatar}</span>
-                    <div className="flex-1">
-                      <div className="mb-0.5 flex items-center justify-between">
-                        <p
-                          className="text-sm font-bold"
-                          style={{ color: 'var(--text-1)' }}
-                        >
-                          {r.reviewer}
-                        </p>
-                        <p
-                          className="text-xs"
-                          style={{ color: 'var(--text-3)' }}
-                        >
-                          {r.date}
-                        </p>
-                      </div>
-                      <div className="mb-1.5 flex items-center gap-0.5">
-                        {[...Array(r.rating)].map((_, j) => (
-                          <Star
-                            key={j}
-                            className="h-3 w-3 fill-amber-400 text-amber-400"
-                          />
-                        ))}
-                      </div>
-                      <p
-                        className="text-sm leading-relaxed"
-                        style={{ color: 'var(--text-2)' }}
-                      >
-                        "{r.comment}"
-                      </p>
-                    </div>
-                  </div>
-                </motion.div>
-              ))}
+              )}
             </div>
           )}
 
+          {/* Reviews */}
+          {tab === 'Reviews' && (
+            <div className="space-y-4">
+              <div className="rounded-xl border border-white/10 bg-white/5 p-4">
+                <div className="flex items-center gap-3">
+                  <span className="text-3xl font-bold text-white">
+                    {reviewStats.average > 0
+                      ? reviewStats.average.toFixed(1)
+                      : '—'}
+                  </span>
+                  <div className="flex gap-0.5">
+                    {[...Array(5)].map((_, i) => (
+                      <svg
+                        key={i}
+                        className={`h-5 w-5 ${i < Math.round(reviewStats.average) ? 'text-[#F59E0B]' : 'text-white/20'}`}
+                        fill="currentColor"
+                        viewBox="0 0 20 20"
+                      >
+                        <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                      </svg>
+                    ))}
+                  </div>
+                  <span className="text-sm text-white/60">
+                    {reviewStats.count} review
+                    {reviewStats.count !== 1 ? 's' : ''}
+                  </span>
+                </div>
+                {reviewStats.count > 0 && (
+                  <div className="mt-3 space-y-1">
+                    {[5, 4, 3, 2, 1].map((star) => {
+                      const dist = reviewStats.distribution.find(
+                        (d) => d.star === star,
+                      )
+                      const pct =
+                        reviewStats.count > 0
+                          ? ((dist?.count ?? 0) / reviewStats.count) * 100
+                          : 0
+                      return (
+                        <div
+                          key={star}
+                          className="flex items-center gap-2 text-xs"
+                        >
+                          <span className="w-3 text-white/60">{star}</span>
+                          <svg
+                            className="h-3 w-3 text-[#F59E0B]"
+                            fill="currentColor"
+                            viewBox="0 0 20 20"
+                          >
+                            <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                          </svg>
+                          <div className="h-1.5 flex-1 rounded-full bg-white/10">
+                            <div
+                              className="h-1.5 rounded-full bg-[#F59E0B]"
+                              style={{ width: `${pct}%` }}
+                            />
+                          </div>
+                          <span className="w-6 text-right text-white/40">
+                            {dist?.count ?? 0}
+                          </span>
+                        </div>
+                      )
+                    })}
+                  </div>
+                )}
+              </div>
+
+              {reviewsLoading ? (
+                <div className="flex items-center justify-center py-12">
+                  <Loader2 className="h-8 w-8 animate-spin text-white/40" />
+                </div>
+              ) : reviews.length === 0 ? (
+                <div className="rounded-xl border border-white/10 bg-white/5 p-8 text-center">
+                  <div className="mb-3 text-3xl">⭐</div>
+                  <p className="text-white/60">No reviews yet.</p>
+                  <p className="mt-1 text-sm text-white/40">
+                    {isCook
+                      ? 'Complete bookings to start receiving reviews.'
+                      : 'Book a meal and leave a review after.'}
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {reviews.map((r) => (
+                    <motion.div
+                      key={r.id}
+                      initial={{ opacity: 0, y: 8 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="rounded-xl border border-white/10 bg-white/5 p-4"
+                    >
+                      <div className="flex items-start justify-between">
+                        <div className="flex items-center gap-3">
+                          <div className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-full bg-white/10 text-sm">
+                            {r.reviewer?.avatar_url ? (
+                              <img
+                                src={r.reviewer.avatar_url}
+                                alt=""
+                                className="h-full w-full rounded-full object-cover"
+                              />
+                            ) : (
+                              '👤'
+                            )}
+                          </div>
+                          <div>
+                            <p className="text-sm font-medium text-white">
+                              {r.reviewer?.full_name ?? 'Anonymous'}
+                            </p>
+                            <p className="text-xs text-white/40">
+                              {new Date(r.created_at).toLocaleDateString(
+                                'en-NG',
+                                {
+                                  month: 'short',
+                                  day: 'numeric',
+                                  year: 'numeric',
+                                },
+                              )}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="flex gap-0.5">
+                          {[...Array(5)].map((_, i) => (
+                            <svg
+                              key={i}
+                              className={`h-4 w-4 ${i < r.rating ? 'text-[#F59E0B]' : 'text-white/20'}`}
+                              fill="currentColor"
+                              viewBox="0 0 20 20"
+                            >
+                              <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                            </svg>
+                          ))}
+                        </div>
+                      </div>
+                      {r.comment && (
+                        <p className="mt-3 text-sm text-white/70">
+                          "{r.comment}"
+                        </p>
+                      )}
+                    </motion.div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Info */}
           {tab === 'Info' && (
             <div className="space-y-3">
               {[
@@ -731,10 +772,7 @@ export default function ProfilePage() {
                     { month: 'long', year: 'numeric' },
                   ),
                 },
-                {
-                  label: 'Role',
-                  value: profile.role === 'cook' ? 'Home Chef' : 'Food Lover',
-                },
+                { label: 'Role', value: isCook ? 'Home Chef' : 'Food Lover' },
                 {
                   label: 'Identity',
                   value: isVerified ? '✓ Verified' : 'Unverified',
@@ -743,6 +781,22 @@ export default function ProfilePage() {
                   label: 'KYC status',
                   value: profile.kyc_status ?? 'Not submitted',
                 },
+                ...(profile.price_min
+                  ? [
+                      {
+                        label: 'Min price',
+                        value: formatNaira(profile.price_min),
+                      },
+                    ]
+                  : []),
+                ...(profile.price_max
+                  ? [
+                      {
+                        label: 'Max price',
+                        value: formatNaira(profile.price_max),
+                      },
+                    ]
+                  : []),
               ].map(({ label, value }) => (
                 <div
                   key={label}

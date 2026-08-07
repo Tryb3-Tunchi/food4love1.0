@@ -5,448 +5,519 @@ import { motion, AnimatePresence } from 'framer-motion'
 import {
   X,
   Calendar,
+  Clock,
   MapPin,
   CreditCard,
   CheckCircle,
-  ChefHat,
   Loader2,
+  Minus,
+  Plus,
 } from 'lucide-react'
-import { createClient } from '@/lib/supabase/client'
-import { createBooking } from '@/services/bookings'
-// import { Button } from "@/components/ui/button";
-// import { Textarea } from "@/components/ui/textarea";
+import { useRouter } from 'next/navigation'
 import toast from 'react-hot-toast'
-import { Textarea } from '../ui/Textarea'
-import { Button } from '../ui/Button'
+import { formatNaira } from '@/lib/utils'
+import { createClient } from '@/lib/supabase/client'
 
 interface BookingModalProps {
   isOpen: boolean
   onClose: () => void
-  cook: {
-    id: string
-    full_name: string
-    avatar_url?: string
-    daily_specials?: Array<{
-      id: string
-      title: string
-      description: string
-      price: number
-      image_url?: string
-    }>
-    price_min?: number
-    price_max?: number
-  }
+  cookId: string
+  cookName: string
+  cookAvatar?: string | null
+  priceMin: number
   matchId: string
-  buyerId: string
 }
 
-type BookingStep = 'meal' | 'details' | 'payment' | 'success'
-
-export function BookingModal({
+export default function BookingModal({
   isOpen,
   onClose,
-  cook,
+  cookId,
+  cookName,
+  cookAvatar,
+  priceMin,
   matchId,
-  buyerId,
 }: BookingModalProps) {
-  const [step, setStep] = useState<BookingStep>('meal')
-  const [selectedMeal, setSelectedMeal] = useState<string | 'custom'>('custom')
-  const [customMeal, setCustomMeal] = useState('')
+  const router = useRouter()
+  const [step, setStep] = useState<'form' | 'payment' | 'success'>('form')
+  const [loading, setLoading] = useState(false)
+  const [bookingId, setBookingId] = useState<string>('')
+
+  // Form state
+  const [mealDescription, setMealDescription] = useState('')
+  const [deliveryDate, setDeliveryDate] = useState('')
   const [deliveryTime, setDeliveryTime] = useState('')
-  const [address, setAddress] = useState('')
-  const [notes, setNotes] = useState('')
-  const [isProcessing, setIsProcessing] = useState(false)
-  const [buyerEmail, setBuyerEmail] = useState('')
-
-  // Get email from AUTH (not profile table)
-  useEffect(() => {
-    if (!isOpen) return
-    const getEmail = async () => {
-      const supabase = createClient()
-      const {
-        data: { user },
-      } = await supabase.auth.getUser()
-      if (user?.email) setBuyerEmail(user.email)
-    }
-    getEmail()
-  }, [isOpen])
-
-  const selectedSpecial = cook.daily_specials?.find(
-    (s) => s.id === selectedMeal,
+  const [deliveryType, setDeliveryType] = useState<'pickup' | 'delivery'>(
+    'delivery',
   )
-  const price = selectedSpecial?.price || cook.price_min || 0
+  const [address, setAddress] = useState('')
+  const [specialRequests, setSpecialRequests] = useState('')
+  const [guests, setGuests] = useState(2)
+  const [agreedPrice, setAgreedPrice] = useState(priceMin)
 
-  const handlePaystackPayment = async () => {
-    if (!buyerEmail) {
-      toast.error('Please sign in to complete booking')
+  // Reset form when opened
+  useEffect(() => {
+    if (isOpen) {
+      setStep('form')
+      setBookingId('')
+      setMealDescription('')
+      setDeliveryDate('')
+      setDeliveryTime('')
+      setAddress('')
+      setSpecialRequests('')
+      setGuests(2)
+      setAgreedPrice(priceMin)
+      setLoading(false)
+    }
+  }, [isOpen, priceMin])
+
+  const handleCreateBooking = async () => {
+    if (!mealDescription || !deliveryDate || !deliveryTime) {
+      toast.error('Please fill in meal, date, and time')
       return
     }
-    if (!buyerId) {
-      toast.error('User ID missing. Please refresh.')
+    if (deliveryType === 'delivery' && !address) {
+      toast.error('Please enter delivery address')
       return
     }
 
-    setIsProcessing(true)
+    setLoading(true)
     try {
-      const mealTitle =
-        selectedMeal === 'custom'
-          ? customMeal
-          : selectedSpecial?.title || 'Custom Meal'
-
-      const booking = await createBooking({
-        match_id: matchId,
-        cook_id: cook.id,
-        buyer_id: buyerId,
-        dish_title: mealTitle,
-        price,
-        scheduled_for: deliveryTime
-          ? new Date(deliveryTime).toISOString()
-          : null,
-        status: 'pending',
-      })
-
-      const res = await fetch('/api/payments/initialize', {
+      const res = await fetch('/api/bookings', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          email: buyerEmail,
-          amount: price * 100,
-          metadata: {
-            booking_id: booking.id,
-            cook_id: cook.id,
-            buyer_id: buyerId,
-          },
+          cook_id: cookId,
+          match_id: matchId,
+          meal_description: mealDescription,
+          delivery_date: deliveryDate,
+          delivery_time: deliveryTime,
+          delivery_type: deliveryType,
+          address: deliveryType === 'delivery' ? address : null,
+          special_requests: specialRequests || null,
+          guests,
+          amount: agreedPrice,
         }),
       })
 
       const data = await res.json()
-      if (data.authorization_url) {
-        window.location.href = data.authorization_url
-      } else {
-        throw new Error(data.error || 'Failed to initialize payment')
-      }
+      if (!res.ok) throw new Error(data.error || 'Failed to create booking')
+
+      setBookingId(data.booking.id)
+      setStep('payment')
     } catch (err: any) {
-      toast.error(err.message || 'Payment failed. Please try again.')
-      setIsProcessing(false)
+      toast.error(err.message)
+    } finally {
+      setLoading(false)
     }
   }
 
-  const resetAndClose = () => {
-    setStep('meal')
-    setSelectedMeal('custom')
-    setCustomMeal('')
-    setDeliveryTime('')
-    setAddress('')
-    setNotes('')
-    setIsProcessing(false)
-    onClose()
-  }
+  const handlePaystackPayment = async () => {
+    setLoading(true)
 
-  if (!isOpen) return null
+    // Get current user email
+    const supabase = createClient()
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
+    const email = user?.email || ''
+
+    // Initialize payment on server
+    const initRes = await fetch('/api/payments/initialize', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        email,
+        amount: agreedPrice,
+        booking_id: bookingId,
+        metadata: {
+          meal: mealDescription.slice(0, 50),
+          chef: cookName,
+          match_id: matchId,
+        },
+      }),
+    })
+
+    const initData = await initRes.json()
+    if (!initRes.ok) {
+      toast.error(initData.error || 'Failed to initialize payment')
+      setLoading(false)
+      return
+    }
+
+    // Open Paystack inline
+    const paystack = (window as any).PaystackPop
+    if (!paystack) {
+      toast.error('Paystack not loaded. Please refresh.')
+      setLoading(false)
+      return
+    }
+
+    const handler = paystack.setup({
+      key: process.env.NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY,
+      email,
+      amount: agreedPrice * 100,
+      ref: initData.reference,
+      metadata: {
+        booking_id: bookingId,
+        custom_fields: [
+          {
+            display_name: 'Meal',
+            variable_name: 'meal',
+            value: mealDescription.slice(0, 50),
+          },
+          { display_name: 'Chef', variable_name: 'chef', value: cookName },
+        ],
+      },
+      callback: async (response: any) => {
+        const verifyRes = await fetch('/api/payments/verify', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            reference: response.reference,
+            booking_id: bookingId,
+          }),
+        })
+        const verifyData = await verifyRes.json()
+        if (verifyData.success) {
+          setStep('success')
+        } else {
+          toast.error('Payment verification failed. Contact support.')
+        }
+        setLoading(false)
+      },
+      onClose: () => {
+        setLoading(false)
+        toast('Payment cancelled. You can retry from your bookings.', {
+          icon: '⚠️',
+        })
+      },
+    })
+
+    handler.openIframe()
+  }
 
   return (
     <AnimatePresence>
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        className="fixed inset-0 z-50 flex items-end justify-center bg-black/70 p-0 backdrop-blur-sm sm:items-center sm:p-4"
-        onClick={resetAndClose}
-      >
-        <motion.div
-          initial={{ y: '100%' }}
-          animate={{ y: 0 }}
-          exit={{ y: '100%' }}
-          transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-          className="max-h-[90vh] w-full overflow-y-auto rounded-t-3xl border border-[var(--border)] bg-[var(--bg)] shadow-2xl sm:max-w-md sm:rounded-3xl"
-          onClick={(e) => e.stopPropagation()}
-        >
-          {/* Header */}
-          <div className="bg-[var(--bg)]/95 sticky top-0 z-10 flex items-center justify-between border-b border-[var(--border)] px-5 py-4 backdrop-blur-xl">
-            <div className="flex items-center gap-2">
-              <ChefHat className="h-5 w-5 text-[var(--primary)]" />
-              <h2 className="text-lg font-bold text-[var(--text)]">
-                Book with {cook.full_name}
-              </h2>
-            </div>
-            <button
-              onClick={resetAndClose}
-              className="rounded-full p-2 transition-colors hover:bg-[var(--bg-2)]"
-              aria-label="Close"
-            >
-              <X className="h-5 w-5 text-[var(--text-muted)]" />
-            </button>
-          </div>
+      {isOpen && (
+        <>
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={onClose}
+            className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm"
+          />
+          <motion.div
+            initial={{ y: '100%' }}
+            animate={{ y: 0 }}
+            exit={{ y: '100%' }}
+            transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+            className="fixed bottom-0 left-0 right-0 z-50 max-h-[90vh] overflow-y-auto rounded-t-3xl border-t border-white/10 bg-[#1A1008] p-6"
+          >
+            <div className="mx-auto mb-6 h-1.5 w-12 rounded-full bg-white/20" />
 
-          <div className="p-5">
-            <AnimatePresence mode="wait">
-              {step === 'meal' && (
-                <motion.div
-                  key="meal"
-                  initial={{ opacity: 0, x: 20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  exit={{ opacity: 0, x: -20 }}
-                  className="space-y-4"
-                >
-                  <p className="text-sm text-[var(--text-muted)]">
-                    What would you like to order?
-                  </p>
-                  {cook.daily_specials && cook.daily_specials.length > 0 && (
-                    <div className="space-y-2">
-                      <p className="text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)]">
-                        Today's Specials
-                      </p>
-                      {cook.daily_specials.map((special) => (
-                        <button
-                          key={special.id}
-                          onClick={() => setSelectedMeal(special.id)}
-                          className={`flex w-full items-center gap-3 rounded-xl border-2 p-3 text-left transition-all ${selectedMeal === special.id ? 'bg-[var(--primary)]/10 border-[var(--primary)]' : 'hover:border-[var(--primary)]/50 border-[var(--border)]'}`}
-                        >
-                          {special.image_url ? (
-                            // eslint-disable-next-line @next/next/no-img-element
-                            <img
-                              src={special.image_url}
-                              alt=""
-                              className="h-12 w-12 flex-shrink-0 rounded-lg object-cover"
-                            />
-                          ) : (
-                            <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-lg bg-[var(--bg-2)]">
-                              <ChefHat className="h-5 w-5 text-[var(--text-muted)]" />
-                            </div>
-                          )}
-                          <div className="min-w-0 flex-1">
-                            <p className="text-sm font-medium text-[var(--text)]">
-                              {special.title}
-                            </p>
-                            <p className="line-clamp-1 text-xs text-[var(--text-muted)]">
-                              {special.description}
-                            </p>
-                          </div>
-                          <span className="flex-shrink-0 text-sm font-bold text-[var(--primary)]">
-                            ₦{special.price.toLocaleString()}
-                          </span>
-                        </button>
-                      ))}
-                    </div>
+            {/* Header */}
+            <div className="mb-6 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-full bg-white/10">
+                  {cookAvatar ? (
+                    <img
+                      src={cookAvatar}
+                      alt={cookName}
+                      className="h-full w-full object-cover"
+                    />
+                  ) : (
+                    <span className="text-lg">🧑‍🍳</span>
                   )}
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold text-white">Book a Meal</h3>
+                  <p className="text-sm text-white/50">with {cookName}</p>
+                </div>
+              </div>
+              <button
+                onClick={onClose}
+                className="flex h-8 w-8 items-center justify-center rounded-full bg-white/10 text-white/60 hover:bg-white/20"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
 
-                  <button
-                    onClick={() => setSelectedMeal('custom')}
-                    className={`flex w-full items-center gap-3 rounded-xl border-2 p-3 text-left transition-all ${selectedMeal === 'custom' ? 'bg-[var(--primary)]/10 border-[var(--primary)]' : 'hover:border-[var(--primary)]/50 border-[var(--border)]'}`}
-                  >
-                    <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-lg bg-[var(--bg-2)] text-lg">
-                      ✍️
-                    </div>
-                    <div className="flex-1">
-                      <p className="text-sm font-medium text-[var(--text)]">
-                        Custom Request
-                      </p>
-                      <p className="text-xs text-[var(--text-muted)]">
-                        Describe what you want
-                      </p>
-                    </div>
-                  </button>
+            {/* STEP 1: Form */}
+            {step === 'form' && (
+              <div className="space-y-5">
+                <div>
+                  <label className="mb-1.5 block text-sm font-medium text-white/70">
+                    What would you like to order?
+                  </label>
+                  <textarea
+                    value={mealDescription}
+                    onChange={(e) => setMealDescription(e.target.value)}
+                    placeholder="e.g. Ofe Akwu with pounded yam for 2 people..."
+                    className="w-full rounded-xl border border-white/10 bg-white/5 p-3 text-sm text-white placeholder-white/30 outline-none focus:border-[#E8390E]"
+                    rows={3}
+                  />
+                </div>
 
-                  <AnimatePresence>
-                    {selectedMeal === 'custom' && (
-                      <motion.div
-                        initial={{ opacity: 0, height: 0 }}
-                        animate={{ opacity: 1, height: 'auto' }}
-                        exit={{ opacity: 0, height: 0 }}
-                      >
-                        <Textarea
-                          placeholder="e.g., Jollof rice with grilled chicken..."
-                          value={customMeal}
-                          onChange={(e) => setCustomMeal(e.target.value)}
-                          className="mt-2"
-                        />
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
-
-                  <Button
-                    onClick={() => setStep('details')}
-                    disabled={selectedMeal === 'custom' && !customMeal.trim()}
-                    className="hover:bg-[var(--primary)]/90 h-12 w-full rounded-xl bg-[var(--primary)] font-semibold text-white"
-                  >
-                    Continue
-                  </Button>
-                </motion.div>
-              )}
-
-              {step === 'details' && (
-                <motion.div
-                  key="details"
-                  initial={{ opacity: 0, x: 20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  exit={{ opacity: 0, x: -20 }}
-                  className="space-y-4"
-                >
-                  <div className="space-y-2">
-                    <label className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)]">
-                      <Calendar className="h-3.5 w-3.5" /> Delivery Time
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="mb-1.5 flex items-center gap-1.5 text-sm font-medium text-white/70">
+                      <Calendar className="h-3.5 w-3.5" /> Date
                     </label>
                     <input
-                      type="datetime-local"
+                      type="date"
+                      value={deliveryDate}
+                      onChange={(e) => setDeliveryDate(e.target.value)}
+                      min={new Date().toISOString().split('T')[0]}
+                      className="w-full rounded-xl border border-white/10 bg-white/5 p-3 text-sm text-white outline-none focus:border-[#E8390E]"
+                    />
+                  </div>
+                  <div>
+                    <label className="mb-1.5 flex items-center gap-1.5 text-sm font-medium text-white/70">
+                      <Clock className="h-3.5 w-3.5" /> Time
+                    </label>
+                    <input
+                      type="time"
                       value={deliveryTime}
                       onChange={(e) => setDeliveryTime(e.target.value)}
-                      className="focus:ring-[var(--primary)]/50 h-12 w-full rounded-xl border border-[var(--border)] bg-[var(--bg-2)] px-4 text-sm text-[var(--text)] focus:outline-none focus:ring-2"
+                      className="w-full rounded-xl border border-white/10 bg-white/5 p-3 text-sm text-white outline-none focus:border-[#E8390E]"
                     />
                   </div>
-                  <div className="space-y-2">
-                    <label className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)]">
+                </div>
+
+                <div>
+                  <label className="mb-1.5 block text-sm font-medium text-white/70">
+                    Number of guests
+                  </label>
+                  <div className="flex items-center gap-3">
+                    <button
+                      onClick={() => setGuests(Math.max(1, guests - 1))}
+                      className="flex h-10 w-10 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-white hover:bg-white/10"
+                    >
+                      <Minus className="h-4 w-4" />
+                    </button>
+                    <span className="w-8 text-center text-lg font-bold text-white">
+                      {guests}
+                    </span>
+                    <button
+                      onClick={() => setGuests(Math.min(20, guests + 1))}
+                      className="flex h-10 w-10 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-white hover:bg-white/10"
+                    >
+                      <Plus className="h-4 w-4" />
+                    </button>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="mb-2 block text-sm font-medium text-white/70">
+                    Delivery or Pickup?
+                  </label>
+                  <div className="flex gap-2">
+                    {(['delivery', 'pickup'] as const).map((type) => (
+                      <button
+                        key={type}
+                        onClick={() => setDeliveryType(type)}
+                        className={`flex-1 rounded-xl border px-4 py-3 text-sm font-medium capitalize transition-all ${
+                          deliveryType === type
+                            ? 'border-[#E8390E] bg-[#E8390E]/10 text-[#E8390E]'
+                            : 'border-white/10 bg-white/5 text-white/60 hover:bg-white/10'
+                        }`}
+                      >
+                        {type}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {deliveryType === 'delivery' && (
+                  <div>
+                    <label className="mb-1.5 flex items-center gap-1.5 text-sm font-medium text-white/70">
                       <MapPin className="h-3.5 w-3.5" /> Delivery Address
                     </label>
-                    <Textarea
+                    <textarea
                       value={address}
                       onChange={(e) => setAddress(e.target.value)}
-                      placeholder="Enter your delivery address..."
-                      rows={3}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)]">
-                      Special Requests
-                    </label>
-                    <Textarea
-                      value={notes}
-                      onChange={(e) => setNotes(e.target.value)}
-                      placeholder="Any allergies, spice level..."
+                      placeholder="Enter your full delivery address..."
+                      className="w-full rounded-xl border border-white/10 bg-white/5 p-3 text-sm text-white placeholder-white/30 outline-none focus:border-[#E8390E]"
                       rows={2}
                     />
                   </div>
-                  <div className="flex gap-3 pt-2">
-                    <Button
-                      variant="outline"
-                      onClick={() => setStep('meal')}
-                      className="h-12 flex-1 rounded-xl border-[var(--border)] text-[var(--text)] hover:bg-[var(--bg-2)]"
-                    >
-                      Back
-                    </Button>
-                    <Button
-                      onClick={() => setStep('payment')}
-                      disabled={!address.trim()}
-                      className="hover:bg-[var(--primary)]/90 h-12 flex-1 rounded-xl bg-[var(--primary)] font-semibold text-white"
-                    >
-                      Review Order
-                    </Button>
-                  </div>
-                </motion.div>
-              )}
+                )}
 
-              {step === 'payment' && (
-                <motion.div
-                  key="payment"
-                  initial={{ opacity: 0, x: 20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  exit={{ opacity: 0, x: -20 }}
-                  className="space-y-4"
-                >
-                  <div className="space-y-4 rounded-2xl border border-[var(--border)] bg-[var(--bg-2)] p-5">
-                    <div className="flex items-center justify-between border-b border-[var(--border)] pb-3">
-                      <span className="text-sm text-[var(--text-muted)]">
-                        Meal
-                      </span>
-                      <span className="max-w-[60%] text-right text-sm font-medium text-[var(--text)]">
-                        {selectedMeal === 'custom'
-                          ? customMeal
-                          : selectedSpecial?.title}
-                      </span>
-                    </div>
-                    <div className="flex items-center justify-between border-b border-[var(--border)] pb-3">
-                      <span className="text-sm text-[var(--text-muted)]">
-                        Chef
-                      </span>
-                      <span className="text-sm font-medium text-[var(--text)]">
-                        {cook.full_name}
-                      </span>
-                    </div>
-                    <div className="flex items-center justify-between border-b border-[var(--border)] pb-3">
-                      <span className="text-sm text-[var(--text-muted)]">
-                        Delivery
-                      </span>
-                      <span className="max-w-[60%] text-right text-sm font-medium text-[var(--text)]">
-                        {address}
-                      </span>
-                    </div>
-                    {notes && (
-                      <div className="flex items-start justify-between border-b border-[var(--border)] pb-3">
-                        <span className="text-sm text-[var(--text-muted)]">
-                          Notes
-                        </span>
-                        <span className="max-w-[60%] text-right text-sm font-medium text-[var(--text)]">
-                          {notes}
-                        </span>
-                      </div>
-                    )}
-                    <div className="flex items-center justify-between pt-1">
-                      <span className="font-bold text-[var(--text)]">
-                        Total
-                      </span>
-                      <span className="text-2xl font-bold text-[var(--primary)]">
-                        ₦{price.toLocaleString()}
-                      </span>
-                    </div>
-                  </div>
-                  <div className="flex gap-3 pt-2">
-                    <Button
-                      variant="outline"
-                      onClick={() => setStep('details')}
-                      className="h-12 flex-1 rounded-xl border-[var(--border)] text-[var(--text)] hover:bg-[var(--bg-2)]"
-                    >
-                      Back
-                    </Button>
-                    <Button
-                      onClick={handlePaystackPayment}
-                      disabled={isProcessing}
-                      className="hover:bg-[var(--primary)]/90 h-12 flex-1 rounded-xl bg-[var(--primary)] font-semibold text-white"
-                    >
-                      {isProcessing ? (
-                        <span className="flex items-center justify-center gap-2">
-                          <Loader2 className="h-4 w-4 animate-spin" />
-                          Processing...
-                        </span>
-                      ) : (
-                        <span className="flex items-center justify-center gap-2">
-                          <CreditCard className="h-4 w-4" /> Pay Now
-                        </span>
-                      )}
-                    </Button>
-                  </div>
-                </motion.div>
-              )}
+                <div>
+                  <label className="mb-1.5 block text-sm font-medium text-white/70">
+                    Special requests (optional)
+                  </label>
+                  <textarea
+                    value={specialRequests}
+                    onChange={(e) => setSpecialRequests(e.target.value)}
+                    placeholder="Any allergies, spice level, dietary requirements..."
+                    className="w-full rounded-xl border border-white/10 bg-white/5 p-3 text-sm text-white placeholder-white/30 outline-none focus:border-[#E8390E]"
+                    rows={2}
+                  />
+                </div>
 
-              {step === 'success' && (
-                <motion.div
-                  key="success"
-                  initial={{ opacity: 0, scale: 0.9 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  className="space-y-5 py-8 text-center"
+                <div className="rounded-xl border border-white/10 bg-white/5 p-4">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-white/60">Agreed price</span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm text-white/40">₦</span>
+                      <input
+                        type="number"
+                        value={agreedPrice}
+                        onChange={(e) => setAgreedPrice(Number(e.target.value))}
+                        className="w-24 rounded-lg border border-white/10 bg-white/5 p-2 text-right text-sm font-bold text-white outline-none focus:border-[#E8390E]"
+                        min={priceMin}
+                      />
+                    </div>
+                  </div>
+                  <p className="mt-1 text-xs text-white/40">
+                    Minimum: {formatNaira(priceMin)}. Final price confirmed by
+                    chef.
+                  </p>
+                </div>
+
+                <button
+                  onClick={handleCreateBooking}
+                  disabled={loading}
+                  className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#E8390E] py-4 text-sm font-bold text-white transition-all active:scale-95 disabled:opacity-50"
                 >
-                  <div className="bg-[var(--success)]/20 mx-auto flex h-20 w-20 items-center justify-center rounded-full">
-                    <CheckCircle className="h-10 w-10 text-[var(--success)]" />
+                  {loading ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Creating booking...
+                    </>
+                  ) : (
+                    <>
+                      <CreditCard className="h-4 w-4" />
+                      Proceed to Payment — {formatNaira(agreedPrice)}
+                    </>
+                  )}
+                </button>
+              </div>
+            )}
+
+            {/* STEP 2: Payment */}
+            {step === 'payment' && (
+              <div className="space-y-6 text-center">
+                <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-[#E8390E]/10">
+                  <CreditCard className="h-8 w-8 text-[#E8390E]" />
+                </div>
+                <div>
+                  <h4 className="text-lg font-bold text-white">
+                    Complete Payment
+                  </h4>
+                  <p className="mt-1 text-sm text-white/60">
+                    Pay {formatNaira(agreedPrice)} to confirm your booking with{' '}
+                    {cookName}
+                  </p>
+                </div>
+
+                <div className="rounded-xl border border-white/10 bg-white/5 p-4 text-left">
+                  <div className="flex justify-between text-sm">
+                    <span className="text-white/60">Meal</span>
+                    <span className="text-white">
+                      {mealDescription.slice(0, 30)}...
+                    </span>
                   </div>
-                  <div>
-                    <h3 className="mb-1 text-2xl font-bold text-[var(--text)]">
-                      Booking Confirmed!
-                    </h3>
-                    <p className="mx-auto max-w-xs text-sm text-[var(--text-muted)]">
-                      {cook.full_name} has been notified. You'll receive a
-                      confirmation once they accept.
-                    </p>
+                  <div className="mt-2 flex justify-between text-sm">
+                    <span className="text-white/60">Date</span>
+                    <span className="text-white">
+                      {deliveryDate} at {deliveryTime}
+                    </span>
                   </div>
-                  <Button
-                    onClick={resetAndClose}
-                    className="hover:bg-[var(--primary)]/90 h-12 rounded-xl bg-[var(--primary)] px-8 font-semibold text-white"
+                  <div className="mt-2 flex justify-between text-sm">
+                    <span className="text-white/60">Guests</span>
+                    <span className="text-white">{guests}</span>
+                  </div>
+                  <div className="mt-3 flex justify-between border-t border-white/10 pt-3">
+                    <span className="font-bold text-white">Total</span>
+                    <span className="font-bold text-[#E8390E]">
+                      {formatNaira(agreedPrice)}
+                    </span>
+                  </div>
+                </div>
+
+                <button
+                  onClick={handlePaystackPayment}
+                  disabled={loading}
+                  className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#E8390E] py-4 text-sm font-bold text-white transition-all active:scale-95 disabled:opacity-50"
+                >
+                  {loading ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Processing...
+                    </>
+                  ) : (
+                    <>
+                      <CreditCard className="h-4 w-4" />
+                      Pay with Paystack
+                    </>
+                  )}
+                </button>
+
+                <button
+                  onClick={() => setStep('form')}
+                  className="text-sm text-white/40 hover:text-white/60"
+                >
+                  ← Back to edit details
+                </button>
+              </div>
+            )}
+
+            {/* STEP 3: Success */}
+            {step === 'success' && (
+              <div className="space-y-6 text-center">
+                <motion.div
+                  initial={{ scale: 0 }}
+                  animate={{ scale: 1 }}
+                  className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-[#84CC16]/10"
+                >
+                  <CheckCircle className="h-10 w-10 text-[#84CC16]" />
+                </motion.div>
+                <div>
+                  <h4 className="text-xl font-bold text-white">
+                    Booking Confirmed!
+                  </h4>
+                  <p className="mt-1 text-sm text-white/60">
+                    Your meal with {cookName} is booked for {deliveryDate}.
+                  </p>
+                </div>
+
+                <div className="rounded-xl border border-[#84CC16]/20 bg-[#84CC16]/5 p-4">
+                  <p className="text-sm text-[#84CC16]">
+                    Booking ID:{' '}
+                    <span className="font-mono font-bold">
+                      {bookingId.slice(0, 8)}
+                    </span>
+                  </p>
+                  <p className="mt-1 text-xs text-white/50">
+                    A receipt has been sent to your email.
+                  </p>
+                </div>
+
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => {
+                      onClose()
+                      router.push(`/bookings/${bookingId}`)
+                    }}
+                    className="flex-1 rounded-xl bg-[#E8390E] py-3 text-sm font-bold text-white"
+                  >
+                    View Booking
+                  </button>
+                  <button
+                    onClick={onClose}
+                    className="flex-1 rounded-xl border border-white/10 bg-white/5 py-3 text-sm font-bold text-white"
                   >
                     Back to Chat
-                  </Button>
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </div>
-        </motion.div>
-      </motion.div>
+                  </button>
+                </div>
+              </div>
+            )}
+          </motion.div>
+        </>
+      )}
     </AnimatePresence>
   )
 }
