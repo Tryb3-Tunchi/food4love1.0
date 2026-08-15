@@ -32,7 +32,9 @@ export function useSwipeDeck(filters?: {
   const queryClient = useQueryClient()
 
   const [currentIndex, setCurrentIndex] = useState(0)
-  const [direction, setDirection] = useState<'left' | 'right' | 'up' | null>(null)
+  const [direction, setDirection] = useState<'left' | 'right' | 'up' | null>(
+    null,
+  )
 
   const {
     data: candidates = [],
@@ -111,7 +113,11 @@ export function useSwipeDeck(filters?: {
         throw queryError
       }
 
-      console.log('✅ [useSwipeDeck] Raw results:', data?.length ?? 0, 'profiles')
+      console.log(
+        '✅ [useSwipeDeck] Raw results:',
+        data?.length ?? 0,
+        'profiles',
+      )
       console.log('✅ [useSwipeDeck] Results:', data)
 
       // Enrich with daily specials
@@ -169,7 +175,7 @@ export function useSwipeDeck(filters?: {
           .from('swipes')
           .select('id')
           .eq('swiper_id', swipedUserId)
-          .eq('swiped_id', userId)  // ← FIXED: was swiped_user_id
+          .eq('swiped_id', userId) // ← FIXED: was swiped_user_id
           .in('action', ['like', 'superlike'])
           .single()
 
@@ -178,7 +184,9 @@ export function useSwipeDeck(filters?: {
             user1_id: userId,
             user2_id: swipedUserId,
             status: 'matched',
-            expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+            expires_at: new Date(
+              Date.now() + 24 * 60 * 60 * 1000,
+            ).toISOString(),
           })
           if (matchError) throw matchError
           return { match: true }
