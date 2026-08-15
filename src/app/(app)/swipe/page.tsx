@@ -42,7 +42,13 @@ interface Filters {
 }
 
 export default function SwipePage() {
-  const profile = useAuthStore((s) => s.profile)
+  // const profile = useAuthStore((s) => s.profile)
+
+
+  // TEMPORARY DEBUG — add this inside the SwipePage component
+  const { profile } = useAuthStore()
+  console.log('🚨 SWIPE PAGE — profile:', profile)
+  console.log('🚨 SWIPE PAGE — userId:', profile?.id)
 
   const [deck, setDeck] = useState<Chef[]>([])
   const [currentIndex, setCurrentIndex] = useState(0)
@@ -69,10 +75,10 @@ export default function SwipePage() {
   const { data, isLoading, refetch } = useSwipeDeck(
     activeFilters
       ? {
-          cuisines: filters.cuisines,
-          priceMax: filters.priceMax,
-          distance: filters.distance,
-        }
+        cuisines: filters.cuisines,
+        priceMax: filters.priceMax,
+        distance: filters.distance,
+      }
       : undefined,
   )
 
@@ -163,6 +169,8 @@ export default function SwipePage() {
         : [...p.cuisines, c],
     }))
   }
+
+
 
   return (
     <AppPage
@@ -502,12 +510,12 @@ export default function SwipePage() {
                   Apply Filters
                   {(pendingFilters.cuisines.length > 0 ||
                     pendingFilters.priceMax < 50000) && (
-                    <span className="ml-2 rounded-full bg-white/20 px-2 py-0.5 text-xs">
-                      {pendingFilters.cuisines.length +
-                        (pendingFilters.priceMax < 50000 ? 1 : 0)}{' '}
-                      active
-                    </span>
-                  )}
+                      <span className="ml-2 rounded-full bg-white/20 px-2 py-0.5 text-xs">
+                        {pendingFilters.cuisines.length +
+                          (pendingFilters.priceMax < 50000 ? 1 : 0)}{' '}
+                        active
+                      </span>
+                    )}
                 </Button>
               </div>
             </motion.div>
