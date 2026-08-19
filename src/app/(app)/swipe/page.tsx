@@ -42,7 +42,12 @@ interface Filters {
 }
 
 export default function SwipePage() {
-  const profile = useAuthStore((s) => s.profile)
+  // const profile = useAuthStore((s) => s.profile)
+
+  // TEMPORARY DEBUG — add this inside the SwipePage component
+  const { profile } = useAuthStore()
+  console.log('🚨 SWIPE PAGE — profile:', profile)
+  console.log('🚨 SWIPE PAGE — userId:', profile?.id)
 
   const [deck, setDeck] = useState<Chef[]>([])
   const [currentIndex, setCurrentIndex] = useState(0)

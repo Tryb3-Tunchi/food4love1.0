@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback, useEffect } from 'react'
+import { useState, useCallback } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { createClient } from '@/lib/supabase/client'
 import { useAuthStore } from '@/stores/useAuthStore'
@@ -36,7 +36,6 @@ export function useSwipeDeck(filters?: {
     null,
   )
 
-  // Fetch candidates
   const {
     data: candidates = [],
     isLoading,
@@ -44,24 +43,42 @@ export function useSwipeDeck(filters?: {
   } = useQuery({
     queryKey: ['swipe-candidates', userId, filters],
     queryFn: async () => {
-      if (!userId) return []
+      console.log('🔍 [useSwipeDeck] Starting fetch...')
+      console.log('🔍 [useSwipeDeck] userId:', userId)
+
+      if (!userId) {
+        console.warn('⚠️ [useSwipeDeck] No userId — returning empty')
+        return []
+      }
 
       // Get already swiped IDs
-      const { data: swiped } = await supabase
+      const { data: swiped, error: swipedErr } = await supabase
         .from('swipes')
         .select('swiped_id')
         .eq('swiper_id', userId)
 
+      if (swipedErr) {
+        console.error('❌ [useSwipeDeck] Swipes query error:', swipedErr)
+      }
+
       const swipedIds = swiped?.map((s) => s.swiped_id) ?? []
+      console.log('🔍 [useSwipeDeck] Already swiped:', swipedIds)
 
       // Get current user's profile for filtering
-      const { data: myProfile } = await supabase
+      const { data: myProfile, error: profileErr } = await supabase
         .from('profiles')
         .select('role, cuisines, price_max')
         .eq('id', userId)
         .single()
 
+      if (profileErr) {
+        console.error('❌ [useSwipeDeck] Profile fetch error:', profileErr)
+      }
+
+      console.log('🔍 [useSwipeDeck] My profile:', myProfile)
+
       const isBuyer = myProfile?.role === 'buyer'
+      console.log('🔍 [useSwipeDeck] isBuyer:', isBuyer)
 
       let query = supabase
         .from('profiles')
@@ -69,7 +86,7 @@ export function useSwipeDeck(filters?: {
           'id, full_name, bio, avatar_url, cuisines, price_min, price_max, location, rating, photos, lat, lng',
         )
         .eq('role', isBuyer ? 'cook' : 'buyer')
-        .eq('is_active', true)
+        .eq('suspended', false)
 
       if (swipedIds.length > 0) {
         query = query.not('id', 'in', `(${[userId, ...swipedIds].join(',')})`)
@@ -89,8 +106,19 @@ export function useSwipeDeck(filters?: {
         query = query.eq('kyc_status', 'verified')
       }
 
-      const { data, error } = await query.limit(20)
-      if (error) throw error
+      const { data, error: queryError } = await query.limit(20)
+
+      if (queryError) {
+        console.error('❌ [useSwipeDeck] MAIN QUERY ERROR:', queryError)
+        throw queryError
+      }
+
+      console.log(
+        '✅ [useSwipeDeck] Raw results:',
+        data?.length ?? 0,
+        'profiles',
+      )
+      console.log('✅ [useSwipeDeck] Results:', data)
 
       // Enrich with daily specials
       const cooks = data ?? []
@@ -120,6 +148,11 @@ export function useSwipeDeck(filters?: {
     staleTime: 1000 * 60 * 5,
   })
 
+  // Log errors at hook level too
+  if (error) {
+    console.error('❌ [useSwipeDeck] useQuery error:', error)
+  }
+
   // Swipe mutation
   const swipeMutation = useMutation({
     mutationFn: async ({
@@ -131,7 +164,7 @@ export function useSwipeDeck(filters?: {
     }) => {
       const { error } = await supabase.from('swipes').insert({
         swiper_id: userId,
-        swiped_user_id: swipedUserId,
+        swiped_id: swipedUserId,
         action,
       })
       if (error) throw error
@@ -142,16 +175,18 @@ export function useSwipeDeck(filters?: {
           .from('swipes')
           .select('id')
           .eq('swiper_id', swipedUserId)
-          .eq('swiped_user_id', userId)
+          .eq('swiped_id', userId) // ← FIXED: was swiped_user_id
           .in('action', ['like', 'superlike'])
           .single()
 
         if (mutual) {
-          // Create match
           const { error: matchError } = await supabase.from('matches').insert({
             user1_id: userId,
             user2_id: swipedUserId,
-            status: 'active',
+            status: 'matched',
+            expires_at: new Date(
+              Date.now() + 24 * 60 * 60 * 1000,
+            ).toISOString(),
           })
           if (matchError) throw matchError
           return { match: true }
@@ -162,7 +197,11 @@ export function useSwipeDeck(filters?: {
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['swipe-candidates'] })
       if (data.match) {
-        // Match celebration will be handled by parent
+        window.dispatchEvent(
+          new CustomEvent('food4love-match', {
+            detail: { user: currentCard },
+          }),
+        )
       }
     },
   })
@@ -178,7 +217,6 @@ export function useSwipeDeck(filters?: {
         action === 'pass' ? 'left' : action === 'superlike' ? 'up' : 'right',
       )
 
-      // Wait for animation
       await new Promise((resolve) => setTimeout(resolve, 300))
 
       swipeMutation.mutate(
@@ -188,7 +226,6 @@ export function useSwipeDeck(filters?: {
             setCurrentIndex((prev) => prev + 1)
             setDirection(null)
             if (data.match) {
-              // Trigger match overlay in parent component
               window.dispatchEvent(
                 new CustomEvent('food4love-match', {
                   detail: { user: currentCard },
