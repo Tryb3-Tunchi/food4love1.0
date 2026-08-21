@@ -19,6 +19,10 @@ import {
   PanInfo,
 } from 'framer-motion'
 import toast from 'react-hot-toast'
+import { Bell } from 'lucide-react'
+import Link from 'next/link'
+import { useNotifications } from '@/hooks/useNotifications'
+import { NavBadge } from '@/components/layout/NavBadge'
 
 const CUISINES = [
   'Igbo Cuisine',
@@ -48,6 +52,8 @@ export default function SwipePage() {
   const { profile } = useAuthStore()
   console.log('🚨 SWIPE PAGE — profile:', profile)
   console.log('🚨 SWIPE PAGE — userId:', profile?.id)
+
+  const { unreadCount } = useNotifications()
 
   const [deck, setDeck] = useState<Chef[]>([])
   const [currentIndex, setCurrentIndex] = useState(0)
@@ -278,6 +284,10 @@ export default function SwipePage() {
               Clear
             </button>
           )}
+          <Link href="/notifications" className="relative">
+            <Bell className="h-6 w-6 text-[var(--text)]" />
+            {unreadCount > 0 && <NavBadge count={unreadCount} />}
+          </Link>
           <button
             onClick={() => {
               setPendingFilters(filters)
