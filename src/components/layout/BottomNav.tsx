@@ -3,28 +3,39 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { motion } from 'framer-motion'
-import { Flame, MessageCircle, MapPin, User, Users } from 'lucide-react'
+import {
+  Flame,
+  MessageCircle,
+  MapPin,
+  User,
+  Users,
+  Heart,
+  Bell,
+} from 'lucide-react'
 import { useAuthStore } from '@/stores/useAuthStore'
+import { useNotifications } from '@/hooks/useNotifications'
+import { NavBadge } from './NavBadge'
 
 const buyerLinks = [
-  { href: '/swipe', label: 'Discover', icon: Flame },
-  { href: '/matches', label: 'Matches', icon: Users },
-  { href: '/chat', label: 'Chat', icon: MessageCircle },
-  { href: '/map', label: 'Map', icon: MapPin },
-  { href: '/profile', label: 'Profile', icon: User },
+  { href: '/swipe', label: 'Discover', icon: Flame, badge: 'none' },
+  { href: '/matches', label: 'Matches', icon: Users, badge: 'notifications' },
+  { href: '/chat', label: 'Chat', icon: MessageCircle, badge: 'notifications' },
+  { href: '/map', label: 'Map', icon: MapPin, badge: 'none' },
+  { href: '/profile', label: 'Profile', icon: User, badge: 'none' },
 ]
 
 const cookLinks = [
-  { href: '/swipe', label: 'Discover', icon: Flame },
-  { href: '/requests', label: 'Requests', icon: Users },
-  { href: '/chat', label: 'Chat', icon: MessageCircle },
-  { href: '/likes', label: 'Likes', icon: MessageCircle }, // You can change icon
-  { href: '/profile', label: 'Profile', icon: User },
+  { href: '/swipe', label: 'Discover', icon: Flame, badge: 'none' },
+  { href: '/requests', label: 'Requests', icon: Users, badge: 'notifications' },
+  { href: '/chat', label: 'Chat', icon: MessageCircle, badge: 'notifications' },
+  { href: '/likes', label: 'Likes', icon: Heart, badge: 'notifications' }, // Fixed: was MessageCircle
+  { href: '/profile', label: 'Profile', icon: User, badge: 'none' },
 ]
 
 export function BottomNav() {
   const pathname = usePathname()
   const { profile } = useAuthStore()
+  const { unreadCount } = useNotifications()
   const isCook = profile?.role === 'cook'
   const links = isCook ? cookLinks : buyerLinks
 
@@ -45,6 +56,7 @@ export function BottomNav() {
           const isActive =
             pathname === link.href || pathname.startsWith(`${link.href}/`)
           const Icon = link.icon
+          const showBadge = link.badge === 'notifications' && unreadCount > 0
 
           return (
             <Link
@@ -63,7 +75,10 @@ export function BottomNav() {
                   transition={{ type: 'spring', stiffness: 400, damping: 30 }}
                 />
               )}
-              <Icon className="h-5 w-5" strokeWidth={isActive ? 2.5 : 2} />
+              <div className="relative">
+                <Icon className="h-5 w-5" strokeWidth={isActive ? 2.5 : 2} />
+                {showBadge && <NavBadge count={unreadCount} />}
+              </div>
               <span className="text-[10px] font-medium">{link.label}</span>
             </Link>
           )
