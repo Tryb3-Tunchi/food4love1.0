@@ -12,10 +12,6 @@ import Link from 'next/link'
 import Image from 'next/image'
 import { format } from 'date-fns'
 import BookingModal from '@/components/booking/BookingModal'
-// import { BookingModal } from '@/components/booking/BookingModal'
-// import BookingModal from '@/components/booking/BookingModal'
-// import { useState } from 'react'
-// import { Calendar } from 'lucide-react'
 
 interface Profile {
   id: string
@@ -24,8 +20,8 @@ interface Profile {
   role: 'cook' | 'buyer'
   bio?: string | null
   location?: string | null
-  cuisines?: string[]
-  photos?: string[]
+  cuisines?: string[] | null
+  photos?: string[] | null
   price_min?: number | null
   price_max?: number | null
   rating?: number | null
@@ -146,10 +142,11 @@ export default function ChatDetailPage() {
           </p>
         </div>
 
-        {isCook && (
+        {/* Book Meal Button — opens modal, uses otherUser.id */}
+        {isCook && otherUser && (
           <button
             onClick={() => setShowBooking(true)}
-            className="bg-[var(--primary)]/10 hover:bg-[var(--primary)]/20 flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium text-[var(--primary)] transition-colors"
+            className="hover:bg-[var(--primary)]/90 flex items-center gap-1.5 rounded-full bg-[var(--primary)] px-3 py-1.5 text-xs font-bold text-white transition"
           >
             <Calendar className="h-3.5 w-3.5" />
             Book Meal

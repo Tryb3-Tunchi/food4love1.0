@@ -15,10 +15,9 @@ import {
 } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import toast from 'react-hot-toast'
-import { formatNaira } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/client'
 
-interface BookingModalProps {
+export interface BookingModalProps {
   isOpen: boolean
   onClose: () => void
   cookId: string
@@ -70,6 +69,8 @@ export default function BookingModal({
     }
   }, [isOpen, priceMin])
 
+  const formatNaira = (amount: number) => `₦${amount.toLocaleString()}`
+
   const handleCreateBooking = async () => {
     if (!mealDescription || !deliveryDate || !deliveryTime) {
       toast.error('Please fill in meal, date, and time')
@@ -114,14 +115,12 @@ export default function BookingModal({
   const handlePaystackPayment = async () => {
     setLoading(true)
 
-    // Get current user email
     const supabase = createClient()
     const {
       data: { user },
     } = await supabase.auth.getUser()
     const email = user?.email || ''
 
-    // Initialize payment on server
     const initRes = await fetch('/api/payments/initialize', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -144,7 +143,6 @@ export default function BookingModal({
       return
     }
 
-    // Open Paystack inline
     const paystack = (window as any).PaystackPop
     if (!paystack) {
       toast.error('Paystack not loaded. Please refresh.')
