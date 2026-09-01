@@ -22,23 +22,23 @@ import { Input } from '@/components/ui/Input'
 
 const LOGIN_CARDS = [
   {
-    title: 'Saved chefs',
-    copy: 'Keep your best matches close.',
-    tone: 'bg-mint text-meadow',
+    title: 'Incoming requests',
+    copy: 'See who wants to book you.',
+    tone: 'bg-blush text-pepper',
   },
   {
-    title: 'Fast booking',
-    copy: 'Talk to cooks directly.',
-    tone: 'bg-lilac text-ink',
-  },
-  {
-    title: 'Verified profiles',
-    copy: 'Trust built into the flow.',
+    title: 'Daily specials',
+    copy: 'Post what you are cooking today.',
     tone: 'bg-butter text-ink',
+  },
+  {
+    title: 'Verified badge',
+    copy: 'Trust built into your storefront.',
+    tone: 'bg-lilac text-ink',
   },
 ]
 
-export default function LoginPage() {
+export default function CookLoginPage() {
   const router = useRouter()
   const {
     register,
@@ -55,12 +55,12 @@ export default function LoginPage() {
       toast.error('Incorrect email or password. Try again.')
       return
     }
-    toast.success('Welcome back.')
+    toast.success('Welcome back, chef.')
     router.push(await getPostLoginRedirect(sb, authData.user.id))
   }
 
   return (
-    <div className="theme-buyer f4l-auth-grid px-4 py-6 sm:px-6 lg:px-8">
+    <div className="theme-cook f4l-auth-grid px-4 py-6 sm:px-6 lg:px-8">
       <div className="mx-auto grid min-h-[calc(100dvh-3rem)] max-w-7xl gap-6 lg:grid-cols-[0.94fr_1.06fr]">
         <div className="f4l-auth-spotlight hidden rounded-[2.75rem] p-10 text-white lg:flex lg:flex-col lg:justify-between">
           <div className="relative z-10">
@@ -77,11 +77,11 @@ export default function LoginPage() {
             </Link>
 
             <h1 className="mt-10 max-w-md font-heading text-5xl font-bold leading-[1.02] tracking-[-0.05em]">
-              Good food still starts with a real cook.
+              Your kitchen, your storefront, your requests.
             </h1>
             <p className="text-white/76 mt-5 max-w-md text-base leading-8">
-              Sign in to keep discovering home chefs, saved favorites, and the
-              warm meals already waiting in your flow.
+              Sign in to manage your specials, review match requests, and
+              keep your storefront warm and ready.
             </p>
           </div>
 
@@ -105,11 +105,11 @@ export default function LoginPage() {
                 </div>
                 <div>
                   <p className="text-sm font-semibold">
-                    Buyer-led color system
+                    Cook-led color system
                   </p>
                   <p className="text-white/74 mt-2 text-sm leading-7">
-                    The app keeps one pattern language, but buyers can lean
-                    greener and softer while cooks stay warmer and stronger.
+                    The app keeps one pattern language, but cooks stay
+                    warmer and bolder while buyers lean greener and softer.
                   </p>
                 </div>
               </div>
@@ -128,7 +128,7 @@ export default function LoginPage() {
               href="/"
               className="mb-8 inline-flex items-center gap-3 rounded-full bg-white/80 px-3 py-2 lg:hidden"
             >
-              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-mint text-meadow">
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-blush text-pepper">
                 <ChefHat className="h-5 w-5" />
               </div>
               <span className="font-heading text-xl font-extrabold tracking-tight text-ink">
@@ -137,29 +137,29 @@ export default function LoginPage() {
             </Link>
 
             <div className="mb-8">
-              <div className="inline-flex items-center gap-2 rounded-full bg-mint px-3 py-1.5 text-xs font-semibold text-meadow">
+              <div className="inline-flex items-center gap-2 rounded-full bg-blush px-3 py-1.5 text-xs font-semibold text-pepper">
                 <Sparkles className="h-3.5 w-3.5" />
-                Welcome back
+                Welcome back, chef
               </div>
               <h2 className="mt-4 font-heading text-4xl font-bold tracking-[-0.04em] text-ink">
-                Sign in to your account
+                Sign in to your chef account
               </h2>
               <p className="mt-3 text-body text-sm leading-7">
                 No account yet?{' '}
                 <Link
-                  href="/signup"
+                  href="/signup?role=cook"
                   className="font-semibold text-[color:var(--accent)] hover:underline"
                 >
                   Create one here
                 </Link>
               </p>
               <p className="mt-1 text-body text-sm leading-7">
-                Want to cook and earn instead?{' '}
+                Want to find a chef instead?{' '}
                 <Link
-                  href="/login/cook"
+                  href="/login"
                   className="font-semibold text-[color:var(--accent)] hover:underline"
                 >
-                  Cook and earn
+                  Find a chef
                 </Link>
               </p>
             </div>
