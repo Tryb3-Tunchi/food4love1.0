@@ -2,11 +2,14 @@ import { createClient } from '@/lib/supabase/server'
 import { notFound } from 'next/navigation'
 import Image from 'next/image'
 import Link from 'next/link'
-import { Avatar } from '@/components/ui/Avatar'
-import { Badge } from '@/components/ui/Badge'
-import { Button } from '@/components/ui/Button'
 import { formatNaira } from '@/lib/utils'
-import { Star, MapPin, Shield, ChefHat } from 'lucide-react'
+import {
+  Star,
+  MapPin,
+  BadgeCheck,
+  ChefHat,
+  UtensilsCrossed,
+} from 'lucide-react'
 import type { Metadata } from 'next'
 
 export async function generateMetadata({
@@ -45,85 +48,162 @@ export default async function CookPublicPage({
   if (!chef) notFound()
 
   return (
-    <div className="min-h-screen bg-char">
+    <div className="pb-10" style={{ background: 'var(--bg)' }}>
       {/* Hero */}
-      <div className="relative h-64 bg-gradient-to-br from-ember/30 to-pepper/30">
-        {chef.photos?.[0] && (
-          <Image
-            src={chef.photos[0]}
-            alt={chef.full_name}
-            fill
-            className="object-cover opacity-60"
-          />
-        )}
-        <div className="absolute inset-0 bg-gradient-to-t from-char to-transparent" />
-        <div className="absolute bottom-6 left-6 right-6 flex items-end gap-4">
-          <Avatar
-            src={chef.avatar_url}
-            name={chef.full_name}
-            size="2xl"
-            verified={chef.is_verified}
-            className="border-4 border-char"
-          />
-          <div className="pb-1">
-            <h1 className="text-2xl font-bold text-white">{chef.full_name}</h1>
-            <div className="mt-1 flex items-center gap-2">
-              {chef.is_verified && (
-                <Badge variant="success" size="sm">
-                  <Shield className="h-3 w-3" />
-                  Verified Chef
-                </Badge>
-              )}
-              {chef.rating && (
-                <Badge variant="ember" size="sm">
-                  <Star className="h-3 w-3 fill-ember" />
-                  {chef.rating.toFixed(1)}
-                </Badge>
-              )}
-            </div>
-          </div>
+      <div className="relative">
+        <div
+          className="relative h-40 w-full overflow-hidden"
+          style={{
+            background:
+              'linear-gradient(135deg, var(--accent-l), var(--divider))',
+          }}
+        >
+          {chef.photos?.[0] && (
+            <Image
+              src={chef.photos[0]}
+              alt={chef.full_name}
+              fill
+              className="object-cover opacity-70"
+            />
+          )}
         </div>
-      </div>
 
-      {/* Content */}
-      <div className="space-y-5 px-5 py-6">
-        {chef.location && (
-          <div className="flex items-center gap-1.5 text-sm text-ash">
-            <MapPin className="h-4 w-4" />
-            {chef.location}
-          </div>
-        )}
-        {chef.bio && (
-          <p className="text-sm leading-relaxed text-ash">{chef.bio}</p>
-        )}
-        {chef.cuisines?.length && (
-          <div className="flex flex-wrap gap-2">
-            {chef.cuisines.map((c: string) => (
-              <Badge key={c} variant="muted">
-                {c}
-              </Badge>
-            ))}
-          </div>
-        )}
-        {chef.price_min && (
-          <div className="flex items-center justify-between rounded-xl border border-white/5 bg-smoke p-4">
-            <div>
-              <p className="mb-0.5 text-xs text-mist">Starting from</p>
-              <p className="text-xl font-bold text-ember">
-                {formatNaira(chef.price_min)}
-              </p>
+        <div className="px-4 pb-0">
+          <div className="-mt-10 mb-3 flex items-end gap-4">
+            <div className="relative">
+              <div
+                className="flex h-20 w-20 items-center justify-center rounded-2xl border-4 text-2xl font-bold shadow-lift"
+                style={{
+                  background: 'var(--card)',
+                  borderColor: 'var(--card)',
+                  color: 'var(--accent)',
+                }}
+              >
+                {chef.avatar_url ? (
+                  <img
+                    src={chef.avatar_url}
+                    alt={chef.full_name}
+                    className="h-full w-full rounded-xl object-cover"
+                  />
+                ) : (
+                  chef.full_name
+                    .split(' ')
+                    .map((n: string) => n[0])
+                    .join('')
+                    .slice(0, 2)
+                    .toUpperCase()
+                )}
+              </div>
+              {chef.is_verified && (
+                <div
+                  className="absolute -bottom-1 -right-1 flex h-6 w-6 items-center justify-center rounded-full border-2 border-white"
+                  style={{ background: 'var(--success)' }}
+                >
+                  <BadgeCheck
+                    className="h-3.5 w-3.5 text-white"
+                    strokeWidth={3}
+                  />
+                </div>
+              )}
             </div>
-            <ChefHat className="h-8 w-8 text-ash" />
           </div>
-        )}
-        <Button asChild variant="ember" size="lg" className="w-full">
-          <Link href={`/signup?ref_chef=${params.id}`}>
+
+          <h1
+            className="mb-0.5 font-heading text-2xl font-bold"
+            style={{ color: 'var(--text-1)' }}
+          >
+            {chef.full_name}
+          </h1>
+          <div className="mb-1.5 flex items-center gap-2">
+            <span
+              className="text-sm font-medium"
+              style={{ color: 'var(--accent)' }}
+            >
+              Home Chef
+            </span>
+            {chef.rating && (
+              <span className="f4l-badge f4l-badge-accent">
+                <Star className="h-3 w-3" />
+                {chef.rating.toFixed(1)}
+              </span>
+            )}
+          </div>
+
+          {chef.location && (
+            <div className="mb-3 flex items-center gap-1.5">
+              <MapPin
+                className="h-3.5 w-3.5 shrink-0"
+                style={{ color: 'var(--text-3)' }}
+              />
+              <span className="text-sm" style={{ color: 'var(--text-3)' }}>
+                {chef.location}
+              </span>
+            </div>
+          )}
+
+          {chef.bio && (
+            <p
+              className="mb-4 text-sm leading-relaxed"
+              style={{ color: 'var(--text-2)' }}
+            >
+              {chef.bio}
+            </p>
+          )}
+
+          {chef.cuisines?.length > 0 && (
+            <div className="mb-5 flex flex-wrap gap-2">
+              {chef.cuisines.map((c: string) => (
+                <span key={c} className="f4l-badge f4l-badge-muted">
+                  {c}
+                </span>
+              ))}
+            </div>
+          )}
+
+          {chef.price_min && (
+            <div
+              className="mb-5 flex items-center justify-between rounded-2xl p-4"
+              style={{
+                background: 'var(--accent-soft)',
+                border:
+                  '1px solid color-mix(in srgb, var(--accent) 18%, transparent)',
+              }}
+            >
+              <div>
+                <p className="f4l-section-label mb-1">Starting from</p>
+                <p
+                  className="font-heading text-xl font-bold"
+                  style={{ color: 'var(--text-1)' }}
+                >
+                  {formatNaira(chef.price_min)}
+                  {chef.price_max ? ` – ${formatNaira(chef.price_max)}` : '+'}
+                </p>
+              </div>
+              <UtensilsCrossed
+                className="h-8 w-8"
+                style={{ color: 'var(--accent)' }}
+              />
+            </div>
+          )}
+
+          <Link
+            href={`/signup?ref_chef=${params.id}`}
+            className="mb-3 flex w-full items-center justify-center gap-2 rounded-2xl py-3 text-sm font-bold text-white transition-all active:scale-95"
+            style={{
+              background: 'var(--accent)',
+              boxShadow: 'var(--shadow-warm)',
+            }}
+          >
+            <ChefHat className="h-4 w-4" />
             Match with {chef.full_name.split(' ')[0]} →
           </Link>
-        </Button>
-        <p className="text-center text-xs text-mist">
-          Join Food4Love to connect with {chef.full_name.split(' ')[0]}
-        </p>
+          <p
+            className="pb-6 text-center text-xs"
+            style={{ color: 'var(--text-3)' }}
+          >
+            Join Food4Love to connect with {chef.full_name.split(' ')[0]}
+          </p>
+        </div>
       </div>
     </div>
   )

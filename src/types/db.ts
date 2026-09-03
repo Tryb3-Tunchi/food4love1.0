@@ -96,7 +96,8 @@ export interface Message {
 export interface Story {
   id: string
   cook_id: string
-  image_url: string
+  image_url?: string | null
+  video_url?: string | null
   caption?: string
   expires_at: string
   viewed?: boolean
