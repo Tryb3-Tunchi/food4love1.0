@@ -142,7 +142,7 @@ export default function SetupPage() {
                     key={c}
                     type="button"
                     onClick={() => toggleCuisine(c)}
-                    className="shadow-[var(--shadow-warm)] rounded-full bg-[var(--accent)] px-3 py-1.5 text-xs font-medium text-white"
+                    className="rounded-full bg-[var(--accent)] px-3 py-1.5 text-xs font-medium text-white shadow-[var(--shadow-warm)]"
                   >
                     {c} ✕
                   </button>
@@ -172,7 +172,7 @@ export default function SetupPage() {
                         key={c}
                         type="button"
                         onClick={() => toggleCuisine(c)}
-                        className={`rounded-full px-3 py-1.5 text-xs font-medium transition-all ${selected.includes(c) ? 'shadow-[var(--shadow-warm)] bg-[var(--accent)] text-white' : 'bg-[var(--card)] text-[var(--text-2)] hover:bg-[var(--divider)]'}`}
+                        className={`rounded-full px-3 py-1.5 text-xs font-medium transition-all ${selected.includes(c) ? 'bg-[var(--accent)] text-white shadow-[var(--shadow-warm)]' : 'bg-[var(--card)] text-[var(--text-2)] hover:bg-[var(--divider)]'}`}
                       >
                         {c}
                       </button>
@@ -192,7 +192,7 @@ export default function SetupPage() {
                 type="button"
                 onClick={generateBio}
                 disabled={generatingBio || selected.length === 0}
-                className="hover:text-[color:var(--accent-strong)] flex items-center gap-1 text-xs text-[color:var(--accent)] transition-all disabled:opacity-40"
+                className="flex items-center gap-1 text-xs text-[color:var(--accent)] transition-all hover:text-[color:var(--accent-strong)] disabled:opacity-40"
               >
                 <Sparkles className="h-3.5 w-3.5" />
                 {generatingBio ? 'Generating...' : 'AI Write for me'}

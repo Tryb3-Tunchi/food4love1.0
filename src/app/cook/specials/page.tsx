@@ -305,10 +305,10 @@ export default function CookSpecialsPage() {
                     </p>
                     <p className="text-xs text-[var(--text-3)]">
                       Until{' '}
-                      {new Date(s.available_until).toLocaleTimeString(
-                        'en-NG',
-                        { hour: 'numeric', minute: '2-digit' },
-                      )}
+                      {new Date(s.available_until).toLocaleTimeString('en-NG', {
+                        hour: 'numeric',
+                        minute: '2-digit',
+                      })}
                     </p>
                   </div>
                   <button

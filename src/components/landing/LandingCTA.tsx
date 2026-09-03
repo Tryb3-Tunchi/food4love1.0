@@ -54,7 +54,7 @@ export function LandingCTA() {
                   Become a chef
                 </Button>
               </Link>
-              <p className="mt-3 text-sm text-body">
+              <p className="mt-3 text-body text-sm">
                 Already cooking with us?{' '}
                 <Link
                   href="/login/cook"

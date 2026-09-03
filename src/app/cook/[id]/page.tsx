@@ -3,7 +3,13 @@ import { notFound } from 'next/navigation'
 import Image from 'next/image'
 import Link from 'next/link'
 import { formatNaira } from '@/lib/utils'
-import { Star, MapPin, BadgeCheck, ChefHat, UtensilsCrossed } from 'lucide-react'
+import {
+  Star,
+  MapPin,
+  BadgeCheck,
+  ChefHat,
+  UtensilsCrossed,
+} from 'lucide-react'
 import type { Metadata } from 'next'
 
 export async function generateMetadata({
@@ -183,7 +189,10 @@ export default async function CookPublicPage({
           <Link
             href={`/signup?ref_chef=${params.id}`}
             className="mb-3 flex w-full items-center justify-center gap-2 rounded-2xl py-3 text-sm font-bold text-white transition-all active:scale-95"
-            style={{ background: 'var(--accent)', boxShadow: 'var(--shadow-warm)' }}
+            style={{
+              background: 'var(--accent)',
+              boxShadow: 'var(--shadow-warm)',
+            }}
           >
             <ChefHat className="h-4 w-4" />
             Match with {chef.full_name.split(' ')[0]} →

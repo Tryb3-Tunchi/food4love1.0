@@ -54,7 +54,7 @@ export function EmptyState({
         >
           <Link
             href={action.href}
-            className="hover:bg-[var(--accent-strong)] shadow-[var(--accent)]/20 inline-flex items-center rounded-xl bg-[var(--accent)] px-6 py-3 font-medium text-white shadow-lg transition-all"
+            className="shadow-[var(--accent)]/20 inline-flex items-center rounded-xl bg-[var(--accent)] px-6 py-3 font-medium text-white shadow-lg transition-all hover:bg-[var(--accent-strong)]"
           >
             {action.label}
           </Link>

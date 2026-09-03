@@ -80,8 +80,8 @@ export default function CookLoginPage() {
               Your kitchen, your storefront, your requests.
             </h1>
             <p className="text-white/76 mt-5 max-w-md text-base leading-8">
-              Sign in to manage your specials, review match requests, and
-              keep your storefront warm and ready.
+              Sign in to manage your specials, review match requests, and keep
+              your storefront warm and ready.
             </p>
           </div>
 
@@ -104,12 +104,10 @@ export default function CookLoginPage() {
                   <ShieldCheck className="h-5 w-5 text-white" />
                 </div>
                 <div>
-                  <p className="text-sm font-semibold">
-                    Cook-led color system
-                  </p>
+                  <p className="text-sm font-semibold">Cook-led color system</p>
                   <p className="text-white/74 mt-2 text-sm leading-7">
-                    The app keeps one pattern language, but cooks stay
-                    warmer and bolder while buyers lean greener and softer.
+                    The app keeps one pattern language, but cooks stay warmer
+                    and bolder while buyers lean greener and softer.
                   </p>
                 </div>
               </div>

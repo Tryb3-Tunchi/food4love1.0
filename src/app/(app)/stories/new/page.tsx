@@ -93,7 +93,7 @@ export default function NewStoryPage() {
             {...getRootProps()}
             className={`cursor-pointer rounded-2xl border-2 border-dashed p-8 text-center transition-all ${
               isDragActive
-                ? 'border-[var(--accent)] bg-[var(--accent)]/10'
+                ? 'bg-[var(--accent)]/10 border-[var(--accent)]'
                 : 'border-[var(--border)] hover:border-[var(--text-3)]'
             }`}
           >
@@ -108,11 +108,7 @@ export default function NewStoryPage() {
           </div>
         ) : (
           <div className="relative overflow-hidden rounded-2xl border border-[var(--border)] bg-black">
-            <video
-              src={previewUrl}
-              controls
-              className="max-h-[420px] w-full"
-            />
+            <video src={previewUrl} controls className="max-h-[420px] w-full" />
             <button
               onClick={clearFile}
               className="absolute right-2 top-2 flex h-8 w-8 items-center justify-center rounded-full bg-black/60 text-white"
