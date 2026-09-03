@@ -1,7 +1,10 @@
 'use client'
+
 import { motion } from 'framer-motion'
+import { ReactNode } from 'react'
 
 interface Props {
+  children?: ReactNode
   variant?: 'pepper' | 'ember' | 'green' | 'mixed'
   intensity?: 'low' | 'medium' | 'high'
 }
@@ -140,6 +143,7 @@ const configs = {
 const opacities = { low: 0.05, medium: 0.08, high: 0.13 }
 
 export function AmbientBackground({
+  children,
   variant = 'mixed',
   intensity = 'medium',
 }: Props) {
@@ -147,43 +151,53 @@ export function AmbientBackground({
   const op = opacities[intensity]
 
   return (
-    <div className="ambient-bg" aria-hidden="true">
-      {orbs.map((orb, i) => (
-        <motion.div
-          key={i}
-          className="ambient-orb"
+    <div className="relative isolate min-h-screen">
+      {/* Background layer */}
+      <div
+        className="ambient-bg pointer-events-none fixed inset-0 -z-10"
+        aria-hidden="true"
+      >
+        {orbs.map((orb, i) => (
+          <motion.div
+            key={i}
+            className="ambient-orb absolute rounded-full"
+            style={{
+              width: orb.size,
+              height: orb.size,
+              top: orb.top,
+              right: orb.right,
+              bottom: orb.bottom,
+              left: orb.left,
+              background: `radial-gradient(circle, rgba(${orb.color},${op}), transparent 70%)`,
+              filter: 'blur(60px)',
+            }}
+            animate={{
+              x: [0, 18, -10, 0],
+              y: [0, -22, 14, 0],
+              scale: [1, 1.04, 0.98, 1],
+            }}
+            transition={{
+              duration: orb.dur,
+              delay: orb.delay,
+              repeat: Infinity,
+              ease: 'easeInOut',
+            }}
+          />
+        ))}
+
+        {/* Film grain texture */}
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-0 opacity-[0.015]"
           style={{
-            width: orb.size,
-            height: orb.size,
-            top: orb.top,
-            right: orb.right,
-            bottom: orb.bottom,
-            left: orb.left,
-            background: `radial-gradient(circle, rgba(${orb.color},${op}), transparent 70%)`,
-          }}
-          animate={{
-            x: [0, 18, -10, 0],
-            y: [0, -22, 14, 0],
-            scale: [1, 1.04, 0.98, 1],
-          }}
-          transition={{
-            duration: orb.dur,
-            delay: orb.delay,
-            repeat: Infinity,
-            ease: 'easeInOut',
+            backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")`,
+            backgroundSize: '180px 180px',
           }}
         />
-      ))}
+      </div>
 
-      {/* Film grain texture */}
-      <div
-        aria-hidden="true"
-        className="pointer-events-none absolute inset-0 opacity-[0.015]"
-        style={{
-          backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")`,
-          backgroundSize: '180px 180px',
-        }}
-      />
+      {/* Content */}
+      {children}
     </div>
   )
 }

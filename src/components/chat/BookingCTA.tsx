@@ -1,13 +1,21 @@
 'use client'
+
 import { useState } from 'react'
 import { ChefHat, Calendar } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
-import { BookingForm } from '@/components/booking/BookingForm'
 import { formatNaira } from '@/lib/utils'
-import { Profile } from '@/types/db'
+import BookingModal from '@/components/booking/BookingModal'
+
+// Explicitly type what we need (avoids @/types/db missing id)
+interface ChefInfo {
+  id: string
+  full_name: string
+  avatar_url?: string | null
+  price_min?: number | null
+}
 
 interface BookingCTAProps {
-  chef: Profile
+  chef: ChefInfo
   matchId: string
 }
 
@@ -40,11 +48,11 @@ export function BookingCTA({ chef, matchId }: BookingCTAProps) {
           >
             {chef.full_name}
           </p>
-          {chef.price_min && (
+          {chef.price_min ? (
             <p className="text-xs" style={{ color: 'var(--text-3)' }}>
               From {formatNaira(chef.price_min)} per meal
             </p>
-          )}
+          ) : null}
         </div>
         <Button
           size="sm"
@@ -58,11 +66,14 @@ export function BookingCTA({ chef, matchId }: BookingCTAProps) {
         </Button>
       </div>
 
-      <BookingForm
+      <BookingModal
         isOpen={open}
-        chef={chef}
-        matchId={matchId}
         onClose={() => setOpen(false)}
+        cookId={chef.id}
+        cookName={chef.full_name}
+        cookAvatar={chef.avatar_url}
+        priceMin={chef.price_min || 0}
+        matchId={matchId}
       />
     </>
   )

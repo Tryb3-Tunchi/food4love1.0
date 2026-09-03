@@ -15,10 +15,9 @@ import {
 } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import toast from 'react-hot-toast'
-import { formatNaira } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/client'
 
-interface BookingModalProps {
+export interface BookingModalProps {
   isOpen: boolean
   onClose: () => void
   cookId: string
@@ -42,7 +41,6 @@ export default function BookingModal({
   const [loading, setLoading] = useState(false)
   const [bookingId, setBookingId] = useState<string>('')
 
-  // Form state
   const [mealDescription, setMealDescription] = useState('')
   const [deliveryDate, setDeliveryDate] = useState('')
   const [deliveryTime, setDeliveryTime] = useState('')
@@ -54,7 +52,6 @@ export default function BookingModal({
   const [guests, setGuests] = useState(2)
   const [agreedPrice, setAgreedPrice] = useState(priceMin)
 
-  // Reset form when opened
   useEffect(() => {
     if (isOpen) {
       setStep('form')
@@ -69,6 +66,8 @@ export default function BookingModal({
       setLoading(false)
     }
   }, [isOpen, priceMin])
+
+  const formatNaira = (amount: number) => `₦${amount.toLocaleString()}`
 
   const handleCreateBooking = async () => {
     if (!mealDescription || !deliveryDate || !deliveryTime) {
@@ -114,14 +113,12 @@ export default function BookingModal({
   const handlePaystackPayment = async () => {
     setLoading(true)
 
-    // Get current user email
     const supabase = createClient()
     const {
       data: { user },
     } = await supabase.auth.getUser()
     const email = user?.email || ''
 
-    // Initialize payment on server
     const initRes = await fetch('/api/payments/initialize', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -144,7 +141,6 @@ export default function BookingModal({
       return
     }
 
-    // Open Paystack inline
     const paystack = (window as any).PaystackPop
     if (!paystack) {
       toast.error('Paystack not loaded. Please refresh.')
@@ -205,21 +201,21 @@ export default function BookingModal({
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={onClose}
-            className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm"
+            className="bg-[var(--text-1)]/60 fixed inset-0 z-50 backdrop-blur-sm"
           />
           <motion.div
             initial={{ y: '100%' }}
             animate={{ y: 0 }}
             exit={{ y: '100%' }}
             transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-            className="fixed bottom-0 left-0 right-0 z-50 max-h-[90vh] overflow-y-auto rounded-t-3xl border-t border-white/10 bg-[#1A1008] p-6"
+            className="fixed bottom-0 left-0 right-0 z-50 max-h-[90vh] overflow-y-auto rounded-t-3xl border-t border-[var(--border)] bg-[var(--bg)] p-6"
           >
-            <div className="mx-auto mb-6 h-1.5 w-12 rounded-full bg-white/20" />
+            <div className="mx-auto mb-6 h-1.5 w-12 rounded-full bg-[var(--border)]" />
 
             {/* Header */}
             <div className="mb-6 flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-full bg-white/10">
+                <div className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-full bg-[var(--surface-muted)]">
                   {cookAvatar ? (
                     <img
                       src={cookAvatar}
@@ -231,13 +227,17 @@ export default function BookingModal({
                   )}
                 </div>
                 <div>
-                  <h3 className="text-lg font-bold text-white">Book a Meal</h3>
-                  <p className="text-sm text-white/50">with {cookName}</p>
+                  <h3 className="text-lg font-bold text-[var(--text-1)]">
+                    Book a Meal
+                  </h3>
+                  <p className="text-sm text-[var(--text-3)]">
+                    with {cookName}
+                  </p>
                 </div>
               </div>
               <button
                 onClick={onClose}
-                className="flex h-8 w-8 items-center justify-center rounded-full bg-white/10 text-white/60 hover:bg-white/20"
+                className="flex h-8 w-8 items-center justify-center rounded-full bg-[var(--surface-muted)] text-[var(--text-3)] transition hover:bg-[var(--bg-2)] hover:text-[var(--text-1)]"
               >
                 <X className="h-4 w-4" />
               </button>
@@ -247,21 +247,21 @@ export default function BookingModal({
             {step === 'form' && (
               <div className="space-y-5">
                 <div>
-                  <label className="mb-1.5 block text-sm font-medium text-white/70">
+                  <label className="mb-1.5 block text-sm font-medium text-[var(--text-2)]">
                     What would you like to order?
                   </label>
                   <textarea
                     value={mealDescription}
                     onChange={(e) => setMealDescription(e.target.value)}
                     placeholder="e.g. Ofe Akwu with pounded yam for 2 people..."
-                    className="w-full rounded-xl border border-white/10 bg-white/5 p-3 text-sm text-white placeholder-white/30 outline-none focus:border-[#E8390E]"
+                    className="w-full rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] p-3 text-sm text-[var(--text-1)] outline-none transition placeholder:text-[var(--text-3)] focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)]"
                     rows={3}
                   />
                 </div>
 
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="mb-1.5 flex items-center gap-1.5 text-sm font-medium text-white/70">
+                    <label className="mb-1.5 flex items-center gap-1.5 text-sm font-medium text-[var(--text-2)]">
                       <Calendar className="h-3.5 w-3.5" /> Date
                     </label>
                     <input
@@ -269,39 +269,39 @@ export default function BookingModal({
                       value={deliveryDate}
                       onChange={(e) => setDeliveryDate(e.target.value)}
                       min={new Date().toISOString().split('T')[0]}
-                      className="w-full rounded-xl border border-white/10 bg-white/5 p-3 text-sm text-white outline-none focus:border-[#E8390E]"
+                      className="w-full rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] p-3 text-sm text-[var(--text-1)] outline-none transition focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)]"
                     />
                   </div>
                   <div>
-                    <label className="mb-1.5 flex items-center gap-1.5 text-sm font-medium text-white/70">
+                    <label className="mb-1.5 flex items-center gap-1.5 text-sm font-medium text-[var(--text-2)]">
                       <Clock className="h-3.5 w-3.5" /> Time
                     </label>
                     <input
                       type="time"
                       value={deliveryTime}
                       onChange={(e) => setDeliveryTime(e.target.value)}
-                      className="w-full rounded-xl border border-white/10 bg-white/5 p-3 text-sm text-white outline-none focus:border-[#E8390E]"
+                      className="w-full rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] p-3 text-sm text-[var(--text-1)] outline-none transition focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)]"
                     />
                   </div>
                 </div>
 
                 <div>
-                  <label className="mb-1.5 block text-sm font-medium text-white/70">
+                  <label className="mb-1.5 block text-sm font-medium text-[var(--text-2)]">
                     Number of guests
                   </label>
                   <div className="flex items-center gap-3">
                     <button
                       onClick={() => setGuests(Math.max(1, guests - 1))}
-                      className="flex h-10 w-10 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-white hover:bg-white/10"
+                      className="flex h-10 w-10 items-center justify-center rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] text-[var(--text-1)] transition hover:bg-[var(--bg-2)]"
                     >
                       <Minus className="h-4 w-4" />
                     </button>
-                    <span className="w-8 text-center text-lg font-bold text-white">
+                    <span className="w-8 text-center text-lg font-bold text-[var(--text-1)]">
                       {guests}
                     </span>
                     <button
                       onClick={() => setGuests(Math.min(20, guests + 1))}
-                      className="flex h-10 w-10 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-white hover:bg-white/10"
+                      className="flex h-10 w-10 items-center justify-center rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] text-[var(--text-1)] transition hover:bg-[var(--bg-2)]"
                     >
                       <Plus className="h-4 w-4" />
                     </button>
@@ -309,7 +309,7 @@ export default function BookingModal({
                 </div>
 
                 <div>
-                  <label className="mb-2 block text-sm font-medium text-white/70">
+                  <label className="mb-2 block text-sm font-medium text-[var(--text-2)]">
                     Delivery or Pickup?
                   </label>
                   <div className="flex gap-2">
@@ -319,8 +319,8 @@ export default function BookingModal({
                         onClick={() => setDeliveryType(type)}
                         className={`flex-1 rounded-xl border px-4 py-3 text-sm font-medium capitalize transition-all ${
                           deliveryType === type
-                            ? 'border-[#E8390E] bg-[#E8390E]/10 text-[#E8390E]'
-                            : 'border-white/10 bg-white/5 text-white/60 hover:bg-white/10'
+                            ? 'border-[var(--accent)] bg-[var(--accent-soft)] text-[var(--accent)]'
+                            : 'border-[var(--border)] bg-[var(--surface-strong)] text-[var(--text-3)] hover:bg-[var(--bg-2)]'
                         }`}
                       >
                         {type}
@@ -331,47 +331,49 @@ export default function BookingModal({
 
                 {deliveryType === 'delivery' && (
                   <div>
-                    <label className="mb-1.5 flex items-center gap-1.5 text-sm font-medium text-white/70">
+                    <label className="mb-1.5 flex items-center gap-1.5 text-sm font-medium text-[var(--text-2)]">
                       <MapPin className="h-3.5 w-3.5" /> Delivery Address
                     </label>
                     <textarea
                       value={address}
                       onChange={(e) => setAddress(e.target.value)}
                       placeholder="Enter your full delivery address..."
-                      className="w-full rounded-xl border border-white/10 bg-white/5 p-3 text-sm text-white placeholder-white/30 outline-none focus:border-[#E8390E]"
+                      className="w-full rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] p-3 text-sm text-[var(--text-1)] outline-none transition placeholder:text-[var(--text-3)] focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)]"
                       rows={2}
                     />
                   </div>
                 )}
 
                 <div>
-                  <label className="mb-1.5 block text-sm font-medium text-white/70">
+                  <label className="mb-1.5 block text-sm font-medium text-[var(--text-2)]">
                     Special requests (optional)
                   </label>
                   <textarea
                     value={specialRequests}
                     onChange={(e) => setSpecialRequests(e.target.value)}
                     placeholder="Any allergies, spice level, dietary requirements..."
-                    className="w-full rounded-xl border border-white/10 bg-white/5 p-3 text-sm text-white placeholder-white/30 outline-none focus:border-[#E8390E]"
+                    className="w-full rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] p-3 text-sm text-[var(--text-1)] outline-none transition placeholder:text-[var(--text-3)] focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)]"
                     rows={2}
                   />
                 </div>
 
-                <div className="rounded-xl border border-white/10 bg-white/5 p-4">
+                <div className="rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] p-4">
                   <div className="flex items-center justify-between">
-                    <span className="text-sm text-white/60">Agreed price</span>
+                    <span className="text-sm text-[var(--text-3)]">
+                      Agreed price
+                    </span>
                     <div className="flex items-center gap-2">
-                      <span className="text-sm text-white/40">₦</span>
+                      <span className="text-sm text-[var(--text-3)]">₦</span>
                       <input
                         type="number"
                         value={agreedPrice}
                         onChange={(e) => setAgreedPrice(Number(e.target.value))}
-                        className="w-24 rounded-lg border border-white/10 bg-white/5 p-2 text-right text-sm font-bold text-white outline-none focus:border-[#E8390E]"
+                        className="w-24 rounded-lg border border-[var(--border)] bg-[var(--bg)] p-2 text-right text-sm font-bold text-[var(--text-1)] outline-none transition focus:border-[var(--accent)]"
                         min={priceMin}
                       />
                     </div>
                   </div>
-                  <p className="mt-1 text-xs text-white/40">
+                  <p className="mt-1 text-xs text-[var(--text-3)]">
                     Minimum: {formatNaira(priceMin)}. Final price confirmed by
                     chef.
                   </p>
@@ -380,7 +382,7 @@ export default function BookingModal({
                 <button
                   onClick={handleCreateBooking}
                   disabled={loading}
-                  className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#E8390E] py-4 text-sm font-bold text-white transition-all active:scale-95 disabled:opacity-50"
+                  className="flex w-full items-center justify-center gap-2 rounded-xl bg-[var(--accent)] py-4 text-sm font-bold text-white transition-all active:scale-95 disabled:opacity-50"
                 >
                   {loading ? (
                     <>
@@ -400,39 +402,41 @@ export default function BookingModal({
             {/* STEP 2: Payment */}
             {step === 'payment' && (
               <div className="space-y-6 text-center">
-                <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-[#E8390E]/10">
-                  <CreditCard className="h-8 w-8 text-[#E8390E]" />
+                <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-[var(--accent-soft)]">
+                  <CreditCard className="h-8 w-8 text-[var(--accent)]" />
                 </div>
                 <div>
-                  <h4 className="text-lg font-bold text-white">
+                  <h4 className="text-lg font-bold text-[var(--text-1)]">
                     Complete Payment
                   </h4>
-                  <p className="mt-1 text-sm text-white/60">
+                  <p className="mt-1 text-sm text-[var(--text-3)]">
                     Pay {formatNaira(agreedPrice)} to confirm your booking with{' '}
                     {cookName}
                   </p>
                 </div>
 
-                <div className="rounded-xl border border-white/10 bg-white/5 p-4 text-left">
+                <div className="rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] p-4 text-left">
                   <div className="flex justify-between text-sm">
-                    <span className="text-white/60">Meal</span>
-                    <span className="text-white">
+                    <span className="text-[var(--text-3)]">Meal</span>
+                    <span className="text-[var(--text-1)]">
                       {mealDescription.slice(0, 30)}...
                     </span>
                   </div>
                   <div className="mt-2 flex justify-between text-sm">
-                    <span className="text-white/60">Date</span>
-                    <span className="text-white">
+                    <span className="text-[var(--text-3)]">Date</span>
+                    <span className="text-[var(--text-1)]">
                       {deliveryDate} at {deliveryTime}
                     </span>
                   </div>
                   <div className="mt-2 flex justify-between text-sm">
-                    <span className="text-white/60">Guests</span>
-                    <span className="text-white">{guests}</span>
+                    <span className="text-[var(--text-3)]">Guests</span>
+                    <span className="text-[var(--text-1)]">{guests}</span>
                   </div>
-                  <div className="mt-3 flex justify-between border-t border-white/10 pt-3">
-                    <span className="font-bold text-white">Total</span>
-                    <span className="font-bold text-[#E8390E]">
+                  <div className="mt-3 flex justify-between border-t border-[var(--border)] pt-3">
+                    <span className="font-bold text-[var(--text-1)]">
+                      Total
+                    </span>
+                    <span className="font-bold text-[var(--accent)]">
                       {formatNaira(agreedPrice)}
                     </span>
                   </div>
@@ -441,7 +445,7 @@ export default function BookingModal({
                 <button
                   onClick={handlePaystackPayment}
                   disabled={loading}
-                  className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#E8390E] py-4 text-sm font-bold text-white transition-all active:scale-95 disabled:opacity-50"
+                  className="flex w-full items-center justify-center gap-2 rounded-xl bg-[var(--accent)] py-4 text-sm font-bold text-white transition-all active:scale-95 disabled:opacity-50"
                 >
                   {loading ? (
                     <>
@@ -458,7 +462,7 @@ export default function BookingModal({
 
                 <button
                   onClick={() => setStep('form')}
-                  className="text-sm text-white/40 hover:text-white/60"
+                  className="text-sm text-[var(--text-3)] transition hover:text-[var(--text-2)]"
                 >
                   ← Back to edit details
                 </button>
@@ -471,27 +475,27 @@ export default function BookingModal({
                 <motion.div
                   initial={{ scale: 0 }}
                   animate={{ scale: 1 }}
-                  className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-[#84CC16]/10"
+                  className="bg-[var(--success)]/10 mx-auto flex h-20 w-20 items-center justify-center rounded-full"
                 >
-                  <CheckCircle className="h-10 w-10 text-[#84CC16]" />
+                  <CheckCircle className="h-10 w-10 text-[var(--success)]" />
                 </motion.div>
                 <div>
-                  <h4 className="text-xl font-bold text-white">
+                  <h4 className="text-xl font-bold text-[var(--text-1)]">
                     Booking Confirmed!
                   </h4>
-                  <p className="mt-1 text-sm text-white/60">
+                  <p className="mt-1 text-sm text-[var(--text-3)]">
                     Your meal with {cookName} is booked for {deliveryDate}.
                   </p>
                 </div>
 
-                <div className="rounded-xl border border-[#84CC16]/20 bg-[#84CC16]/5 p-4">
-                  <p className="text-sm text-[#84CC16]">
+                <div className="border-[var(--success)]/20 bg-[var(--success)]/5 rounded-xl border p-4">
+                  <p className="text-sm text-[var(--success)]">
                     Booking ID:{' '}
                     <span className="font-mono font-bold">
                       {bookingId.slice(0, 8)}
                     </span>
                   </p>
-                  <p className="mt-1 text-xs text-white/50">
+                  <p className="mt-1 text-xs text-[var(--text-3)]">
                     A receipt has been sent to your email.
                   </p>
                 </div>
@@ -502,13 +506,13 @@ export default function BookingModal({
                       onClose()
                       router.push(`/bookings/${bookingId}`)
                     }}
-                    className="flex-1 rounded-xl bg-[#E8390E] py-3 text-sm font-bold text-white"
+                    className="flex-1 rounded-xl bg-[var(--accent)] py-3 text-sm font-bold text-white"
                   >
                     View Booking
                   </button>
                   <button
                     onClick={onClose}
-                    className="flex-1 rounded-xl border border-white/10 bg-white/5 py-3 text-sm font-bold text-white"
+                    className="flex-1 rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] py-3 text-sm font-bold text-[var(--text-1)]"
                   >
                     Back to Chat
                   </button>

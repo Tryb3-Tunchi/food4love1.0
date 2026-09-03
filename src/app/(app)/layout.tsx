@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { BottomNav } from '@/components/layout/BottomNav'
+import { AmbientBackground } from '@/components/ui/AmbientBackground'
 
 export default async function AppLayout({
   children,
@@ -14,8 +15,10 @@ export default async function AppLayout({
   if (!user) redirect('/login')
   return (
     <>
-      {children}
-      <BottomNav />
+      <AmbientBackground>
+        {children}
+        <BottomNav />
+      </AmbientBackground>
     </>
   )
 }
