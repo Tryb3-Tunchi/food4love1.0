@@ -152,7 +152,7 @@ function SignupPageContent() {
               <p className="mt-3 text-body text-sm leading-7">
                 Already have one?{' '}
                 <Link
-                  href="/login"
+                  href={isCook ? '/login/cook' : '/login'}
                   className="font-semibold text-[color:var(--accent)] hover:underline"
                 >
                   Sign in

@@ -54,6 +54,15 @@ export function LandingCTA() {
                   Become a chef
                 </Button>
               </Link>
+              <p className="mt-3 text-body text-sm">
+                Already cooking with us?{' '}
+                <Link
+                  href="/login/cook"
+                  className="font-semibold text-pepper hover:underline"
+                >
+                  Sign in
+                </Link>
+              </p>
             </div>
           </Card>
         </motion.div>

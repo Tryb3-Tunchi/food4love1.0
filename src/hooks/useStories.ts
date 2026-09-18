@@ -9,10 +9,9 @@ type UseStoriesState = {
   isLoading: boolean
   refresh: () => Promise<void>
   postStory: (data: {
-    title: string
-    description?: string
-    menu_items?: string[]
-    photo_url?: string
+    caption?: string
+    image_url?: string
+    video_url?: string
   }) => Promise<void>
   deleteStory: (id: string) => Promise<void>
 }
@@ -25,9 +24,8 @@ export function useStories(userId: string | null): UseStoriesState {
     setIsLoading(true)
     try {
       const { data: storyRows } = await supabase
-        .from('cook_stories')
+        .from('stories')
         .select('*')
-        .eq('is_active', true)
         .gte('expires_at', new Date().toISOString())
         .order('created_at', { ascending: false })
         .limit(30)
@@ -68,22 +66,16 @@ export function useStories(userId: string | null): UseStoriesState {
 
   const postStory = useCallback(
     async (data: {
-      title: string
-      description?: string
-      menu_items?: string[]
-      photo_url?: string
+      caption?: string
+      image_url?: string
+      video_url?: string
     }) => {
       if (!userId) return
-      const { error } = await supabase.from('cook_stories').insert({
+      const { error } = await supabase.from('stories').insert({
         cook_id: userId,
-        title: data.title.trim(),
-        description: data.description?.trim() ?? null,
-        menu_items:
-          (data.menu_items ?? []).filter(Boolean).length > 0
-            ? data.menu_items
-            : null,
-        photo_url: data.photo_url ?? null,
-        is_active: true,
+        caption: data.caption?.trim() || null,
+        image_url: data.image_url ?? null,
+        video_url: data.video_url ?? null,
         expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
       })
       if (error) throw error
@@ -93,7 +85,7 @@ export function useStories(userId: string | null): UseStoriesState {
   )
 
   const deleteStory = useCallback(async (id: string) => {
-    const { error } = await supabase.from('cook_stories').delete().eq('id', id)
+    const { error } = await supabase.from('stories').delete().eq('id', id)
     if (error) throw error
     setStories((prev) => prev.filter((s) => s.id !== id))
   }, [])

@@ -24,3 +24,28 @@ export async function getAllActiveSpecials() {
   if (error) throw error
   return data ?? []
 }
+
+export async function createDailySpecial(special: {
+  cook_id: string
+  title: string
+  description?: string
+  price: number
+  image_url?: string
+  available_until: string
+}) {
+  const supabase = createClient()
+  const { data, error } = await supabase
+    .from('daily_specials')
+    .insert(special)
+    .select()
+    .single()
+
+  if (error) throw error
+  return data
+}
+
+export async function deleteDailySpecial(id: string) {
+  const supabase = createClient()
+  const { error } = await supabase.from('daily_specials').delete().eq('id', id)
+  if (error) throw error
+}
