@@ -17,6 +17,7 @@ import {
   updateBookingStatus,
   type Booking,
 } from '@/services/bookings'
+import { createClient } from '@/lib/supabase/client'
 import toast from 'react-hot-toast'
 
 const statusSteps = ['pending', 'confirmed', 'preparing', 'ready', 'delivered']
@@ -30,6 +31,7 @@ export default function BookingDetailPage({
   const profile = useAuthStore((s) => s.profile)
   const [booking, setBooking] = useState<Booking | null>(null)
   const [isLoading, setIsLoading] = useState(true)
+  const [payLoading, setPayLoading] = useState(false)
 
   useEffect(() => {
     getBookingById(params.id)
@@ -44,6 +46,91 @@ export default function BookingDetailPage({
       setBooking((prev) => (prev ? { ...prev, status: 'confirmed' } : prev))
     } catch {
       toast.error('Failed to update')
+    }
+  }
+
+  const handlePayNow = async () => {
+    if (!booking) return
+    setPayLoading(true)
+
+    try {
+      const supabase = createClient()
+      const {
+        data: { user },
+      } = await supabase.auth.getUser()
+      const email = user?.email
+
+      if (!email) {
+        toast.error('Please log in to pay')
+        setPayLoading(false)
+        return
+      }
+
+      const initRes = await fetch('/api/payments/initialize', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email,
+          amount: booking.total_amount,
+          booking_id: booking.id,
+          metadata: {
+            meal: `Booking #${booking.id.slice(0, 8)}`,
+            chef: booking.cook?.full_name || 'Chef',
+          },
+        }),
+      })
+
+      const initData = await initRes.json()
+      if (!initRes.ok) {
+        toast.error(initData.error || 'Failed to initialize payment')
+        setPayLoading(false)
+        return
+      }
+
+      const paystack = (window as any).PaystackPop
+      if (!paystack) {
+        toast.error('Paystack not loaded. Please refresh.')
+        setPayLoading(false)
+        return
+      }
+
+      const handler = paystack.setup({
+        key: process.env.NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY,
+        email,
+        amount: booking.total_amount * 100,
+        ref: initData.reference,
+        callback: async (response: any) => {
+          const verifyRes = await fetch('/api/payments/verify', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              reference: response.reference,
+              booking_id: booking.id,
+            }),
+          })
+          const verifyData = await verifyRes.json()
+          if (verifyData.success) {
+            toast.success('Payment successful!')
+            setBooking((prev) =>
+              prev
+                ? { ...prev, payment_status: 'paid', status: 'confirmed' }
+                : prev,
+            )
+          } else {
+            toast.error('Payment verification failed')
+          }
+          setPayLoading(false)
+        },
+        onClose: () => {
+          setPayLoading(false)
+          toast('Payment window closed', { icon: '⚠️' })
+        },
+      })
+
+      handler.openIframe()
+    } catch (err: any) {
+      toast.error(err.message || 'Payment failed')
+      setPayLoading(false)
     }
   }
 
@@ -69,6 +156,7 @@ export default function BookingDetailPage({
     booking.status === 'confirmed' &&
     booking.payment_status === 'unpaid' &&
     !isCook
+  const isPaid = booking.payment_status === 'paid'
 
   return (
     <div className="min-h-screen bg-[var(--bg)] pb-24 pt-4">
@@ -120,7 +208,11 @@ export default function BookingDetailPage({
               !isCook &&
               'Waiting for chef to confirm...'}
             {booking.status === 'confirmed' &&
+              !isPaid &&
               'Chef confirmed! Proceed to payment.'}
+            {booking.status === 'confirmed' &&
+              isPaid &&
+              'Payment confirmed! Chef will start preparing.'}
             {booking.status === 'preparing' && 'Chef is preparing your meal.'}
             {booking.status === 'ready' &&
               'Your meal is ready for pickup/delivery!'}
@@ -211,11 +303,29 @@ export default function BookingDetailPage({
           {canPay && (
             <motion.button
               whileTap={{ scale: 0.98 }}
-              onClick={() => toast('Paystack integration coming next!')}
-              className="w-full rounded-2xl bg-emerald-500 py-4 font-bold text-white shadow-lg shadow-emerald-500/20"
+              onClick={handlePayNow}
+              disabled={payLoading}
+              className="flex w-full items-center justify-center gap-2 rounded-2xl bg-emerald-500 py-4 font-bold text-white shadow-lg shadow-emerald-500/20 transition disabled:opacity-50"
             >
-              Pay Now • ₦{booking.total_amount.toLocaleString()}
+              {payLoading ? (
+                <>
+                  <Loader2 className="h-5 w-5 animate-spin" />
+                  Processing...
+                </>
+              ) : (
+                <>
+                  <CreditCard className="h-5 w-5" />
+                  Pay Now • ₦{booking.total_amount.toLocaleString()}
+                </>
+              )}
             </motion.button>
+          )}
+
+          {isPaid && (
+            <div className="bg-[var(--success)]/10 flex items-center justify-center gap-2 rounded-2xl py-4 text-sm font-bold text-[var(--success)]">
+              <CheckCircle className="h-5 w-5" />
+              Payment Confirmed
+            </div>
           )}
         </div>
       </div>
