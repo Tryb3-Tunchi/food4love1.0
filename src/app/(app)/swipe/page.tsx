@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useSwipeDeck } from '@/hooks/useSwipeDeck'
 import { useAuthStore } from '@/stores/useAuthStore'
 import { SwipeCard, Chef } from '@/components/swipe/SwipeCard'
@@ -46,9 +46,6 @@ interface Filters {
 }
 
 export default function SwipePage() {
-  // const profile = useAuthStore((s) => s.profile)
-
-  // TEMPORARY DEBUG — add this inside the SwipePage component
   const { profile } = useAuthStore()
   console.log('🚨 SWIPE PAGE — profile:', profile)
   console.log('🚨 SWIPE PAGE — userId:', profile?.id)
@@ -77,15 +74,19 @@ export default function SwipePage() {
   })
   const activeFilters = filters.cuisines.length > 0 || filters.priceMax < 50000
 
-  const { data, isLoading, refetch } = useSwipeDeck(
-    activeFilters
-      ? {
-          cuisines: filters.cuisines,
-          priceMax: filters.priceMax,
-          distance: filters.distance,
-        }
-      : undefined,
+  const swipeFilters = useMemo(
+    () =>
+      activeFilters
+        ? {
+            cuisines: filters.cuisines,
+            priceMax: filters.priceMax,
+            distance: filters.distance,
+          }
+        : undefined,
+    [activeFilters, filters.cuisines, filters.priceMax, filters.distance],
   )
+
+  const { data, isLoading, refetch } = useSwipeDeck(swipeFilters)
 
   useEffect(() => {
     if (data && data.length > 0 && deck.length === 0) {
@@ -97,7 +98,6 @@ export default function SwipePage() {
   const current = deck[currentIndex]
   const remaining = deck.length - currentIndex
 
-  // Drag motion values for stamps
   const dragX = useMotionValue(0)
   const dragRotate = useTransform(dragX, [-200, 200], [-12, 12])
   const opacityLike = useTransform(dragX, [80, 160], [0, 1])
@@ -182,7 +182,6 @@ export default function SwipePage() {
       fullHeight
       className="relative overflow-hidden"
     >
-      {/* Inline background animations */}
       <style jsx global>{`
         @keyframes orb1 {
           0%,
@@ -351,7 +350,6 @@ export default function SwipePage() {
           </motion.div>
         ) : (
           <>
-            {/* CARD WRAPPER — handles drag, stamps, and exit */}
             <div className="relative aspect-[3/4] max-h-[65vh] w-full max-w-sm">
               <AnimatePresence mode="popLayout">
                 <motion.div
@@ -386,7 +384,6 @@ export default function SwipePage() {
                   transition={{ type: 'spring', stiffness: 350, damping: 30 }}
                   className="absolute inset-0 touch-none"
                 >
-                  {/* LIKE / NOPE Stamps */}
                   <motion.div
                     style={{ opacity: opacityLike }}
                     className="pointer-events-none absolute left-8 top-10 z-20 -rotate-12 rounded-2xl border-[3px] border-[#4ade80] px-5 py-2 text-3xl font-black uppercase tracking-[0.15em] text-[#4ade80] shadow-lg"
@@ -400,13 +397,11 @@ export default function SwipePage() {
                     NOPE
                   </motion.div>
 
-                  {/* Card Content */}
                   <SwipeCard chef={current} />
                 </motion.div>
               </AnimatePresence>
             </div>
 
-            {/* Action Buttons */}
             <div className="mt-6 shrink-0">
               <SwipeActions
                 onPass={() => handleSwipe('pass')}
@@ -530,7 +525,6 @@ export default function SwipePage() {
         )}
       </AnimatePresence>
 
-      {/* Match Celebration */}
       <MatchCelebration
         isOpen={showMatch}
         matchedChef={matchedChef}

@@ -26,7 +26,7 @@ Make home-cooked food accessible to everyone, while enabling talented home chefs
 
 ### Buyer Journey
 
-1. Download / Open app → See landing page
+1. Download / Open app → See landing page page
 2. Sign up → Role select (Buyer)
 3. Onboarding (preferences, cuisines, location)
 4. Driver.js guided tour

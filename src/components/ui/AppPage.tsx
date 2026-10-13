@@ -25,7 +25,12 @@ export function AppPage({
       )}
       style={{ background: 'var(--app-bg)' }}
     >
-      <AmbientBackground variant={ambient} intensity={ambientIntensity} />
+      {/* ✅ FIX: Absolute layer so AmbientBackground's min-h-screen
+          can't steal space from the flex column */}
+      <div className="absolute inset-0 -z-10">
+        <AmbientBackground variant={ambient} intensity={ambientIntensity} />
+      </div>
+
       <div
         className={cn(
           'relative z-10',

@@ -43,42 +43,22 @@ export function useSwipeDeck(filters?: {
   } = useQuery({
     queryKey: ['swipe-candidates', userId, filters],
     queryFn: async () => {
-      console.log('🔍 [useSwipeDeck] Starting fetch...')
-      console.log('🔍 [useSwipeDeck] userId:', userId)
+      if (!userId) return []
 
-      if (!userId) {
-        console.warn('⚠️ [useSwipeDeck] No userId — returning empty')
-        return []
-      }
-
-      // Get already swiped IDs
-      const { data: swiped, error: swipedErr } = await supabase
+      const { data: swiped } = await supabase
         .from('swipes')
         .select('swiped_id')
         .eq('swiper_id', userId)
 
-      if (swipedErr) {
-        console.error('❌ [useSwipeDeck] Swipes query error:', swipedErr)
-      }
-
       const swipedIds = swiped?.map((s) => s.swiped_id) ?? []
-      console.log('🔍 [useSwipeDeck] Already swiped:', swipedIds)
 
-      // Get current user's profile for filtering
-      const { data: myProfile, error: profileErr } = await supabase
+      const { data: myProfile } = await supabase
         .from('profiles')
         .select('role, cuisines, price_max')
         .eq('id', userId)
         .single()
 
-      if (profileErr) {
-        console.error('❌ [useSwipeDeck] Profile fetch error:', profileErr)
-      }
-
-      console.log('🔍 [useSwipeDeck] My profile:', myProfile)
-
       const isBuyer = myProfile?.role === 'buyer'
-      console.log('🔍 [useSwipeDeck] isBuyer:', isBuyer)
 
       let query = supabase
         .from('profiles')
@@ -88,10 +68,14 @@ export function useSwipeDeck(filters?: {
         .eq('role', isBuyer ? 'cook' : 'buyer')
         .eq('suspended', false)
 
+      query = query.neq('id', userId)
+
       if (swipedIds.length > 0) {
-        query = query.not('id', 'in', `(${[userId, ...swipedIds].join(',')})`)
-      } else {
-        query = query.neq('id', userId)
+        query = query.not(
+          'id',
+          'in',
+          `(${swipedIds.map((id) => `"${id}"`).join(',')})`,
+        )
       }
 
       if (filters?.cuisines && filters.cuisines.length > 0) {
@@ -109,18 +93,10 @@ export function useSwipeDeck(filters?: {
       const { data, error: queryError } = await query.limit(20)
 
       if (queryError) {
-        console.error('❌ [useSwipeDeck] MAIN QUERY ERROR:', queryError)
+        console.error('Swipe query error:', queryError)
         throw queryError
       }
 
-      console.log(
-        '✅ [useSwipeDeck] Raw results:',
-        data?.length ?? 0,
-        'profiles',
-      )
-      console.log('✅ [useSwipeDeck] Results:', data)
-
-      // Enrich with daily specials
       const cooks = data ?? []
       if (isBuyer && cooks.length > 0) {
         const cookIds = cooks.map((c) => c.id)
@@ -130,10 +106,13 @@ export function useSwipeDeck(filters?: {
           .in('cook_id', cookIds)
           .gte('available_until', new Date().toISOString())
 
-        const specialsMap = new Map()
+        const specialsMap = new Map<
+          string,
+          { title: string; price: number }[]
+        >()
         specials?.forEach((s) => {
           if (!specialsMap.has(s.cook_id)) specialsMap.set(s.cook_id, [])
-          specialsMap.get(s.cook_id).push({ title: s.title, price: s.price })
+          specialsMap.get(s.cook_id)!.push({ title: s.title, price: s.price })
         })
 
         return cooks.map((c) => ({
@@ -148,12 +127,6 @@ export function useSwipeDeck(filters?: {
     staleTime: 1000 * 60 * 5,
   })
 
-  // Log errors at hook level too
-  if (error) {
-    console.error('❌ [useSwipeDeck] useQuery error:', error)
-  }
-
-  // Swipe mutation
   const swipeMutation = useMutation({
     mutationFn: async ({
       swipedUserId,
@@ -169,13 +142,12 @@ export function useSwipeDeck(filters?: {
       })
       if (error) throw error
 
-      // Check for mutual like
       if (action === 'like' || action === 'superlike') {
         const { data: mutual } = await supabase
           .from('swipes')
           .select('id')
           .eq('swiper_id', swipedUserId)
-          .eq('swiped_id', userId) // ← FIXED: was swiped_user_id
+          .eq('swiped_id', userId)
           .in('action', ['like', 'superlike'])
           .single()
 
@@ -199,7 +171,7 @@ export function useSwipeDeck(filters?: {
       if (data.match) {
         window.dispatchEvent(
           new CustomEvent('food4love-match', {
-            detail: { user: currentCard },
+            detail: { user: candidates[currentIndex] },
           }),
         )
       }
