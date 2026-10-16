@@ -109,6 +109,16 @@ export interface CookStory extends Story {
   cook?: Profile | null
 }
 
+export interface Post {
+  id: string
+  cook_id: string
+  story_id: string | null
+  image_url: string | null
+  video_url: string | null
+  caption: string | null
+  created_at: string
+}
+
 export interface UserStreak {
   id: string
   user_id: string

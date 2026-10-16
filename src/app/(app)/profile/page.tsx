@@ -3,6 +3,8 @@
 import { useQuery } from '@tanstack/react-query'
 import { getDailySpecialsByCook } from '@/services/dailySpecials'
 import { getReviewsForProfile, getReviewStats } from '@/services/reviews'
+import { getPostsByCook } from '@/services/posts'
+import { PostFeed } from '@/components/posts/PostFeed'
 import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
@@ -24,6 +26,7 @@ import {
   UtensilsCrossed,
   LogOut,
   Loader2,
+  RotateCcw,
 } from 'lucide-react'
 import { useAuthStore } from '@/stores/useAuthStore'
 import { formatNaira } from '@/lib/utils'
@@ -31,8 +34,10 @@ import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import toast from 'react-hot-toast'
 import { useProfile } from '@/hooks/useProfile'
+import { updateProfile as updateProfileRecord } from '@/services/profiles'
+import { TOUR_SEGMENT_KEY } from '@/components/tour/AppTour'
 ;('')
-const TABS = ['Overview', 'Specials', 'Reviews', 'Info'] as const
+const TABS = ['Overview', 'Posts', 'Specials', 'Reviews', 'Info'] as const
 type Tab = (typeof TABS)[number]
 
 function StatPill({ icon, label }: { icon: string; label: string }) {
@@ -61,6 +66,7 @@ function SkeletonLine({ w = '100%', h = '1rem' }: { w?: string; h?: string }) {
 export default function ProfilePage() {
   const router = useRouter()
   const { data: profile, isLoading: profileLoading } = useProfile()
+  const updateStore = useAuthStore((state) => state.updateProfile)
   const [tab, setTab] = useState<Tab>('Overview')
   const [editing, setEditing] = useState(false)
 
@@ -70,6 +76,12 @@ export default function ProfilePage() {
   const { data: specials = [], isLoading: specialsLoading } = useQuery({
     queryKey: ['daily-specials', profile?.id],
     queryFn: () => getDailySpecialsByCook(profile!.id),
+    enabled: !!profile?.id && isCook,
+  })
+
+  const { data: posts = [], isLoading: postsLoading } = useQuery({
+    queryKey: ['posts', profile?.id],
+    queryFn: () => getPostsByCook(profile!.id),
     enabled: !!profile?.id && isCook,
   })
 
@@ -100,6 +112,18 @@ export default function ProfilePage() {
     }
   }
 
+  const handleReplayTour = async () => {
+    if (!profile) return
+    try {
+      await updateProfileRecord(profile.id, { tour_completed: false })
+      updateStore({ tour_completed: false })
+      window.sessionStorage.setItem(TOUR_SEGMENT_KEY, '0')
+      router.push('/swipe')
+    } catch {
+      toast.error('Could not restart the tour')
+    }
+  }
+
   if (!profile) {
     return (
       <div className="space-y-4 px-4 py-6">
@@ -117,7 +141,7 @@ export default function ProfilePage() {
   return (
     <div className="pb-24" style={{ background: 'var(--bg)' }}>
       {/* Hero */}
-      <div className="relative">
+      <div data-tour="profile-summary" className="relative">
         <div
           className="relative h-36 w-full overflow-hidden"
           style={{
@@ -188,6 +212,7 @@ export default function ProfilePage() {
                 />
               </button>
               <button
+                data-tour="profile-edit"
                 onClick={() => setEditing(!editing)}
                 className="flex h-9 w-9 items-center justify-center rounded-xl transition-all active:scale-95"
                 style={{
@@ -394,6 +419,13 @@ export default function ProfilePage() {
           {visibleTabs.map((t) => (
             <button
               key={t}
+              data-tour={
+                t === 'Posts'
+                  ? 'profile-posts-tab'
+                  : t === 'Specials'
+                    ? 'profile-specials-tab'
+                    : undefined
+              }
               onClick={() => setTab(t)}
               className="relative px-4 py-3 text-sm font-semibold transition-all"
               style={{ color: tab === t ? 'var(--accent)' : 'var(--text-3)' }}
@@ -424,6 +456,14 @@ export default function ProfilePage() {
           {/* Overview */}
           {tab === 'Overview' && (
             <div className="space-y-5">
+              <button
+                type="button"
+                onClick={handleReplayTour}
+                className="inline-flex items-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--card)] px-3 py-2 text-sm font-semibold text-[var(--text-2)] transition hover:border-[var(--accent)] hover:text-[var(--accent)]"
+              >
+                <RotateCcw className="h-4 w-4" />
+                Replay app tour
+              </button>
               <div>
                 <p className="f4l-section-label mb-3">About</p>
                 <div className="f4l-card p-4">
@@ -538,6 +578,25 @@ export default function ProfilePage() {
                   Sign out
                 </span>
               </button>
+            </div>
+          )}
+
+          {/* Specials */}
+          {tab === 'Posts' && isCook && (
+            <div className="space-y-3">
+              <h3 className="text-lg font-semibold text-[var(--text-1)]">
+                Permanent posts
+              </h3>
+              {postsLoading ? (
+                <div className="py-8 text-center text-sm text-[var(--text-3)]">
+                  Loading posts…
+                </div>
+              ) : (
+                <PostFeed
+                  posts={posts}
+                  emptyMessage="Saved stories will appear here after they expire from your story history."
+                />
+              )}
             </div>
           )}
 

@@ -263,7 +263,10 @@ export default function SwipePage() {
       </div>
 
       {/* Header */}
-      <div className="relative z-10 flex shrink-0 items-center justify-between px-4 pb-2 pt-4">
+      <div
+        data-tour="discovery"
+        className="relative z-10 flex shrink-0 items-center justify-between px-4 pb-2 pt-4"
+      >
         <div className="flex items-center gap-2">
           <Flame className="h-5 w-5 text-[var(--primary)]" />
           <h1 className="text-lg font-bold text-[var(--text)]">Discover</h1>
@@ -288,6 +291,7 @@ export default function SwipePage() {
             {unreadCount > 0 && <NavBadge count={unreadCount} />}
           </Link>
           <button
+            data-tour="filter"
             onClick={() => {
               setPendingFilters(filters)
               setShowFilter(true)
@@ -303,7 +307,14 @@ export default function SwipePage() {
       </div>
 
       {/* Card Area */}
-      <div className="relative z-10 flex min-h-0 flex-1 flex-col items-center justify-center px-4 py-4">
+      <div
+        data-tour={
+          !isLoading && (deck.length > 0 || (data?.length ?? 0) === 0)
+            ? 'discovery-ready'
+            : undefined
+        }
+        className="relative z-10 flex min-h-0 flex-1 flex-col items-center justify-center px-4 py-4"
+      >
         {isLoading && deck.length === 0 ? (
           <div className="aspect-[3/4] w-full max-w-sm animate-pulse rounded-[32px] border border-[var(--border)] bg-[var(--card)] shadow-xl" />
         ) : !current ? (
