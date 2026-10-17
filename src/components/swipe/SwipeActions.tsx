@@ -17,7 +17,10 @@ export function SwipeActions({
   disabled,
 }: SwipeActionsProps) {
   return (
-    <div className="flex select-none items-center justify-center gap-6 px-4 py-3">
+    <div
+      data-tour="swipe-actions"
+      className="flex select-none items-center justify-center gap-6 px-4 py-3"
+    >
       {/* PASS */}
       <motion.button
         whileHover={{ scale: 1.15 }}

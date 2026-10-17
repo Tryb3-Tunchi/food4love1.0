@@ -50,6 +50,7 @@ export default function MatchesPage() {
       {/* Empty state */}
       {!isLoading && !matches?.length && (
         <motion.div
+          data-tour="matches-content"
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
           className="flex flex-col items-center justify-center px-4 py-20 text-center"
@@ -121,7 +122,7 @@ export default function MatchesPage() {
 
       {/* Match list */}
       {!isLoading && matches && matches.length > 0 && (
-        <div className="space-y-2">
+        <div data-tour="matches-content" className="space-y-2">
           {matches.map((match, i) => {
             const chef = match.other_user
             if (!chef) return null

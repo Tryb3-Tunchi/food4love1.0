@@ -62,6 +62,7 @@ export function BottomNav() {
             <Link
               key={link.href}
               href={link.href}
+              data-tour={link.href === '/chat' ? 'nav-chat' : undefined}
               className={`relative flex flex-col items-center gap-0.5 rounded-xl px-3 py-1 transition-colors ${
                 isActive
                   ? 'text-[var(--primary)]'

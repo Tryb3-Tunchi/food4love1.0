@@ -11,6 +11,8 @@ import {
   UtensilsCrossed,
 } from 'lucide-react'
 import type { Metadata } from 'next'
+import type { Post } from '@/types/db'
+import { PostFeed } from '@/components/posts/PostFeed'
 
 export async function generateMetadata({
   params,
@@ -46,6 +48,15 @@ export default async function CookPublicPage({
     .eq('role', 'cook')
     .single()
   if (!chef) notFound()
+
+  const { data: postsData, error: postsError } = await sb
+    .from('posts')
+    .select('id, cook_id, story_id, image_url, video_url, caption, created_at')
+    .eq('cook_id', chef.id)
+    .order('created_at', { ascending: false })
+
+  if (postsError) throw postsError
+  const posts = (postsData ?? []) as Post[]
 
   return (
     <div className="pb-10" style={{ background: 'var(--bg)' }}>
@@ -205,6 +216,13 @@ export default async function CookPublicPage({
           </p>
         </div>
       </div>
+
+      <section className="px-4">
+        <h2 className="mb-3 font-heading text-xl font-bold text-[var(--text-1)]">
+          Posts
+        </h2>
+        <PostFeed posts={posts} emptyMessage="No posts shared yet." />
+      </section>
     </div>
   )
 }

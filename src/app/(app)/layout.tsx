@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { BottomNav } from '@/components/layout/BottomNav'
 import { AmbientBackground } from '@/components/ui/AmbientBackground'
+import { AppTour } from '@/components/tour/AppTour'
 
 export default async function AppLayout({
   children,
@@ -18,6 +19,7 @@ export default async function AppLayout({
       <AmbientBackground>
         {children}
         <BottomNav />
+        <AppTour />
       </AmbientBackground>
     </>
   )

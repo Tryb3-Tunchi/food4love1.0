@@ -13,10 +13,13 @@ import {
   ChefHat,
   MessageCircle,
   Film,
+  BookmarkCheck,
 } from 'lucide-react'
 import { motion } from 'framer-motion'
 import Image from 'next/image'
 import { toast } from 'sonner'
+import { useStories } from '@/hooks/useStories'
+import { useState } from 'react'
 
 function DashboardActions() {
   return (
@@ -41,6 +44,10 @@ function DashboardActions() {
 
 export default function RequestsPage() {
   const { profile } = useAuthStore()
+  const { ownedStories, isLoadingOwnedStories, saveStory } = useStories(
+    profile?.id ?? null,
+  )
+  const [savingStoryId, setSavingStoryId] = useState<string | null>(null)
 
   const {
     data: requests,
@@ -88,6 +95,24 @@ export default function RequestsPage() {
     toast.info('Request declined')
   }
 
+  const handleSaveStory = async (storyId: string) => {
+    setSavingStoryId(storyId)
+    try {
+      const result = await saveStory(storyId)
+      toast.success(
+        result.alreadySaved
+          ? 'This story is already in your posts.'
+          : 'Saved to posts.',
+      )
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : 'Could not save this story.',
+      )
+    } finally {
+      setSavingStoryId(null)
+    }
+  }
+
   return (
     <div className="min-h-screen bg-[var(--bg)]">
       <div className="bg-[var(--bg)]/80 sticky top-0 z-10 border-b border-[var(--border)] backdrop-blur-xl">
@@ -101,6 +126,101 @@ export default function RequestsPage() {
         </div>
         <DashboardActions />
       </div>
+
+      {profile?.role === 'cook' && (
+        <section
+          data-tour="story-management"
+          className="border-b border-[var(--border)] px-4 py-5"
+        >
+          <div className="mb-3 flex items-center justify-between gap-3">
+            <div>
+              <h2 className="text-lg font-semibold">Your stories</h2>
+              <p className="text-xs text-[var(--text-3)]">
+                Stories expire after 24 hours. Saved posts stay on your profile.
+              </p>
+            </div>
+            <Link
+              data-tour="story-create"
+              href="/stories/new"
+              className="shrink-0 text-sm font-semibold text-[var(--accent)]"
+            >
+              Post story
+            </Link>
+          </div>
+          {isLoadingOwnedStories ? (
+            <p className="py-5 text-sm text-[var(--text-3)]">
+              Loading stories…
+            </p>
+          ) : ownedStories.length === 0 ? (
+            <div className="rounded-xl border border-[var(--border)] bg-[var(--card)] p-4 text-sm text-[var(--text-3)]">
+              You have not posted a story yet.
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {ownedStories.map((story) => {
+                const expired =
+                  new Date(story.expires_at).getTime() <= Date.now()
+                const isSaving = savingStoryId === story.id
+
+                return (
+                  <article
+                    key={story.id}
+                    className="flex items-center gap-3 rounded-xl border border-[var(--border)] bg-[var(--card)] p-3"
+                  >
+                    <div className="h-16 w-16 shrink-0 overflow-hidden rounded-lg bg-black">
+                      {story.video_url ? (
+                        <video
+                          src={story.video_url}
+                          preload="metadata"
+                          className="h-full w-full object-cover"
+                          aria-label={story.caption || 'Your story video'}
+                        />
+                      ) : story.image_url ? (
+                        <img
+                          src={story.image_url}
+                          alt={story.caption || 'Your story'}
+                          className="h-full w-full object-cover"
+                        />
+                      ) : (
+                        <div className="flex h-full items-center justify-center text-[var(--text-3)]">
+                          <Film className="h-6 w-6" />
+                        </div>
+                      )}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="line-clamp-2 text-sm font-medium">
+                        {story.caption || 'Story without a caption'}
+                      </p>
+                      <p className="mt-1 text-xs text-[var(--text-3)]">
+                        {expired ? 'Expired' : 'Expires'} ·{' '}
+                        {new Date(story.expires_at).toLocaleString('en-NG', {
+                          month: 'short',
+                          day: 'numeric',
+                          hour: 'numeric',
+                          minute: '2-digit',
+                        })}
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => handleSaveStory(story.id)}
+                      disabled={story.savedAsPost || isSaving}
+                      className="flex shrink-0 items-center gap-1.5 rounded-lg border border-[var(--border)] px-3 py-2 text-xs font-semibold text-[var(--accent)] transition disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      <BookmarkCheck className="h-4 w-4" />
+                      {isSaving
+                        ? 'Saving…'
+                        : story.savedAsPost
+                          ? 'Saved'
+                          : 'Save to posts'}
+                    </button>
+                  </article>
+                )
+              })}
+            </div>
+          )}
+        </section>
+      )}
 
       {isLoading ? (
         <div className="space-y-4 p-4">
