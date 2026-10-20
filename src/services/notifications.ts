@@ -1,4 +1,12 @@
 import { createClient } from '@/lib/supabase/client'
+import type { NotificationPreferences } from '@/types/db'
+
+export const DEFAULT_NOTIFICATION_PREFERENCES: NotificationPreferences = {
+  messages: true,
+  swipeActivity: true,
+  bookings: true,
+  reviews: true,
+}
 
 export interface Notification {
   id: string
@@ -12,13 +20,26 @@ export interface Notification {
   created_at: string
 }
 
-export async function getUnreadCount(userId: string): Promise<number> {
+function getVisibleTypes(preferences: NotificationPreferences): string[] {
+  const types = ['system']
+  if (preferences.messages) types.push('message')
+  if (preferences.swipeActivity) types.push('match', 'like', 'request')
+  if (preferences.bookings) types.push('booking')
+  if (preferences.reviews) types.push('review')
+  return types
+}
+
+export async function getUnreadCount(
+  userId: string,
+  preferences = DEFAULT_NOTIFICATION_PREFERENCES,
+): Promise<number> {
   const supabase = createClient()
   const { count, error } = await supabase
     .from('notifications')
     .select('*', { count: 'exact', head: true })
     .eq('user_id', userId)
     .eq('read', false)
+    .in('type', getVisibleTypes(preferences))
 
   if (error) {
     console.error('Unread count error:', error)
@@ -30,12 +51,14 @@ export async function getUnreadCount(userId: string): Promise<number> {
 export async function getNotifications(
   userId: string,
   limit = 20,
+  preferences = DEFAULT_NOTIFICATION_PREFERENCES,
 ): Promise<Notification[]> {
   const supabase = createClient()
   const { data, error } = await supabase
     .from('notifications')
     .select('*')
     .eq('user_id', userId)
+    .in('type', getVisibleTypes(preferences))
     .order('created_at', { ascending: false })
     .limit(limit)
 
