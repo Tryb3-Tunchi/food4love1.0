@@ -3,6 +3,13 @@ export type MatchStatus = 'pending' | 'matched' | 'expired' | 'blocked'
 export type KycStatus = 'unverified' | 'pending' | 'verified' | 'rejected'
 export type SwipeAction = 'like' | 'pass' | 'superlike'
 
+export interface NotificationPreferences {
+  messages: boolean
+  swipeActivity: boolean
+  bookings: boolean
+  reviews: boolean
+}
+
 export type LikeStatus = 'pending' | 'accepted' | 'rejected'
 export type SwipeDirection = SwipeAction
 
@@ -26,6 +33,7 @@ export interface Profile {
   streak?: number
   tour_completed?: boolean
   onboarding_complete?: boolean
+  notification_preferences?: NotificationPreferences | null
   // legacy naming
   onboarding_completed?: boolean
   photos?: string[]

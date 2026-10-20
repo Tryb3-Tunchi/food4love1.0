@@ -4,26 +4,35 @@ import { useEffect, useRef } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { createClient } from '@/lib/supabase/client'
 import { useAuthStore } from '@/stores/useAuthStore'
-import { getUnreadCount, getNotifications } from '@/services/notifications'
+import {
+  DEFAULT_NOTIFICATION_PREFERENCES,
+  getUnreadCount,
+  getNotifications,
+} from '@/services/notifications'
 
 export function useNotifications() {
   const profile = useAuthStore((s) => s.profile)
   const userId = profile?.id
+  const preferences = {
+    ...DEFAULT_NOTIFICATION_PREFERENCES,
+    ...profile?.notification_preferences,
+  }
+  const preferencesKey = JSON.stringify(preferences)
   const queryClient = useQueryClient()
   const channelRef = useRef<ReturnType<
     ReturnType<typeof createClient>['channel']
   > | null>(null)
 
   const unreadQuery = useQuery({
-    queryKey: ['notifications-unread', userId],
-    queryFn: () => (userId ? getUnreadCount(userId) : 0),
+    queryKey: ['notifications-unread', userId, preferencesKey],
+    queryFn: () => (userId ? getUnreadCount(userId, preferences) : 0),
     enabled: !!userId,
     refetchInterval: 30000,
   })
 
   const notificationsQuery = useQuery({
-    queryKey: ['notifications', userId],
-    queryFn: () => (userId ? getNotifications(userId) : []),
+    queryKey: ['notifications', userId, preferencesKey],
+    queryFn: () => (userId ? getNotifications(userId, 20, preferences) : []),
     enabled: !!userId,
   })
 

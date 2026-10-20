@@ -51,7 +51,9 @@ export function Sheet({
                       {title}
                     </Dialog.Title>
                     <button
+                      type="button"
                       onClick={onClose}
+                      aria-label="Close dialog"
                       className="rounded-lg p-1 hover:bg-fog dark:hover:bg-coal"
                     >
                       <X className="h-4 w-4 text-ash" />

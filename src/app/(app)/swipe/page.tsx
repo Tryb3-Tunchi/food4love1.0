@@ -10,7 +10,7 @@ import { AppPage } from '@/components/ui/AppPage'
 import { Button } from '@/components/ui/Button'
 import { recordSwipe, checkMutualLike } from '@/services/swipes'
 import { createMatch } from '@/services/matches'
-import { SlidersHorizontal, Flame, X, Check } from 'lucide-react'
+import { SlidersHorizontal, Flame, X, Check, Bell } from 'lucide-react'
 import {
   motion,
   AnimatePresence,
@@ -19,10 +19,10 @@ import {
   PanInfo,
 } from 'framer-motion'
 import toast from 'react-hot-toast'
-import { Bell } from 'lucide-react'
-import Link from 'next/link'
 import { useNotifications } from '@/hooks/useNotifications'
 import { NavBadge } from '@/components/layout/NavBadge'
+import { Sheet } from '@/components/ui/Sheet'
+import { NotificationPreferences } from '@/components/notifications/NotificationPreferences'
 
 const CUISINES = [
   'Igbo Cuisine',
@@ -47,10 +47,10 @@ interface Filters {
 
 export default function SwipePage() {
   const { profile } = useAuthStore()
-  console.log('🚨 SWIPE PAGE — profile:', profile)
-  console.log('🚨 SWIPE PAGE — userId:', profile?.id)
 
   const { unreadCount } = useNotifications()
+  const [showNotificationPreferences, setShowNotificationPreferences] =
+    useState(false)
 
   const [deck, setDeck] = useState<Chef[]>([])
   const [currentIndex, setCurrentIndex] = useState(0)
@@ -286,10 +286,16 @@ export default function SwipePage() {
               Clear
             </button>
           )}
-          <Link href="/notifications" className="relative">
+          <button
+            type="button"
+            onClick={() => setShowNotificationPreferences(true)}
+            aria-label="Notification preferences"
+            aria-haspopup="dialog"
+            className="relative flex h-9 w-9 items-center justify-center rounded-xl border border-[var(--border)] bg-[var(--card)]"
+          >
             <Bell className="h-6 w-6 text-[var(--text)]" />
             {unreadCount > 0 && <NavBadge count={unreadCount} />}
-          </Link>
+          </button>
           <button
             data-tour="filter"
             onClick={() => {
@@ -305,6 +311,14 @@ export default function SwipePage() {
           </button>
         </div>
       </div>
+
+      <Sheet
+        open={showNotificationPreferences}
+        onClose={() => setShowNotificationPreferences(false)}
+        title="Notification preferences"
+      >
+        <NotificationPreferences />
+      </Sheet>
 
       {/* Card Area */}
       <div
