@@ -1,6 +1,9 @@
 import { NextResponse } from 'next/server'
+import { randomUUID } from 'node:crypto'
 import { z } from 'zod'
-import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
+
+export const runtime = 'nodejs'
 
 const waitlistSchema = z.object({
   email: z.string().trim().email().max(254),
@@ -28,15 +31,54 @@ export async function POST(request: Request) {
   if (parsed.data.website) return NextResponse.json({ success: true })
 
   try {
-    const supabase = await createClient()
+    const supabase = createAdminClient()
+    const normalizedEmail = parsed.data.email.toLowerCase()
     const { error } = await supabase.from('waitlist_subscribers').insert({
-      email: parsed.data.email.toLowerCase(),
+      email: normalizedEmail,
       audience: parsed.data.audience,
       updates_consent: parsed.data.updatesConsent,
+      consent_at: parsed.data.updatesConsent ? new Date().toISOString() : null,
       source: 'website',
+      unsubscribe_token: randomUUID(),
     })
 
-    if (error && error.code !== '23505') {
+    if (error?.code === '23505') {
+      const { data: existing, error: lookupError } = await supabase
+        .from('waitlist_subscribers')
+        .select('id')
+        .eq('email', normalizedEmail)
+        .single()
+
+      if (lookupError || !existing) {
+        return NextResponse.json(
+          { error: 'Could not save signup' },
+          { status: 500 },
+        )
+      }
+
+      const { error: updateError } = await supabase
+        .from('waitlist_subscribers')
+        .update({
+          audience: parsed.data.audience,
+          updates_consent: parsed.data.updatesConsent,
+          consent_at: parsed.data.updatesConsent
+            ? new Date().toISOString()
+            : null,
+          unsubscribed_at: null,
+        })
+        .eq('id', existing.id)
+
+      if (updateError) {
+        return NextResponse.json(
+          { error: 'Could not save signup' },
+          { status: 500 },
+        )
+      }
+
+      return NextResponse.json({ success: true })
+    }
+
+    if (error) {
       console.error('Waitlist insert failed:', error.code)
       return NextResponse.json(
         { error: 'Could not save signup' },
