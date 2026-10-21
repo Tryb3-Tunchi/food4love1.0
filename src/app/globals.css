@@ -538,10 +538,38 @@
   .f4l-map-texture,
   .waitlist-map-bg {
     background-image:
-      radial-gradient(ellipse at 20% 30%, transparent 0 11%, rgba(75, 139, 87, 0.11) 11.15% 11.3%, transparent 11.45% 18%, rgba(232, 90, 42, 0.08) 18.15% 18.3%, transparent 18.45% 26%, rgba(75, 139, 87, 0.08) 26.15% 26.3%, transparent 26.45%),
-      radial-gradient(ellipse at 78% 65%, transparent 0 9%, rgba(232, 90, 42, 0.1) 9.15% 9.3%, transparent 9.45% 16%, rgba(75, 139, 87, 0.1) 16.15% 16.3%, transparent 16.45% 24%, rgba(232, 90, 42, 0.07) 24.15% 24.3%, transparent 24.45%),
-      linear-gradient(35deg, transparent 49.8%, rgba(75, 139, 87, 0.06) 50%, transparent 50.2%),
-      linear-gradient(125deg, transparent 49.8%, rgba(232, 90, 42, 0.05) 50%, transparent 50.2%);
+      radial-gradient(
+        ellipse at 20% 30%,
+        transparent 0 11%,
+        rgba(75, 139, 87, 0.11) 11.15% 11.3%,
+        transparent 11.45% 18%,
+        rgba(232, 90, 42, 0.08) 18.15% 18.3%,
+        transparent 18.45% 26%,
+        rgba(75, 139, 87, 0.08) 26.15% 26.3%,
+        transparent 26.45%
+      ),
+      radial-gradient(
+        ellipse at 78% 65%,
+        transparent 0 9%,
+        rgba(232, 90, 42, 0.1) 9.15% 9.3%,
+        transparent 9.45% 16%,
+        rgba(75, 139, 87, 0.1) 16.15% 16.3%,
+        transparent 16.45% 24%,
+        rgba(232, 90, 42, 0.07) 24.15% 24.3%,
+        transparent 24.45%
+      ),
+      linear-gradient(
+        35deg,
+        transparent 49.8%,
+        rgba(75, 139, 87, 0.06) 50%,
+        transparent 50.2%
+      ),
+      linear-gradient(
+        125deg,
+        transparent 49.8%,
+        rgba(232, 90, 42, 0.05) 50%,
+        transparent 50.2%
+      );
     background-size:
       760px 620px,
       880px 700px,
