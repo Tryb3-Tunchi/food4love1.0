@@ -1,13 +1,10 @@
 'use client'
-import { Bell } from 'lucide-react'
 import { useHungerMode } from '@/components/providers/HungerModeProviders'
-import { useNotificationStore } from '@/stores/useNotificationStore'
 import { motion, AnimatePresence } from 'framer-motion'
+import { NotificationCenter } from '@/components/notifications/NotificationCenter'
 
 export function AppTopBar() {
   const { hungerMode, toggleHungerMode } = useHungerMode()
-  const { unreadMessages, newMatches } = useNotificationStore()
-  const totalNotifs = unreadMessages + newMatches
 
   return (
     <div className="f4l-nav flex shrink-0 items-center justify-between border-b px-4 py-3 lg:hidden">
@@ -52,24 +49,7 @@ export function AppTopBar() {
           </span>
         </button>
 
-        {/* Notifications */}
-        <button
-          className="relative flex h-9 w-9 items-center justify-center rounded-xl transition-all"
-          style={{
-            background: 'rgba(255,255,255,0.68)',
-            border: '1px solid var(--border)',
-          }}
-        >
-          <Bell className="h-4 w-4" style={{ color: 'var(--text-3)' }} />
-          {totalNotifs > 0 && (
-            <span
-              className="absolute -right-0.5 -top-0.5 flex h-4 w-4 items-center justify-center rounded-full text-[9px] font-bold text-white"
-              style={{ background: 'var(--accent)' }}
-            >
-              {totalNotifs > 9 ? '9+' : totalNotifs}
-            </span>
-          )}
-        </button>
+        <NotificationCenter />
       </div>
     </div>
   )

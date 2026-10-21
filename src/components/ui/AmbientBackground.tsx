@@ -157,6 +157,7 @@ export function AmbientBackground({
         className="ambient-bg pointer-events-none fixed inset-0 -z-10"
         aria-hidden="true"
       >
+        <div className="f4l-map-texture absolute inset-[-8%] opacity-60" />
         {orbs.map((orb, i) => (
           <motion.div
             key={i}

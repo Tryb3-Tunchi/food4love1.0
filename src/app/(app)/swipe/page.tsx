@@ -8,9 +8,10 @@ import { SwipeActions } from '@/components/swipe/SwipeActions'
 import { MatchCelebration } from '@/components/swipe/MatchCelebration'
 import { AppPage } from '@/components/ui/AppPage'
 import { Button } from '@/components/ui/Button'
+import Link from 'next/link'
 import { recordSwipe, checkMutualLike } from '@/services/swipes'
 import { createMatch } from '@/services/matches'
-import { SlidersHorizontal, Flame, X, Check, Bell } from 'lucide-react'
+import { SlidersHorizontal, Flame, X, Check, MapPin } from 'lucide-react'
 import {
   motion,
   AnimatePresence,
@@ -19,10 +20,7 @@ import {
   PanInfo,
 } from 'framer-motion'
 import toast from 'react-hot-toast'
-import { useNotifications } from '@/hooks/useNotifications'
-import { NavBadge } from '@/components/layout/NavBadge'
-import { Sheet } from '@/components/ui/Sheet'
-import { NotificationPreferences } from '@/components/notifications/NotificationPreferences'
+import { NotificationCenter } from '@/components/notifications/NotificationCenter'
 
 const CUISINES = [
   'Igbo Cuisine',
@@ -48,10 +46,6 @@ interface Filters {
 export default function SwipePage() {
   const { profile } = useAuthStore()
 
-  const { unreadCount } = useNotifications()
-  const [showNotificationPreferences, setShowNotificationPreferences] =
-    useState(false)
-
   const [deck, setDeck] = useState<Chef[]>([])
   const [currentIndex, setCurrentIndex] = useState(0)
   const [isAnimating, setIsAnimating] = useState(false)
@@ -72,7 +66,9 @@ export default function SwipePage() {
     priceMax: 50000,
     distance: 20,
   })
-  const activeFilters = filters.cuisines.length > 0 || filters.priceMax < 50000
+  const canFilterPrice = profile?.role === 'buyer'
+  const activeFilters =
+    filters.cuisines.length > 0 || (canFilterPrice && filters.priceMax < 50000)
 
   const swipeFilters = useMemo(
     () =>
@@ -86,7 +82,7 @@ export default function SwipePage() {
     [activeFilters, filters.cuisines, filters.priceMax, filters.distance],
   )
 
-  const { data, isLoading, refetch } = useSwipeDeck(swipeFilters)
+  const { data, isLoading, error, refetch } = useSwipeDeck(swipeFilters)
 
   useEffect(() => {
     if (data && data.length > 0 && deck.length === 0) {
@@ -111,26 +107,37 @@ export default function SwipePage() {
       setExitDirection(direction)
       setIsAnimating(true)
 
-      setTimeout(async () => {
-        setCurrentIndex((prev) => prev + 1)
+      await new Promise((resolve) => setTimeout(resolve, 400))
+
+      try {
+        await recordSwipe(profile.id, current.id, action)
+      } catch (err) {
+        console.error('Swipe error:', err)
         setIsAnimating(false)
         setExitDirection(null)
+        toast.error('Your swipe could not be saved. Please try again.')
+        return
+      }
 
+      setCurrentIndex((prev) => prev + 1)
+      setIsAnimating(false)
+      setExitDirection(null)
+
+      if (action === 'like') {
         try {
-          await recordSwipe(profile.id, current.id, action)
-          if (action === 'like') {
-            const mutual = await checkMutualLike(profile.id, current.id)
-            if (mutual) {
-              const m = await createMatch(profile.id, current.id)
-              setMatchedChef(current)
-              setShowMatch(true)
-            }
+          const mutual = await checkMutualLike(profile.id, current.id)
+          if (mutual) {
+            await createMatch(profile.id, current.id)
+            setMatchedChef(current)
+            setShowMatch(true)
           }
         } catch (err) {
-          console.error('Swipe error:', err)
-          toast.error('Something went wrong')
+          console.error('Match creation error:', err)
+          toast.error(
+            'Your like was saved, but the match could not be created.',
+          )
         }
-      }, 400)
+      }
     },
     [current, profile, isAnimating],
   )
@@ -278,6 +285,18 @@ export default function SwipePage() {
         </div>
 
         <div className="flex items-center gap-2">
+          <motion.div
+            animate={{ y: [0, -3, 0] }}
+            transition={{ duration: 2.4, repeat: Infinity, ease: 'easeInOut' }}
+          >
+            <Link
+              href="/map"
+              className="flex h-9 items-center gap-1.5 rounded-lg border border-[var(--border)] bg-[var(--card)] px-3 text-xs font-semibold text-[var(--text)] shadow-sm transition-colors hover:border-[var(--primary)]/40 hover:text-[var(--primary)]"
+            >
+              <MapPin className="h-4 w-4" />
+              Map
+            </Link>
+          </motion.div>
           {activeFilters && (
             <button
               onClick={clearFilters}
@@ -286,16 +305,7 @@ export default function SwipePage() {
               Clear
             </button>
           )}
-          <button
-            type="button"
-            onClick={() => setShowNotificationPreferences(true)}
-            aria-label="Notification preferences"
-            aria-haspopup="dialog"
-            className="relative flex h-9 w-9 items-center justify-center rounded-xl border border-[var(--border)] bg-[var(--card)]"
-          >
-            <Bell className="h-6 w-6 text-[var(--text)]" />
-            {unreadCount > 0 && <NavBadge count={unreadCount} />}
-          </button>
+          <NotificationCenter />
           <button
             data-tour="filter"
             onClick={() => {
@@ -312,14 +322,6 @@ export default function SwipePage() {
         </div>
       </div>
 
-      <Sheet
-        open={showNotificationPreferences}
-        onClose={() => setShowNotificationPreferences(false)}
-        title="Notification preferences"
-      >
-        <NotificationPreferences />
-      </Sheet>
-
       {/* Card Area */}
       <div
         data-tour={
@@ -331,6 +333,28 @@ export default function SwipePage() {
       >
         {isLoading && deck.length === 0 ? (
           <div className="aspect-[3/4] w-full max-w-sm animate-pulse rounded-[32px] border border-[var(--border)] bg-[var(--card)] shadow-xl" />
+        ) : error && !data ? (
+          <div className="flex max-w-sm flex-col items-center gap-3 px-6 text-center">
+            <h3 className="text-lg font-bold text-[var(--text)]">
+              Discovery could not load
+            </h3>
+            <p className="text-sm text-[var(--text-muted)]">
+              Your profile and matching settings are unchanged. Try loading the
+              discovery pool again.
+            </p>
+            <Button
+              onClick={() => {
+                setDeck([])
+                setCurrentIndex(0)
+                refetch()
+              }}
+              variant="primary"
+              size="md"
+              pill
+            >
+              Try again
+            </Button>
+          </div>
         ) : !current ? (
           <motion.div
             initial={{ opacity: 0, scale: 0.9 }}
@@ -340,13 +364,13 @@ export default function SwipePage() {
             <div className="mb-2 text-6xl">🍽️</div>
             <h3 className="text-xl font-bold text-[var(--text)]">
               {activeFilters
-                ? 'No chefs match filters'
-                : "You've seen everyone!"}
+                ? 'No eligible chefs match these filters'
+                : "You've seen all eligible profiles"}
             </h3>
             <p className="max-w-[240px] text-sm text-[var(--text-muted)]">
               {activeFilters
                 ? 'Try broadening your search'
-                : 'New chefs join daily. Check back soon!'}
+                : 'Only completed, unsuspended opposite-role profiles appear here; you may have seen them all.'}
             </p>
             <div className="mt-2 flex gap-3">
               {activeFilters && (
@@ -437,7 +461,7 @@ export default function SwipePage() {
             </div>
 
             <p className="mt-3 text-xs font-medium text-[var(--text-muted)]">
-              {remaining} chef{remaining !== 1 ? 's' : ''} remaining
+              {remaining} eligible profile{remaining !== 1 ? 's' : ''} remaining
             </p>
           </>
         )}
@@ -467,7 +491,7 @@ export default function SwipePage() {
               >
                 <div className="mb-6 flex items-center justify-between">
                   <h3 className="text-lg font-bold text-[var(--text)]">
-                    Filter Chefs
+                    {canFilterPrice ? 'Filter Chefs' : 'Filter Food Lovers'}
                   </h3>
                   <button
                     onClick={() => setShowFilter(false)}
@@ -477,26 +501,28 @@ export default function SwipePage() {
                   </button>
                 </div>
 
-                <div className="mb-6">
-                  <p className="mb-3 text-sm font-bold text-[var(--text)]">
-                    Cuisine Type
-                  </p>
-                  <div className="flex flex-wrap gap-2">
-                    {CUISINES.map((c) => {
-                      const selected = pendingFilters.cuisines.includes(c)
-                      return (
-                        <button
-                          key={c}
-                          onClick={() => toggleCuisine(c)}
-                          className={`flex items-center gap-1.5 rounded-full border px-3.5 py-2 text-xs font-semibold transition-all ${selected ? 'border-[var(--primary)] bg-[var(--primary)] text-white' : 'hover:border-[var(--primary)]/50 border-[var(--border)] bg-[var(--bg-2)] text-[var(--text-muted)]'}`}
-                        >
-                          {selected && <Check className="h-3 w-3" />}
-                          {c}
-                        </button>
-                      )
-                    })}
+                {canFilterPrice && (
+                  <div className="mb-6">
+                    <p className="mb-3 text-sm font-bold text-[var(--text)]">
+                      Cuisine Type
+                    </p>
+                    <div className="flex flex-wrap gap-2">
+                      {CUISINES.map((c) => {
+                        const selected = pendingFilters.cuisines.includes(c)
+                        return (
+                          <button
+                            key={c}
+                            onClick={() => toggleCuisine(c)}
+                            className={`flex items-center gap-1.5 rounded-full border px-3.5 py-2 text-xs font-semibold transition-all ${selected ? 'border-[var(--primary)] bg-[var(--primary)] text-white' : 'hover:border-[var(--primary)]/50 border-[var(--border)] bg-[var(--bg-2)] text-[var(--text-muted)]'}`}
+                          >
+                            {selected && <Check className="h-3 w-3" />}
+                            {c}
+                          </button>
+                        )
+                      })}
+                    </div>
                   </div>
-                </div>
+                )}
 
                 <div className="mb-6">
                   <div className="mb-3 flex items-center justify-between">
@@ -536,10 +562,12 @@ export default function SwipePage() {
                 >
                   Apply Filters
                   {(pendingFilters.cuisines.length > 0 ||
-                    pendingFilters.priceMax < 50000) && (
+                    (canFilterPrice && pendingFilters.priceMax < 50000)) && (
                     <span className="ml-2 rounded-full bg-white/20 px-2 py-0.5 text-xs">
                       {pendingFilters.cuisines.length +
-                        (pendingFilters.priceMax < 50000 ? 1 : 0)}{' '}
+                        (canFilterPrice && pendingFilters.priceMax < 50000
+                          ? 1
+                          : 0)}{' '}
                       active
                     </span>
                   )}
