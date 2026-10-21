@@ -291,7 +291,7 @@ export default function SwipePage() {
           >
             <Link
               href="/map"
-              className="flex h-9 items-center gap-1.5 rounded-lg border border-[var(--border)] bg-[var(--card)] px-3 text-xs font-semibold text-[var(--text)] shadow-sm transition-colors hover:border-[var(--primary)]/40 hover:text-[var(--primary)]"
+              className="hover:border-[var(--primary)]/40 flex h-9 items-center gap-1.5 rounded-lg border border-[var(--border)] bg-[var(--card)] px-3 text-xs font-semibold text-[var(--text)] shadow-sm transition-colors hover:text-[var(--primary)]"
             >
               <MapPin className="h-4 w-4" />
               Map

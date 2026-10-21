@@ -19,7 +19,10 @@ export async function POST(request: Request) {
 
   const parsed = waitlistSchema.safeParse(body)
   if (!parsed.success) {
-    return NextResponse.json({ error: 'Check the email and try again' }, { status: 400 })
+    return NextResponse.json(
+      { error: 'Check the email and try again' },
+      { status: 400 },
+    )
   }
 
   if (parsed.data.website) return NextResponse.json({ success: true })
@@ -35,11 +38,17 @@ export async function POST(request: Request) {
 
     if (error && error.code !== '23505') {
       console.error('Waitlist insert failed:', error.code)
-      return NextResponse.json({ error: 'Could not save signup' }, { status: 500 })
+      return NextResponse.json(
+        { error: 'Could not save signup' },
+        { status: 500 },
+      )
     }
 
     return NextResponse.json({ success: true })
   } catch {
-    return NextResponse.json({ error: 'Could not save signup' }, { status: 500 })
+    return NextResponse.json(
+      { error: 'Could not save signup' },
+      { status: 500 },
+    )
   }
 }
