@@ -43,7 +43,7 @@ export function WaitlistLanding() {
       <div className="mx-auto w-full max-w-6xl">
         <header className="flex items-center justify-between">
           <Link
-            href="/"
+            href="/waitlist"
             className="inline-flex items-center gap-3"
             aria-label="Food4Love home"
           >
