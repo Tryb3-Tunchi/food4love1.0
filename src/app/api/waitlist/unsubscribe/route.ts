@@ -28,7 +28,10 @@ async function unsubscribe(token: string | null) {
   const supabase = createAdminClient()
   const { data, error } = await supabase
     .from('waitlist_subscribers')
-    .update({ updates_consent: false, unsubscribed_at: new Date().toISOString() })
+    .update({
+      updates_consent: false,
+      unsubscribed_at: new Date().toISOString(),
+    })
     .eq('unsubscribe_token', parsedToken.data)
     .select('id')
     .maybeSingle()
@@ -47,5 +50,7 @@ export async function POST(request: Request) {
 
   const formData = await request.formData().catch(() => null)
   const token = formData?.get('token')
-  return confirmationPage(await unsubscribe(typeof token === 'string' ? token : null))
+  return confirmationPage(
+    await unsubscribe(typeof token === 'string' ? token : null),
+  )
 }

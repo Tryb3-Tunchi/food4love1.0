@@ -15,7 +15,9 @@ const campaignSchema = z.object({
 
 function authorized(request: Request) {
   const expected = process.env.WAITLIST_ADMIN_API_KEY
-  const supplied = request.headers.get('authorization')?.replace(/^Bearer\s+/i, '')
+  const supplied = request.headers
+    .get('authorization')
+    ?.replace(/^Bearer\s+/i, '')
   if (!expected || !supplied) return false
 
   const expectedBytes = Buffer.from(expected)
@@ -63,7 +65,10 @@ export async function POST(request: Request) {
 
   const parsed = campaignSchema.safeParse(body)
   if (!parsed.success) {
-    return NextResponse.json({ error: 'Invalid campaign details' }, { status: 400 })
+    return NextResponse.json(
+      { error: 'Invalid campaign details' },
+      { status: 400 },
+    )
   }
 
   const campaignInput = parsed.data
@@ -81,7 +86,10 @@ export async function POST(request: Request) {
     )
 
   if (campaignError) {
-    return NextResponse.json({ error: 'Could not prepare campaign' }, { status: 500 })
+    return NextResponse.json(
+      { error: 'Could not prepare campaign' },
+      { status: 500 },
+    )
   }
 
   const { data: campaign, error: campaignLookupError } = await supabase
@@ -91,7 +99,10 @@ export async function POST(request: Request) {
     .single()
 
   if (campaignLookupError || !campaign) {
-    return NextResponse.json({ error: 'Could not load campaign' }, { status: 500 })
+    return NextResponse.json(
+      { error: 'Could not load campaign' },
+      { status: 500 },
+    )
   }
 
   if (
@@ -113,11 +124,15 @@ export async function POST(request: Request) {
     .order('id', { ascending: true })
     .limit(25)
 
-  if (campaignInput.afterId) recipientQuery = recipientQuery.gt('id', campaignInput.afterId)
+  if (campaignInput.afterId)
+    recipientQuery = recipientQuery.gt('id', campaignInput.afterId)
 
   const { data: recipients, error: recipientError } = await recipientQuery
   if (recipientError) {
-    return NextResponse.json({ error: 'Could not load subscribers' }, { status: 500 })
+    return NextResponse.json(
+      { error: 'Could not load subscribers' },
+      { status: 500 },
+    )
   }
 
   let sent = 0
@@ -143,7 +158,10 @@ export async function POST(request: Request) {
       .eq('id', recipient.id)
       .maybeSingle()
 
-    if (!currentSubscriber?.updates_consent || currentSubscriber.unsubscribed_at) {
+    if (
+      !currentSubscriber?.updates_consent ||
+      currentSubscriber.unsubscribed_at
+    ) {
       await supabase.from('waitlist_email_deliveries').upsert(
         {
           campaign_id: campaign.id,
