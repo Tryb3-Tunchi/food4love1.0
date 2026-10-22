@@ -45,18 +45,20 @@ export function useSwipeDeck(filters?: {
     queryFn: async () => {
       if (!userId) return []
 
-      const { data: swiped } = await supabase
+      const { data: swiped, error: swipedError } = await supabase
         .from('swipes')
         .select('swiped_id')
         .eq('swiper_id', userId)
+      if (swipedError) throw swipedError
 
       const swipedIds = swiped?.map((s) => s.swiped_id) ?? []
 
-      const { data: myProfile } = await supabase
+      const { data: myProfile, error: profileError } = await supabase
         .from('profiles')
         .select('role, cuisines, price_max')
         .eq('id', userId)
         .single()
+      if (profileError) throw profileError
 
       const isBuyer = myProfile?.role === 'buyer'
 
@@ -66,6 +68,7 @@ export function useSwipeDeck(filters?: {
           'id, full_name, bio, avatar_url, cuisines, price_min, price_max, location, rating, photos, lat, lng',
         )
         .eq('role', isBuyer ? 'cook' : 'buyer')
+        .eq('onboarding_complete', true)
         .eq('suspended', false)
 
       query = query.neq('id', userId)
@@ -79,10 +82,10 @@ export function useSwipeDeck(filters?: {
       }
 
       if (filters?.cuisines && filters.cuisines.length > 0) {
-        query = query.contains('cuisines', filters.cuisines)
+        query = query.overlaps('cuisines', filters.cuisines)
       }
 
-      if (filters?.priceMax) {
+      if (isBuyer && filters?.priceMax) {
         query = query.lte('price_min', filters.priceMax)
       }
 

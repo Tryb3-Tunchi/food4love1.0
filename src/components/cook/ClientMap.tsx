@@ -1,13 +1,13 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import { useRouter } from 'next/navigation'
 import { getCookLocations, getCookById } from '@/services/map'
 import { useQuery } from '@tanstack/react-query'
-import { Star, X } from 'lucide-react'
+import { LocateFixed, Star, X } from 'lucide-react'
 import Image from 'next/image'
 
 // Fix Leaflet default marker icons in Next.js
@@ -41,10 +41,28 @@ function MapController({ center }: { center: [number, number] }) {
   return null
 }
 
+type DeviceLocation = { lat: number; lng: number }
+
+const currentLocationIcon = L.divIcon({
+  html: '<span class="f4l-current-location-dot" aria-hidden="true"></span>',
+  className: 'f4l-current-location-marker',
+  iconSize: [24, 24],
+  iconAnchor: [12, 12],
+})
+
 export default function ClientMap() {
   const router = useRouter()
   const [selectedChefId, setSelectedChefId] = useState<string | null>(null)
   const [filterCuisine, setFilterCuisine] = useState<string>('all')
+  const [trackingLocation, setTrackingLocation] = useState(false)
+  const [deviceLocation, setDeviceLocation] = useState<DeviceLocation | null>(
+    null,
+  )
+  const [locationState, setLocationState] = useState<
+    'idle' | 'loading' | 'active' | 'error'
+  >('idle')
+  const [locationMessage, setLocationMessage] = useState('')
+  const [mapCenter, setMapCenter] = useState<[number, number] | null>(null)
 
   const { data: locations = [], isLoading } = useQuery({
     queryKey: ['cook-locations'],
@@ -74,6 +92,66 @@ export default function ClientMap() {
     return [avgLat, avgLng]
   }, [filtered])
 
+  const mapPosition = mapCenter ?? center
+
+  useEffect(() => {
+    if (!trackingLocation) return
+
+    if (!navigator.geolocation) {
+      setLocationState('error')
+      setLocationMessage('Location is not supported by this browser.')
+      setTrackingLocation(false)
+      return
+    }
+
+    setLocationState('loading')
+    setLocationMessage('Waiting for your device location…')
+    const watchId = navigator.geolocation.watchPosition(
+      (position) => {
+        const nextLocation = {
+          lat: position.coords.latitude,
+          lng: position.coords.longitude,
+        }
+        setDeviceLocation(nextLocation)
+        setMapCenter(
+          (previous) => previous ?? [nextLocation.lat, nextLocation.lng],
+        )
+        setLocationState('active')
+        setLocationMessage('Your location is shown only on this device.')
+      },
+      (error) => {
+        const message =
+          error.code === error.PERMISSION_DENIED
+            ? 'Location access was denied. Enable it in your browser settings to use this feature.'
+            : error.code === error.TIMEOUT
+              ? 'Location is taking too long. Check your signal and try again.'
+              : 'Your location is unavailable right now. You can still browse the map.'
+        setLocationState('error')
+        setLocationMessage(message)
+        setDeviceLocation(null)
+        setMapCenter(null)
+        setTrackingLocation(false)
+      },
+      { enableHighAccuracy: false, maximumAge: 30_000, timeout: 15_000 },
+    )
+
+    return () => navigator.geolocation.clearWatch(watchId)
+  }, [trackingLocation])
+
+  const toggleDeviceLocation = useCallback(() => {
+    if (trackingLocation) {
+      setTrackingLocation(false)
+      setLocationState('idle')
+      setDeviceLocation(null)
+      setMapCenter(null)
+      setLocationMessage('Location tracking is off.')
+      return
+    }
+
+    setLocationState('loading')
+    setTrackingLocation(true)
+  }, [trackingLocation])
+
   if (isLoading) {
     return (
       <div className="flex h-[calc(100dvh-80px)] items-center justify-center">
@@ -83,28 +161,69 @@ export default function ClientMap() {
   }
 
   return (
-    <div className="relative h-[calc(100dvh-80px)] w-full">
-      {/* Filter bar */}
-      <div className="absolute left-4 right-4 top-4 z-[400] flex gap-2 overflow-x-auto pb-2">
-        {cuisines.map((c) => (
-          <button
-            key={c}
-            type="button"
-            onClick={() => setFilterCuisine(c)}
-            className="shrink-0 rounded-full px-4 py-2 text-sm font-medium backdrop-blur-md transition-colors"
-          >
-            {c === 'all' ? 'All Cuisines' : c}
-          </button>
-        ))}
+    <div className="relative h-[calc(100dvh-144px)] min-h-[420px] w-full overflow-hidden rounded-xl border border-[var(--border)] sm:h-[calc(100dvh-120px)]">
+      <div className="absolute left-3 right-3 top-3 z-[400] flex items-start justify-between gap-2 sm:left-4 sm:right-4 sm:top-4">
+        <div className="flex max-w-[65%] flex-wrap gap-2">
+          {cuisines.map((cuisine) => (
+            <button
+              key={cuisine}
+              type="button"
+              onClick={() => setFilterCuisine(cuisine)}
+              aria-pressed={filterCuisine === cuisine}
+              className={`rounded-full border px-3 py-2 text-xs font-semibold shadow-sm backdrop-blur-md transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] sm:px-4 sm:text-sm ${
+                filterCuisine === cuisine
+                  ? 'border-[var(--accent)] bg-[var(--accent)] text-white'
+                  : 'bg-[var(--card)]/95 border-[var(--border)] text-[var(--text-2)] hover:bg-[var(--bg-2)]'
+              }`}
+            >
+              {cuisine === 'all' ? 'All cuisines' : cuisine}
+            </button>
+          ))}
+        </div>
+        <button
+          type="button"
+          onClick={toggleDeviceLocation}
+          disabled={locationState === 'loading'}
+          className="bg-[var(--card)]/95 inline-flex shrink-0 items-center gap-2 rounded-xl border border-[var(--border)] px-3 py-2 text-xs font-semibold text-[var(--text-1)] shadow-sm backdrop-blur-md transition hover:bg-[var(--bg-2)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] disabled:cursor-wait disabled:opacity-70 sm:text-sm"
+          aria-label={
+            trackingLocation
+              ? 'Stop using my location'
+              : 'Use my current location'
+          }
+        >
+          <LocateFixed className="h-4 w-4 text-[var(--accent)]" />
+          <span className="hidden sm:inline">
+            {locationState === 'loading'
+              ? 'Locating…'
+              : trackingLocation
+                ? 'Stop location'
+                : 'Use my location'}
+          </span>
+        </button>
       </div>
 
+      {(locationMessage || locationState === 'idle') && (
+        <p
+          role={locationState === 'error' ? 'alert' : 'status'}
+          className={`absolute left-3 right-3 top-[4.25rem] z-[400] rounded-lg px-3 py-2 text-xs shadow-sm sm:left-4 sm:right-auto sm:top-16 sm:max-w-sm ${
+            locationState === 'error'
+              ? 'bg-[var(--card)] text-[var(--danger)]'
+              : 'bg-[var(--card)]/95 text-[var(--text-2)]'
+          }`}
+        >
+          {locationMessage ||
+            'Center the map near you. Your location stays on this device.'}
+        </p>
+      )}
+
+      {/* Filter bar */}
       <MapContainer
-        center={center}
+        center={mapPosition}
         zoom={13}
         scrollWheelZoom={false}
         className="h-full w-full"
       >
-        <MapController center={center} />
+        <MapController center={mapPosition} />
         <TileLayer
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
@@ -129,7 +248,41 @@ export default function ClientMap() {
             </Popup>
           </Marker>
         ))}
+        {deviceLocation && (
+          <Marker
+            position={[deviceLocation.lat, deviceLocation.lng]}
+            icon={currentLocationIcon}
+            keyboard={false}
+          >
+            <Popup>You are here. This location stays on your device.</Popup>
+          </Marker>
+        )}
       </MapContainer>
+
+      {!isLoading && filtered.length === 0 && (
+        <div className="pointer-events-none absolute inset-x-4 bottom-4 z-[400] flex justify-center">
+          <p className="bg-[var(--card)]/95 rounded-xl border border-[var(--border)] px-4 py-3 text-center text-sm text-[var(--text-2)] shadow-sm">
+            No verified cooks with map locations are available in this cuisine
+            yet.
+          </p>
+        </div>
+      )}
+
+      <style jsx global>{`
+        .f4l-current-location-marker {
+          border: 0;
+          background: transparent;
+        }
+        .f4l-current-location-dot {
+          display: block;
+          width: 18px;
+          height: 18px;
+          border: 3px solid #fff;
+          border-radius: 50%;
+          background: #3478f6;
+          box-shadow: 0 0 0 7px rgba(52, 120, 246, 0.2);
+        }
+      `}</style>
 
       {/* Selected Chef Card */}
       {selectedChef && (

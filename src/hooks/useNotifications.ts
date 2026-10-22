@@ -76,6 +76,7 @@ export function useNotifications() {
     unreadCount: unreadQuery.data ?? 0,
     notifications: notificationsQuery.data ?? [],
     isLoading: unreadQuery.isLoading || notificationsQuery.isLoading,
+    error: notificationsQuery.error,
     refetch: () => {
       queryClient.invalidateQueries({
         queryKey: ['notifications-unread', userId],

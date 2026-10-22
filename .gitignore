@@ -13,3 +13,6 @@ yarn-error.log*
 .pnpm-debug.log*
 .env
 .env.production
+*.tsbuildinfo
+# TypeScript incremental compiler cache
+*.tsbuildinfo
