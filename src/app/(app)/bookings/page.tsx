@@ -3,14 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { motion } from 'framer-motion'
-import {
-  Calendar,
-  ChevronRight,
-  Clock,
-  Loader2,
-  MapPin,
-  Receipt,
-} from 'lucide-react'
+import { ChevronRight, Clock, Loader2, MapPin, Receipt } from 'lucide-react'
 import { useAuthStore } from '@/stores/useAuthStore'
 import { getMyBookings, type Booking } from '@/services/bookings'
 
@@ -29,8 +22,8 @@ const statusLabels: Record<string, string> = {
   pending: 'Awaiting Chef',
   confirmed: 'Confirmed',
   preparing: 'Preparing',
-  ready: 'Ready for Pickup',
-  delivered: 'Delivered',
+  ready: 'Ready for the session',
+  delivered: 'Session completed',
   cancelled: 'Cancelled',
   disputed: 'Disputed',
 }
@@ -75,54 +68,69 @@ export default function BookingsPage() {
           </div>
         ) : (
           <div className="space-y-3">
-            {bookings.map((booking, i) => (
-              <motion.div
-                key={booking.id}
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: i * 0.05 }}
-                onClick={() => router.push(`/bookings/${booking.id}`)}
-                className="hover:border-[var(--primary)]/30 cursor-pointer rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4 transition"
-              >
-                <div className="mb-3 flex items-start justify-between">
-                  <div>
-                    <p className="font-semibold text-[var(--text)]">
-                      {profile?.role === 'buyer'
-                        ? (booking.cook?.full_name ?? 'Chef')
-                        : (booking.buyer?.full_name ?? 'Customer')}
-                    </p>
-                    <p className="mt-0.5 text-xs text-[var(--text-muted)]">
-                      {new Date(booking.created_at).toLocaleDateString()}
-                    </p>
-                  </div>
-                  <span
-                    className={`rounded-full border px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide ${statusColors[booking.status]}`}
-                  >
-                    {statusLabels[booking.status]}
-                  </span>
-                </div>
+            {bookings.map((booking, i) => {
+              const scheduledAt = booking.scheduled_at
+                ? new Date(booking.scheduled_at)
+                : booking.delivery_date
+                  ? new Date(
+                      `${booking.delivery_date}T${booking.delivery_time ?? '00:00'}`,
+                    )
+                  : null
+              const serviceAddress =
+                booking.address ??
+                booking.delivery_address ??
+                'Address not provided'
+              const bookingAmount = Number(
+                booking.amount ?? booking.total_amount ?? 0,
+              )
 
-                <div className="space-y-1.5 text-sm text-[var(--text-muted)]">
-                  <div className="flex items-center gap-2">
-                    <Clock className="h-3.5 w-3.5" />
-                    {new Date(booking.scheduled_at).toLocaleString()}
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <MapPin className="h-3.5 w-3.5" />
-                    <span className="line-clamp-1">
-                      {booking.delivery_address}
+              return (
+                <motion.div
+                  key={booking.id}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: i * 0.05 }}
+                  onClick={() => router.push(`/bookings/${booking.id}`)}
+                  className="hover:border-[var(--primary)]/30 cursor-pointer rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4 transition"
+                >
+                  <div className="mb-3 flex items-start justify-between">
+                    <div>
+                      <p className="font-semibold text-[var(--text)]">
+                        {profile?.role === 'buyer'
+                          ? (booking.cook?.full_name ?? 'Chef')
+                          : (booking.buyer?.full_name ?? 'Customer')}
+                      </p>
+                      <p className="mt-0.5 text-xs text-[var(--text-muted)]">
+                        {new Date(booking.created_at).toLocaleDateString()}
+                      </p>
+                    </div>
+                    <span
+                      className={`rounded-full border px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide ${statusColors[booking.status]}`}
+                    >
+                      {statusLabels[booking.status]}
                     </span>
                   </div>
-                </div>
 
-                <div className="mt-3 flex items-center justify-between border-t border-[var(--border)] pt-3">
-                  <span className="text-sm font-bold text-[var(--primary)]">
-                    ₦{booking.total_amount.toLocaleString()}
-                  </span>
-                  <ChevronRight className="h-4 w-4 text-[var(--text-muted)]" />
-                </div>
-              </motion.div>
-            ))}
+                  <div className="space-y-1.5 text-sm text-[var(--text-muted)]">
+                    <div className="flex items-center gap-2">
+                      <Clock className="h-3.5 w-3.5" />
+                      {scheduledAt?.toLocaleString() ?? 'Schedule not provided'}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <MapPin className="h-3.5 w-3.5" />
+                      <span className="line-clamp-1">{serviceAddress}</span>
+                    </div>
+                  </div>
+
+                  <div className="mt-3 flex items-center justify-between border-t border-[var(--border)] pt-3">
+                    <span className="text-sm font-bold text-[var(--primary)]">
+                      ₦{bookingAmount.toLocaleString()}
+                    </span>
+                    <ChevronRight className="h-4 w-4 text-[var(--text-muted)]" />
+                  </div>
+                </motion.div>
+              )
+            })}
           </div>
         )}
       </div>

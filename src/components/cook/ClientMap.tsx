@@ -1,7 +1,14 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet'
+import {
+  MapContainer,
+  TileLayer,
+  Marker,
+  Popup,
+  useMap,
+  useMapEvents,
+} from 'react-leaflet'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import { useRouter } from 'next/navigation'
@@ -41,6 +48,19 @@ function MapController({ center }: { center: [number, number] }) {
   return null
 }
 
+function ManualLocationPicker({
+  onChoose,
+}: {
+  onChoose: (location: [number, number]) => void
+}) {
+  useMapEvents({
+    click(event) {
+      onChoose([event.latlng.lat, event.latlng.lng])
+    },
+  })
+  return null
+}
+
 type DeviceLocation = { lat: number; lng: number }
 
 const currentLocationIcon = L.divIcon({
@@ -56,6 +76,9 @@ export default function ClientMap() {
   const [filterCuisine, setFilterCuisine] = useState<string>('all')
   const [trackingLocation, setTrackingLocation] = useState(false)
   const [deviceLocation, setDeviceLocation] = useState<DeviceLocation | null>(
+    null,
+  )
+  const [manualLocation, setManualLocation] = useState<[number, number] | null>(
     null,
   )
   const [locationState, setLocationState] = useState<
@@ -122,10 +145,10 @@ export default function ClientMap() {
       (error) => {
         const message =
           error.code === error.PERMISSION_DENIED
-            ? 'Location access was denied. Enable it in your browser settings to use this feature.'
+            ? 'Location access was denied. Tap the map to choose an area manually.'
             : error.code === error.TIMEOUT
-              ? 'Location is taking too long. Check your signal and try again.'
-              : 'Your location is unavailable right now. You can still browse the map.'
+              ? 'Location is taking too long. You can choose an area by tapping the map.'
+              : 'Your location is unavailable. Tap the map to choose an area manually.'
         setLocationState('error')
         setLocationMessage(message)
         setDeviceLocation(null)
@@ -143,6 +166,7 @@ export default function ClientMap() {
       setTrackingLocation(false)
       setLocationState('idle')
       setDeviceLocation(null)
+      setManualLocation(null)
       setMapCenter(null)
       setLocationMessage('Location tracking is off.')
       return
@@ -224,6 +248,18 @@ export default function ClientMap() {
         className="h-full w-full"
       >
         <MapController center={mapPosition} />
+        <ManualLocationPicker
+          onChoose={(location) => {
+            setTrackingLocation(false)
+            setDeviceLocation(null)
+            setManualLocation(location)
+            setMapCenter(location)
+            setLocationState('idle')
+            setLocationMessage(
+              'Browsing from your selected map point. This stays on your device.',
+            )
+          }}
+        />
         <TileLayer
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
@@ -255,6 +291,17 @@ export default function ClientMap() {
             keyboard={false}
           >
             <Popup>You are here. This location stays on your device.</Popup>
+          </Marker>
+        )}
+        {manualLocation && (
+          <Marker
+            position={manualLocation}
+            icon={currentLocationIcon}
+            keyboard={false}
+          >
+            <Popup>
+              Selected browsing point. This location stays on your device.
+            </Popup>
           </Marker>
         )}
       </MapContainer>

@@ -12,6 +12,8 @@ import { Shield, Video, FileText, CheckCircle } from 'lucide-react'
 import { motion } from 'framer-motion'
 import { useForm } from 'react-hook-form'
 
+const ID_TYPES = ['nin', 'bvn', 'passport', 'drivers_license'] as const
+
 export default function KYCPage() {
   const router = useRouter()
   const profile = useAuthStore((s) => s.profile)
@@ -19,15 +21,24 @@ export default function KYCPage() {
   const [idDoc, setIdDoc] = useState('')
   const [faceVideo, setFaceVideo] = useState('')
   const [uploading, setUploading] = useState(false)
-  const [idType, setIdType] = useState('nin')
+  const [idType, setIdType] = useState<
+    'nin' | 'bvn' | 'passport' | 'drivers_license'
+  >('nin')
   const { register, handleSubmit } = useForm<{ idNumber: string }>()
 
-  const uploadFile = async (file: File, folder: string) => {
-    const sb = createClient()
-    const path = `${profile!.id}/${folder}/${Date.now()}-${file.name}`
-    await sb.storage.from('kyc-documents').upload(path, file)
-    return sb.storage.from('kyc-documents').getPublicUrl(path).data.publicUrl
-  }
+  const uploadFile = useCallback(
+    async (file: File, folder: string) => {
+      if (!profile) throw new Error('Sign in to upload verification documents')
+      const sb = createClient()
+      const path = `${profile.id}/${folder}/${Date.now()}-${file.name}`
+      const { error } = await sb.storage
+        .from('kyc-documents')
+        .upload(path, file)
+      if (error) throw error
+      return path
+    },
+    [profile],
+  )
 
   const onDropId = useCallback(
     async (files: File[]) => {
@@ -42,7 +53,7 @@ export default function KYCPage() {
         setUploading(false)
       }
     },
-    [profile],
+    [profile, uploadFile],
   )
 
   const onDropVideo = useCallback(
@@ -58,7 +69,7 @@ export default function KYCPage() {
         setUploading(false)
       }
     },
-    [profile],
+    [profile, uploadFile],
   )
 
   const idDz = useDropzone({
@@ -77,14 +88,21 @@ export default function KYCPage() {
       toast.error('Please upload all documents')
       return
     }
-    await submitKYC({
-      user_id: profile.id,
-      full_name: profile.full_name ?? '',
-      id_type: idType as any,
-      id_number: data.idNumber,
-      id_document_url: idDoc,
-      face_video_url: faceVideo,
-    })
+    try {
+      await submitKYC({
+        id_type: idType,
+        id_number: data.idNumber,
+        id_document_path: idDoc,
+        face_video_path: faceVideo,
+      })
+    } catch (error) {
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : 'Could not submit verification',
+      )
+      return
+    }
     updateStore({ kyc_status: 'pending' })
     toast.success('Submitted! We will review within 24-48 hours.')
     router.push('/swipe')
@@ -119,7 +137,7 @@ export default function KYCPage() {
               ID Type
             </label>
             <div className="grid grid-cols-2 gap-2">
-              {['nin', 'bvn', 'passport', 'drivers_license'].map((t) => (
+              {ID_TYPES.map((t) => (
                 <button
                   key={t}
                   type="button"

@@ -3,15 +3,7 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { motion } from 'framer-motion'
-import {
-  Flame,
-  MessageCircle,
-  MapPin,
-  User,
-  Users,
-  Heart,
-  Bell,
-} from 'lucide-react'
+import { Flame, MessageCircle, MapPin, User, Users, Heart } from 'lucide-react'
 import { useAuthStore } from '@/stores/useAuthStore'
 import { useNotifications } from '@/hooks/useNotifications'
 import { NavBadge } from './NavBadge'

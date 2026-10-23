@@ -1,31 +1,37 @@
 'use client'
 import { useEffect, useState } from 'react'
-import { getKYCSubmissions, reviewKYC } from '@/services/kyc'
+import {
+  getKYCSubmissions,
+  reviewKYC,
+  type KYCSubmission,
+} from '@/services/kyc'
 import { Button } from '@/components/ui/Button'
 import { Avatar } from '@/components/ui/Avatar'
 import { Badge } from '@/components/ui/Badge'
 import toast from 'react-hot-toast'
 
 export default function AdminKYCPage() {
-  const [submissions, setSubmissions] = useState<any[]>([])
+  const [submissions, setSubmissions] = useState<KYCSubmission[]>([])
   const [loading, setLoading] = useState(true)
   const [reviewing, setReviewing] = useState<string | null>(null)
 
   useEffect(() => {
-    getKYCSubmissions('pending')
+    getKYCSubmissions()
       .then(setSubmissions)
+      .catch((error) => {
+        toast.error(
+          error instanceof Error
+            ? error.message
+            : 'Could not load verification submissions',
+        )
+      })
       .finally(() => setLoading(false))
   }, [])
 
-  const handle = async (
-    id: string,
-    userId: string,
-    approved: boolean,
-    reason?: string,
-  ) => {
+  const handle = async (id: string, approved: boolean, reason?: string) => {
     setReviewing(id)
     try {
-      await reviewKYC(id, userId, approved, reason)
+      await reviewKYC(id, approved, reason)
       setSubmissions((p) => p.filter((s) => s.id !== id))
       toast.success(approved ? 'Chef verified ✓' : 'Submission rejected')
     } catch {
@@ -100,7 +106,7 @@ export default function AdminKYCPage() {
                   size="sm"
                   className="flex-1 bg-lime shadow-none hover:bg-lime/90"
                   loading={reviewing === s.id}
-                  onClick={() => handle(s.id, s.user_id, true)}
+                  onClick={() => handle(s.id, true)}
                 >
                   ✓ Approve & Verify
                 </Button>
@@ -111,7 +117,7 @@ export default function AdminKYCPage() {
                   loading={reviewing === s.id}
                   onClick={() => {
                     const r = prompt('Rejection reason (shown to chef):')
-                    if (r) handle(s.id, s.user_id, false, r)
+                    if (r) handle(s.id, false, r)
                   }}
                 >
                   ✕ Reject

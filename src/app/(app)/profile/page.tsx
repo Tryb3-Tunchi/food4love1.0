@@ -8,7 +8,6 @@ import { PostFeed } from '@/components/posts/PostFeed'
 import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
-  Star,
   MapPin,
   BadgeCheck,
   Clock,
@@ -124,7 +123,7 @@ export default function ProfilePage() {
     }
   }
 
-  if (!profile) {
+  if (profileLoading || !profile) {
     return (
       <div className="space-y-4 px-4 py-6">
         <SkeletonLine h="8rem" />

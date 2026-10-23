@@ -4,7 +4,6 @@ import { useNotifications } from '@/hooks/useNotifications'
 import { markAllAsRead } from '@/services/notifications'
 import { useAuthStore } from '@/stores/useAuthStore'
 import { Bell, Heart, MessageCircle, Calendar, Star, Check } from 'lucide-react'
-import Link from 'next/link'
 
 const typeIcons = {
   match: Heart,
