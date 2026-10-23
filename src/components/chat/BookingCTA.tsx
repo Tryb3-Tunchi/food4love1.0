@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { ChefHat, Calendar } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { formatNaira } from '@/lib/utils'
@@ -20,6 +21,7 @@ interface BookingCTAProps {
 }
 
 export function BookingCTA({ chef, matchId }: BookingCTAProps) {
+  const router = useRouter()
   const [open, setOpen] = useState(false)
 
   return (
@@ -74,6 +76,7 @@ export function BookingCTA({ chef, matchId }: BookingCTAProps) {
         cookAvatar={chef.avatar_url}
         priceMin={chef.price_min || 0}
         matchId={matchId}
+        onSuccess={() => router.refresh()}
       />
     </>
   )

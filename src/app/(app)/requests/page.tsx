@@ -90,7 +90,7 @@ export default function RequestsPage() {
     }
   }
 
-  const handleDecline = async (swiperId: string) => {
+  const handleDecline = async () => {
     // Soft decline - just mark swipe as pass
     toast.info('Request declined')
   }
@@ -276,7 +276,7 @@ export default function RequestsPage() {
 
               <div className="flex gap-2">
                 <button
-                  onClick={() => handleDecline(req.swiper_id)}
+                  onClick={handleDecline}
                   className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-[var(--bg-2)] py-2.5 text-sm font-medium text-[var(--text-3)] transition-colors hover:bg-red-500/10 hover:text-red-500"
                 >
                   <UserX className="h-4 w-4" />

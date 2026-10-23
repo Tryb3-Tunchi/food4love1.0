@@ -292,6 +292,7 @@ export function AppTour() {
     profile?.id,
     profile?.role,
     profile?.tour_completed,
+    profile,
     router,
     updateStore,
   ])

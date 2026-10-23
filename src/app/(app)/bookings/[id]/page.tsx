@@ -14,7 +14,7 @@ import {
 import { useAuthStore } from '@/stores/useAuthStore'
 import {
   getBookingById,
-  updateBookingStatus,
+  acceptBooking,
   type Booking,
 } from '@/services/bookings'
 import { createClient } from '@/lib/supabase/client'
@@ -41,7 +41,7 @@ export default function BookingDetailPage({
 
   const handleAccept = async () => {
     try {
-      await updateBookingStatus(params.id, 'confirmed')
+      await acceptBooking(params.id)
       toast.success('Booking accepted!')
       setBooking((prev) => (prev ? { ...prev, status: 'confirmed' } : prev))
     } catch {
@@ -71,12 +71,7 @@ export default function BookingDetailPage({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           email,
-          amount: booking.total_amount,
           booking_id: booking.id,
-          metadata: {
-            meal: `Booking #${booking.id.slice(0, 8)}`,
-            chef: booking.cook?.full_name || 'Chef',
-          },
         }),
       })
 
@@ -97,7 +92,7 @@ export default function BookingDetailPage({
       const handler = paystack.setup({
         key: process.env.NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY,
         email,
-        amount: booking.total_amount * 100,
+        amount: initData.amount_kobo,
         ref: initData.reference,
         callback: async (response: any) => {
           const verifyRes = await fetch('/api/payments/verify', {
@@ -153,10 +148,18 @@ export default function BookingDetailPage({
   const isCook = profile?.id === booking.cook_id
   const currentStep = statusSteps.indexOf(booking.status)
   const canPay =
-    booking.status === 'confirmed' &&
+    ['pending', 'confirmed'].includes(booking.status) &&
     booking.payment_status === 'unpaid' &&
     !isCook
   const isPaid = booking.payment_status === 'paid'
+  const bookingAmount = Number(booking.amount ?? booking.total_amount ?? 0)
+  const scheduledAt = booking.scheduled_at
+    ? new Date(booking.scheduled_at)
+    : booking.delivery_date
+      ? new Date(`${booking.delivery_date}T${booking.delivery_time ?? '00:00'}`)
+      : null
+  const serviceAddress =
+    booking.address ?? booking.delivery_address ?? 'Address not provided'
 
   return (
     <div className="min-h-screen bg-[var(--bg)] pb-24 pt-4">
@@ -209,49 +212,39 @@ export default function BookingDetailPage({
               'Waiting for chef to confirm...'}
             {booking.status === 'confirmed' &&
               !isPaid &&
-              'Chef confirmed! Proceed to payment.'}
+              'Your cooking session is confirmed. Complete payment to continue.'}
             {booking.status === 'confirmed' &&
               isPaid &&
               'Payment confirmed! Chef will start preparing.'}
-            {booking.status === 'preparing' && 'Chef is preparing your meal.'}
+            {booking.status === 'preparing' &&
+              'Your cook is preparing for the at-home session.'}
             {booking.status === 'ready' &&
-              'Your meal is ready for pickup/delivery!'}
-            {booking.status === 'delivered' && 'Enjoy your meal!'}
+              'Your cook is ready for the scheduled session.'}
+            {booking.status === 'delivered' && 'Cooking session completed.'}
           </div>
         </div>
 
-        {/* Items */}
         <div className="mb-6 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4">
           <h3 className="mb-3 text-sm font-semibold uppercase tracking-wider text-[var(--text-muted)]">
-            Order Items
+            Cooking session
           </h3>
-          <div className="space-y-2">
-            {booking.items?.map((item) => (
-              <div key={item.id} className="flex justify-between text-sm">
-                <span className="text-[var(--text)]">
-                  {item.quantity}x {item.item_name}
-                </span>
-                <span className="text-[var(--text-muted)]">
-                  ₦{item.total_price.toLocaleString()}
-                </span>
-              </div>
-            ))}
-          </div>
-          <div className="mt-3 border-t border-[var(--border)] pt-3">
-            <div className="flex justify-between text-sm text-[var(--text-muted)]">
-              <span>Delivery</span>
-              <span>₦{booking.delivery_fee.toLocaleString()}</span>
-            </div>
-            <div className="flex justify-between text-sm text-[var(--text-muted)]">
-              <span>Service Fee</span>
-              <span>₦{booking.service_fee.toLocaleString()}</span>
-            </div>
-            <div className="mt-2 flex justify-between text-base font-bold text-[var(--text)]">
-              <span>Total</span>
-              <span className="text-[var(--primary)]">
-                ₦{booking.total_amount.toLocaleString()}
-              </span>
-            </div>
+          <p className="text-sm leading-relaxed text-[var(--text)]">
+            {booking.meal_description ??
+              booking.items
+                ?.map((item) => `${item.quantity}x ${item.item_name}`)
+                .join(', ') ??
+              'Cooking service details not provided.'}
+          </p>
+          {(booking.special_requests ?? booking.notes) ? (
+            <p className="mt-3 text-sm leading-relaxed text-[var(--text-muted)]">
+              {booking.special_requests ?? booking.notes}
+            </p>
+          ) : null}
+          <div className="mt-3 flex justify-between border-t border-[var(--border)] pt-3 text-base font-bold text-[var(--text)]">
+            <span>Service amount</span>
+            <span className="text-[var(--primary)]">
+              ₦{bookingAmount.toLocaleString()}
+            </span>
           </div>
         </div>
 
@@ -262,20 +255,20 @@ export default function BookingDetailPage({
             <div>
               <p className="text-[var(--text-muted)]">Scheduled</p>
               <p className="font-medium text-[var(--text)]">
-                {new Date(booking.scheduled_at).toLocaleString()}
+                {scheduledAt?.toLocaleString() ?? 'Schedule not provided'}
               </p>
             </div>
           </div>
           <div className="flex items-start gap-3">
             <MapPin className="mt-0.5 h-4 w-4 text-[var(--primary)]" />
             <div>
-              <p className="text-[var(--text-muted)]">Delivery Address</p>
-              <p className="font-medium text-[var(--text)]">
-                {booking.delivery_address}
+              <p className="text-[var(--text-muted)]">
+                At-home service address
               </p>
+              <p className="font-medium text-[var(--text)]">{serviceAddress}</p>
             </div>
           </div>
-          {booking.notes && (
+          {booking.notes && !booking.special_requests && (
             <div className="flex items-start gap-3">
               <CreditCard className="mt-0.5 h-4 w-4 text-[var(--primary)]" />
               <div>
@@ -315,7 +308,7 @@ export default function BookingDetailPage({
               ) : (
                 <>
                   <CreditCard className="h-5 w-5" />
-                  Pay Now • ₦{booking.total_amount.toLocaleString()}
+                  Pay Now • ₦{bookingAmount.toLocaleString()}
                 </>
               )}
             </motion.button>

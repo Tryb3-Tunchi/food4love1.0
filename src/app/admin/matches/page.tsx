@@ -6,7 +6,6 @@ import { motion } from 'framer-motion'
 import {
   Search,
   Trash2,
-  Eye,
   Heart,
   Loader2,
   Users,

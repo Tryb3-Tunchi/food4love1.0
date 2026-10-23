@@ -22,12 +22,18 @@ export interface Booking {
     | 'delivered'
     | 'cancelled'
     | 'disputed'
-  total_amount: number
-  delivery_fee: number
-  service_fee: number
-  scheduled_at: string
-  delivery_address: string
-  notes: string | null
+  total_amount?: number
+  amount?: number
+  delivery_fee?: number
+  service_fee?: number
+  scheduled_at?: string
+  delivery_date?: string
+  delivery_time?: string
+  delivery_address?: string
+  address?: string
+  meal_description?: string
+  notes?: string | null
+  special_requests?: string | null
   payment_status: 'unpaid' | 'paid' | 'refunded' | 'failed'
   payment_reference: string | null
   created_at: string
@@ -136,15 +142,14 @@ export async function getBookingById(id: string): Promise<Booking | null> {
   return data as Booking
 }
 
-export async function updateBookingStatus(
-  bookingId: string,
-  status: Booking['status'],
-): Promise<void> {
-  const supabase = createClient()
-  const { error } = await supabase
-    .from('bookings')
-    .update({ status, updated_at: new Date().toISOString() })
-    .eq('id', bookingId)
-
-  if (error) throw error
+export async function acceptBooking(bookingId: string): Promise<void> {
+  const response = await fetch('/api/bookings', {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ booking_id: bookingId, action: 'accept' }),
+  })
+  if (!response.ok) {
+    const result = await response.json().catch(() => ({}))
+    throw new Error(result.error || 'Could not accept booking')
+  }
 }

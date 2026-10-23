@@ -34,6 +34,7 @@ export default function AdminUsersPage() {
         />
       </div>
       <div className="space-y-2">
+        {loading && <p className="text-sm text-mist">Loading users...</p>}
         {users.map((u) => (
           <div
             key={u.id}
