@@ -49,10 +49,10 @@ export function BookingForm({ cookId, matchId }: BookingFormProps) {
       const supabase = createClient()
       const { data } = await supabase
         .from('daily_specials')
-        .select('id, title, price, image_url, description')
+        .select('*')
         .eq('cook_id', cookId)
         .gte('available_until', new Date().toISOString())
-      setSpecials(data ?? [])
+      setSpecials((data ?? []).filter((s) => !s.is_paused))
       setIsLoadingSpecials(false)
     }
     fetchSpecials()

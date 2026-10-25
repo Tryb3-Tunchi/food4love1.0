@@ -68,6 +68,11 @@ export interface DailySpecial {
   image_url?: string
   available_until: string
   created_at: string
+  is_paused?: boolean
+  serving_size?: number | null
+  lead_time_hours?: number | null
+  fulfillment_options?: string[] | null
+  fulfillment_notes?: string | null
 }
 
 export interface Swipe {
