@@ -47,6 +47,45 @@ function bookingTime(booking: Booking) {
   return new Date(when).getTime()
 }
 
+export type Period = 'week' | 'month' | 'all'
+
+export const PERIOD_LABELS: Record<Period, string> = {
+  week: 'Last 7 days',
+  month: 'Last 30 days',
+  all: 'All time',
+}
+
+export function greetingFor(date = new Date()) {
+  const hour = date.getHours()
+  if (hour < 12) return 'Good morning'
+  if (hour < 17) return 'Good afternoon'
+  return 'Good evening'
+}
+
+export function summarizeOrders(
+  bookings: Booking[],
+  period: Period,
+  now = new Date(),
+) {
+  const days = period === 'week' ? 7 : period === 'month' ? 30 : null
+  const since = days ? now.getTime() - days * 86_400_000 : 0
+
+  const completed = bookings.filter(
+    (b) =>
+      b.status === 'delivered' &&
+      new Date(b.updated_at ?? b.created_at).getTime() >= since,
+  )
+
+  return {
+    newOrders: bookings.filter((b) => b.status === 'pending').length,
+    inProgress: bookings.filter((b) =>
+      ['confirmed', 'preparing', 'ready'].includes(b.status),
+    ).length,
+    completed: completed.length,
+    earned: completed.reduce((sum, b) => sum + bookingAmount(b), 0),
+  }
+}
+
 export function splitBookings(bookings: Booking[]) {
   const pending = bookings.filter((b) => b.status === 'pending')
   const upcoming = bookings
