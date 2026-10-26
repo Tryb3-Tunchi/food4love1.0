@@ -13,6 +13,7 @@ import {
 import type { Metadata } from 'next'
 import type { Post } from '@/types/db'
 import { PostFeed } from '@/components/posts/PostFeed'
+import { AvailabilityCard } from '@/components/cook/AvailabilityCard'
 
 export async function generateMetadata({
   params,
@@ -57,6 +58,12 @@ export default async function CookPublicPage({
 
   if (postsError) throw postsError
   const posts = (postsData ?? []) as Post[]
+
+  const { data: availability } = await sb
+    .from('cook_availability')
+    .select('*')
+    .eq('cook_id', chef.id)
+    .maybeSingle()
 
   return (
     <div className="pb-10" style={{ background: 'var(--bg)' }}>
@@ -196,6 +203,8 @@ export default async function CookPublicPage({
               />
             </div>
           )}
+
+          {availability && <AvailabilityCard availability={availability} />}
 
           <Link
             href={`/signup?ref_chef=${params.id}`}

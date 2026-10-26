@@ -70,6 +70,23 @@ export interface DailySpecial {
   created_at: string
 }
 
+export type WeekdayKey = 'mon' | 'tue' | 'wed' | 'thu' | 'fri' | 'sat' | 'sun'
+
+export interface DayHours {
+  open: string
+  close: string
+}
+
+export interface CookAvailability {
+  cook_id: string
+  weekly_hours: Partial<Record<WeekdayKey, DayHours | null>>
+  max_orders_per_day?: number | null
+  notice_hours?: number | null
+  service_areas: string[]
+  is_paused: boolean
+  updated_at?: string
+}
+
 export interface Swipe {
   id: string
   swiper_id: string
