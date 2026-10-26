@@ -7,6 +7,9 @@ alter table daily_specials add column if not exists serving_size integer;
 alter table daily_specials add column if not exists lead_time_hours integer;
 alter table daily_specials add column if not exists fulfillment_options text[];
 alter table daily_specials add column if not exists fulfillment_notes text;
+alter table daily_specials add column if not exists ingredients text;
+alter table daily_specials add column if not exists allergens text[];
+alter table daily_specials add column if not exists portions_available integer;
 
 -- Editing, pausing and ending a special needs cooks to be allowed to update
 -- their own rows. This is the same policy as supabase-migration-daily-specials-rls.sql,

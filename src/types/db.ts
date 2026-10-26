@@ -73,6 +73,9 @@ export interface DailySpecial {
   lead_time_hours?: number | null
   fulfillment_options?: string[] | null
   fulfillment_notes?: string | null
+  ingredients?: string | null
+  allergens?: string[] | null
+  portions_available?: number | null
 }
 
 export interface Swipe {
