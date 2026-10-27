@@ -19,6 +19,7 @@ import {
   Plus,
   ReceiptText,
   ShieldAlert,
+  ShieldCheck,
   Star,
   UserCircle,
   UtensilsCrossed,
@@ -70,6 +71,18 @@ const SECTION_LINKS = [
     icon: MapPin,
     title: 'Availability',
     detail: 'Hours, limits and areas',
+  },
+  {
+    href: '/cook/payments',
+    icon: Wallet,
+    title: 'Payments',
+    detail: 'Order value and payment status',
+  },
+  {
+    href: '/cook/verification',
+    icon: ShieldCheck,
+    title: 'Verification and tips',
+    detail: 'ID status and profile quality',
   },
   {
     href: '#reviews',
@@ -225,7 +238,7 @@ export default function CookDashboardPage() {
           ? 'Your verification needs another look'
           : 'Verify your identity',
       detail: 'You can’t take bookings until you’re verified.',
-      href: '/onboarding/kyc',
+      href: '/cook/verification',
     },
     missing.length > 0 && {
       icon: UserCircle,
@@ -468,9 +481,9 @@ export default function CookDashboardPage() {
             />
             <StatCard
               icon={Wallet}
-              label="Earnings"
+              label="Order value"
               value={formatNaira(stats.earned)}
-              note="Value of completed orders"
+              note="Delivered orders, before fees"
             />
           </div>
         </section>
@@ -667,7 +680,10 @@ export default function CookDashboardPage() {
           )}
         </section>
 
-        <section className="f4l-card flex items-center justify-between gap-3 p-4">
+        <Link
+          href="/cook/verification"
+          className="f4l-card flex items-center justify-between gap-3 p-4"
+        >
           <div>
             <p className="f4l-section-label mb-1">Verification</p>
             <p className="text-xs" style={{ color: 'var(--text-3)' }}>
@@ -688,7 +704,7 @@ export default function CookDashboardPage() {
           ) : (
             <span className="f4l-badge f4l-badge-muted">Not verified</span>
           )}
-        </section>
+        </Link>
       </motion.div>
     </div>
   )

@@ -73,6 +73,7 @@ export function summarizeOrders(
   const completed = bookings.filter(
     (b) =>
       b.status === 'delivered' &&
+      b.payment_status !== 'refunded' &&
       new Date(b.updated_at ?? b.created_at).getTime() >= since,
   )
 
