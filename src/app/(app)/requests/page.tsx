@@ -14,7 +14,6 @@ import {
   MessageCircle,
   Film,
   BookmarkCheck,
-  LayoutDashboard,
 } from 'lucide-react'
 import { motion } from 'framer-motion'
 import Image from 'next/image'
@@ -25,13 +24,6 @@ import { useState } from 'react'
 function DashboardActions() {
   return (
     <div className="flex gap-2 px-4 pb-3">
-      <Link
-        href="/dashboard"
-        className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--card)] py-2.5 text-sm font-medium transition-colors hover:bg-[var(--bg-2)]"
-      >
-        <LayoutDashboard className="h-4 w-4" />
-        Dashboard
-      </Link>
       <Link
         href="/chat"
         className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--card)] py-2.5 text-sm font-medium transition-colors hover:bg-[var(--bg-2)]"
