@@ -3,7 +3,14 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { motion } from 'framer-motion'
-import { Flame, MessageCircle, MapPin, User, Users, Heart } from 'lucide-react'
+import {
+  Flame,
+  MessageCircle,
+  MapPin,
+  User,
+  Users,
+  LayoutDashboard,
+} from 'lucide-react'
 import { useAuthStore } from '@/stores/useAuthStore'
 import { useNotifications } from '@/hooks/useNotifications'
 import { NavBadge } from './NavBadge'
@@ -18,9 +25,14 @@ const buyerLinks = [
 
 const cookLinks = [
   { href: '/swipe', label: 'Discover', icon: Flame, badge: 'none' },
+  {
+    href: '/dashboard',
+    label: 'Dashboard',
+    icon: LayoutDashboard,
+    badge: 'none',
+  },
   { href: '/requests', label: 'Requests', icon: Users, badge: 'notifications' },
   { href: '/chat', label: 'Chat', icon: MessageCircle, badge: 'notifications' },
-  { href: '/likes', label: 'Likes', icon: Heart, badge: 'notifications' }, // Fixed: was MessageCircle
   { href: '/profile', label: 'Profile', icon: User, badge: 'none' },
 ]
 

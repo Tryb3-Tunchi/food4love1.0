@@ -14,5 +14,5 @@ export async function getPostLoginRedirect(
 
   if (!profile) return '/onboarding/role'
   if (profile.onboarding_complete !== true) return '/onboarding/setup'
-  return profile.role === 'cook' ? '/requests' : '/swipe'
+  return profile.role === 'cook' ? '/dashboard' : '/swipe'
 }
