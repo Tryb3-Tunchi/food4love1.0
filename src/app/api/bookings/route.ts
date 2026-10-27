@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
+import { checkAvailability } from '@/lib/availability'
 
 const bookingRequestSchema = z.object({
   cook_id: z.string().uuid(),
@@ -91,6 +92,34 @@ export async function POST(req: NextRequest) {
     }
 
     const admin = createAdminClient()
+
+    const { data: availability } = await admin
+      .from('cook_availability')
+      .select('*')
+      .eq('cook_id', request.cook_id)
+      .maybeSingle()
+
+    if (availability) {
+      const { count } = await admin
+        .from('bookings')
+        .select('id', { count: 'exact', head: true })
+        .eq('cook_id', request.cook_id)
+        .eq('delivery_date', request.service_date)
+        .neq('status', 'cancelled')
+
+      const availabilityCheck = checkAvailability(availability, {
+        date: request.service_date,
+        time: request.service_time,
+        ordersThatDay: count ?? 0,
+      })
+      if (!availabilityCheck.ok) {
+        return NextResponse.json(
+          { error: availabilityCheck.reason },
+          { status: 409 },
+        )
+      }
+    }
+
     const { data: booking, error } = await admin
       .from('bookings')
       .insert({
