@@ -13,6 +13,7 @@ import {
 import type { Metadata } from 'next'
 import type { Post } from '@/types/db'
 import { PostFeed } from '@/components/posts/PostFeed'
+import { StoryRow } from '@/components/cook/StoryRow'
 
 export async function generateMetadata({
   params,
@@ -57,6 +58,13 @@ export default async function CookPublicPage({
 
   if (postsError) throw postsError
   const posts = (postsData ?? []) as Post[]
+
+  const { data: stories } = await sb
+    .from('stories')
+    .select('*')
+    .eq('cook_id', chef.id)
+    .gte('expires_at', new Date().toISOString())
+    .order('created_at', { ascending: false })
 
   return (
     <div className="pb-10" style={{ background: 'var(--bg)' }}>
@@ -168,6 +176,13 @@ export default async function CookPublicPage({
                   {c}
                 </span>
               ))}
+            </div>
+          )}
+
+          {stories && stories.length > 0 && (
+            <div className="mb-5">
+              <p className="f4l-section-label mb-2">Stories</p>
+              <StoryRow stories={stories} />
             </div>
           )}
 
