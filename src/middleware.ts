@@ -36,7 +36,36 @@ export async function middleware(request: NextRequest) {
       },
     },
   )
-  await supabase.auth.getUser()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+  if (user && !request.nextUrl.pathname.startsWith('/account-suspended')) {
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('suspended')
+      .eq('id', user.id)
+      .maybeSingle()
+
+    if (profile?.suspended) {
+      if (request.nextUrl.pathname.startsWith('/api/')) {
+        const response = NextResponse.json(
+          { error: 'Account suspended' },
+          { status: 403 },
+        )
+        supabaseResponse.cookies
+          .getAll()
+          .forEach((cookie) => response.cookies.set(cookie))
+        return response
+      }
+      const response = NextResponse.redirect(
+        new URL('/account-suspended', request.url),
+      )
+      supabaseResponse.cookies
+        .getAll()
+        .forEach((cookie) => response.cookies.set(cookie))
+      return response
+    }
+  }
   return supabaseResponse
 }
 

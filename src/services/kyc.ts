@@ -44,18 +44,14 @@ export async function getKYCSubmissions(): Promise<KYCSubmission[]> {
   return result.submissions ?? []
 }
 
-export async function reviewKYC(
-  id: string,
-  approved: boolean,
-  rejectionReason?: string,
-) {
+export async function reviewKYC(id: string, approved: boolean, reason: string) {
   const response = await fetch('/api/admin/kyc', {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       id,
       approved,
-      rejection_reason: rejectionReason,
+      reason,
     }),
   })
   const result = await response.json().catch(() => ({}))

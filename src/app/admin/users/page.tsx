@@ -17,6 +17,11 @@ export default function AdminUsersPage() {
     const t = setTimeout(() => {
       getAllUsers(search || undefined)
         .then(setUsers)
+        .catch((error) =>
+          toast.error(
+            error instanceof Error ? error.message : 'Could not load users',
+          ),
+        )
         .finally(() => setLoading(false))
     }, 300)
     return () => clearTimeout(t)
@@ -82,18 +87,31 @@ export default function AdminUsersPage() {
               size="xs"
               className="text-red-400 hover:bg-red-900/20 hover:text-red-300"
               onClick={async () => {
-                await suspendUser(u.id, !(u as any).suspended)
-                toast.success('Updated')
-                setUsers((p) =>
-                  p.map((x) =>
-                    x.id === u.id
-                      ? { ...x, suspended: !(u as any).suspended }
-                      : x,
-                  ),
+                const suspended = !(u as any).suspended
+                const reason = window.prompt(
+                  `${suspended ? 'Reason for suspension' : 'Reason for reactivation'}:`,
                 )
+                if (!reason?.trim()) return
+                try {
+                  await suspendUser(u.id, suspended, reason.trim())
+                  toast.success(
+                    suspended ? 'User suspended' : 'User reactivated',
+                  )
+                  setUsers((current) =>
+                    current.map((item) =>
+                      item.id === u.id ? { ...item, suspended } : item,
+                    ),
+                  )
+                } catch (error) {
+                  toast.error(
+                    error instanceof Error
+                      ? error.message
+                      : 'Could not update user',
+                  )
+                }
               }}
             >
-              {(u as any).suspended ? 'Unsuspend' : 'Suspend'}
+              {(u as any).suspended ? 'Reactivate' : 'Suspend'}
             </Button>
           </div>
         ))}

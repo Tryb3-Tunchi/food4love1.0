@@ -6,6 +6,7 @@ import { getReviewsForProfile, getReviewStats } from '@/services/reviews'
 import { getPostsByCook } from '@/services/posts'
 import { PostFeed } from '@/components/posts/PostFeed'
 import { useState } from 'react'
+import Link from 'next/link'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   MapPin,
@@ -26,6 +27,7 @@ import {
   LogOut,
   Loader2,
   RotateCcw,
+  ShieldCheck,
 } from 'lucide-react'
 import { useAuthStore } from '@/stores/useAuthStore'
 import { formatNaira } from '@/lib/utils'
@@ -66,6 +68,7 @@ export default function ProfilePage() {
   const router = useRouter()
   const { data: profile, isLoading: profileLoading } = useProfile()
   const updateStore = useAuthStore((state) => state.updateProfile)
+  const isAdmin = useAuthStore((state) => state.isAdmin)
   const [tab, setTab] = useState<Tab>('Overview')
   const [editing, setEditing] = useState(false)
 
@@ -251,6 +254,24 @@ export default function ProfilePage() {
           >
             {isCook ? 'Home Chef' : 'Food Lover'}
           </p>
+
+          {isAdmin && (
+            <Link
+              href="/admin"
+              className="border-[var(--accent)]/25 hover:border-[var(--accent)]/50 mb-4 inline-flex min-h-10 items-center gap-2 rounded-lg border bg-[var(--accent-soft)] px-3 py-2 text-sm font-semibold text-[var(--accent)] transition"
+            >
+              <ShieldCheck className="h-4 w-4" />
+              Admin dashboard
+            </Link>
+          )}
+
+          <Link
+            href="/support"
+            className="hover:border-[var(--accent)]/40 mb-4 inline-flex min-h-10 items-center gap-2 rounded-lg border border-[var(--border)] bg-[var(--card)] px-3 py-2 text-sm font-semibold text-[var(--text-2)] transition hover:text-[var(--accent)]"
+          >
+            <MessageCircle className="h-4 w-4" />
+            Food4Love Support
+          </Link>
 
           {profile.location && (
             <div className="mb-3 flex items-center gap-1.5">

@@ -107,6 +107,7 @@ export function useSwipeDeck(filters?: {
           .from('daily_specials')
           .select('cook_id, title, price')
           .in('cook_id', cookIds)
+          .eq('moderation_status', 'active')
           .gte('available_until', new Date().toISOString())
 
         const specialsMap = new Map<

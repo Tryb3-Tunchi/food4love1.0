@@ -1,7 +1,6 @@
 'use client'
 import { useEffect, useState } from 'react'
 import { getAdminStats } from '@/services/admin'
-import { createClient } from '@/lib/supabase/client'
 import {
   Users,
   ChefHat,
@@ -9,14 +8,13 @@ import {
   ShoppingBag,
   AlertTriangle,
   Shield,
-  Plus,
   RefreshCw,
 } from 'lucide-react'
 import Link from 'next/link'
 import { motion } from 'framer-motion'
 import { Button } from '@/components/ui/Button'
-import { Input } from '@/components/ui/Input'
 import toast from 'react-hot-toast'
+import { AdminThemeToggle } from '@/components/admin/AdminThemeProvider'
 
 interface Stats {
   totalUsers: number
@@ -25,127 +23,24 @@ interface Stats {
   totalBookings: number
   openDisputes: number
   pendingKyc: number
+  suspendedUsers?: number
+  dataCheckFailures?: string[]
 }
 
 export default function AdminDashboard() {
   const [stats, setStats] = useState<Stats | null>(null)
-  const [showCreateUser, setShowCreateUser] = useState(false)
-  const [newUser, setNewUser] = useState({
-    email: '',
-    password: 'demo1234',
-    full_name: '',
-    role: 'cook' as 'cook' | 'buyer',
-  })
-  const [creating, setCreating] = useState(false)
 
   useEffect(() => {
-    getAdminStats().then(setStats)
-  }, [])
-
-  const createDemoUser = async () => {
-    setCreating(true)
-    const sb = createClient()
-    const { data, error } = await sb.auth.admin.createUser({
-      email: newUser.email,
-      password: newUser.password,
-      email_confirm: true,
-      user_metadata: { full_name: newUser.full_name, role: newUser.role },
-    })
-    if (error) {
-      toast.error(error.message)
-      setCreating(false)
-      return
-    }
-    // Insert profile
-    await sb.from('profiles').insert({
-      id: data.user.id,
-      full_name: newUser.full_name,
-      role: newUser.role,
-      kyc_status: newUser.role === 'cook' ? 'verified' : 'unverified',
-      is_verified: newUser.role === 'cook',
-      onboarding_complete: true,
-    })
-    toast.success(`${newUser.full_name} created as ${newUser.role} ✓`)
-    setShowCreateUser(false)
-    setNewUser({
-      email: '',
-      password: 'demo1234',
-      full_name: '',
-      role: 'cook',
-    })
-    setCreating(false)
-    getAdminStats().then(setStats)
-  }
-
-  const seedDemoChefs = async () => {
-    const t = toast.loading('Seeding demo chef accounts...')
-    const sb = createClient()
-    const chefs = [
-      {
-        email: 'adaeze@demo.food4love',
-        name: 'Adaeze Okonkwo',
-        bio: 'Igbo cuisine specialist. My Ofe Akwu is legendary in Lekki.',
-        location: 'Lekki Phase 1, Lagos',
-        cuisines: ['Igbo Cuisine', 'Nigerian Soups'],
-        price_min: 7500,
-      },
-      {
-        email: 'emeka@demo.food4love',
-        name: 'Emeka Tochukwu',
-        bio: 'The Jollof King of Surulere. Party Jollof is my religion.',
-        location: 'Surulere, Lagos',
-        cuisines: ['Jollof & Rice', 'Nigerian BBQ'],
-        price_min: 12000,
-      },
-      {
-        email: 'fatima@demo.food4love',
-        name: 'Fatima Balogun',
-        bio: 'Northern Nigerian cuisine with heart. Best Tuwo in Lagos.',
-        location: 'Ikeja, Lagos',
-        cuisines: ['Hausa Cuisine', 'Suya & Grills'],
-        price_min: 6500,
-      },
-      {
-        email: 'grace@demo.food4love',
-        name: 'Grace Oduya',
-        bio: 'Afang soup and fresh starch specialist from Cross River.',
-        location: 'Yaba, Lagos',
-        cuisines: ['Cross River Cuisine', 'Soups'],
-        price_min: 8000,
-      },
-    ]
-
-    for (const chef of chefs) {
-      const { data: userData } = await sb.auth.admin.createUser({
-        email: chef.email,
-        password: 'demo1234',
-        email_confirm: true,
-        user_metadata: { full_name: chef.name, role: 'cook' },
+    getAdminStats()
+      .then(setStats)
+      .catch((error) => {
+        toast.error(
+          error instanceof Error
+            ? error.message
+            : 'Could not load operations overview',
+        )
       })
-      if (userData?.user) {
-        await sb.from('profiles').upsert({
-          id: userData.user.id,
-          full_name: chef.name,
-          role: 'cook',
-          bio: chef.bio,
-          location: chef.location,
-          cuisines: chef.cuisines,
-          price_min: chef.price_min,
-          rating: 4.8 + Math.random() * 0.2,
-          review_count: Math.floor(20 + Math.random() * 50),
-          is_verified: true,
-          kyc_status: 'verified',
-          onboarding_complete: true,
-          streak: Math.floor(3 + Math.random() * 10),
-        })
-      }
-    }
-    toast.dismiss(t)
-    toast.success(
-      '4 demo chefs created! Log in as test@demo.food4love to swipe them.',
-    )
-    getAdminStats().then(setStats)
-  }
+  }, [])
 
   const statCards = stats
     ? [
@@ -169,7 +64,7 @@ export default function AdminDashboard() {
           label: 'Total Matches',
           value: stats.totalMatches,
           icon: Heart,
-          href: '/admin/bookings',
+          href: '/admin/matches',
           color: '#E8390E',
           bg: 'rgba(232,57,14,0.1)',
         },
@@ -199,11 +94,19 @@ export default function AdminDashboard() {
           bg: 'rgba(245,158,11,0.1)',
           urgent: stats.pendingKyc > 0,
         },
+        {
+          label: 'Suspended Users',
+          value: stats.suspendedUsers ?? 0,
+          icon: Users,
+          href: '/admin/users',
+          color: '#EF4444',
+          bg: 'rgba(239,68,68,0.1)',
+        },
       ]
     : []
 
   return (
-    <div className="min-h-screen" style={{ background: '#0A0A0A' }}>
+    <div className="min-h-screen bg-[var(--admin-bg)] text-[var(--admin-text)]">
       <div className="mx-auto max-w-5xl px-5 py-8">
         {/* Header */}
         <div className="mb-8 flex items-center justify-between">
@@ -219,131 +122,35 @@ export default function AdminDashboard() {
             </p>
           </div>
           <div className="flex gap-2">
+            <AdminThemeToggle />
             <Button
               variant="surface"
               size="sm"
-              onClick={() => getAdminStats().then(setStats)}
+              onClick={() =>
+                getAdminStats()
+                  .then(setStats)
+                  .catch((error) =>
+                    toast.error(
+                      error instanceof Error
+                        ? error.message
+                        : 'Could not refresh overview',
+                    ),
+                  )
+              }
               leftIcon={<RefreshCw className="h-3.5 w-3.5" />}
             >
               Refresh
             </Button>
-            <Button
-              variant="primary"
-              size="sm"
-              pill
-              onClick={() => setShowCreateUser(!showCreateUser)}
-              leftIcon={<Plus className="h-3.5 w-3.5" />}
-            >
-              Add User
-            </Button>
           </div>
-        </div>
-
-        {/* Create user panel */}
-        {showCreateUser && (
-          <motion.div
-            initial={{ opacity: 0, y: -10 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="mb-6 rounded-2xl border p-5"
-            style={{
-              background: 'rgba(255,255,255,0.04)',
-              borderColor: 'rgba(255,255,255,0.08)',
-            }}
-          >
-            <h3 className="mb-4 text-base font-bold text-white">
-              Create New User
-            </h3>
-            <div className="mb-3 grid grid-cols-2 gap-3">
-              <Input
-                label="Full Name"
-                placeholder="Adaeze Okonkwo"
-                value={newUser.full_name}
-                onChange={(e) =>
-                  setNewUser((p) => ({ ...p, full_name: e.target.value }))
-                }
-                className="border-white/10 bg-white/5 text-white placeholder:text-white/30"
-              />
-              <Input
-                label="Email"
-                type="email"
-                placeholder="chef@demo.food4love"
-                value={newUser.email}
-                onChange={(e) =>
-                  setNewUser((p) => ({ ...p, email: e.target.value }))
-                }
-                className="border-white/10 bg-white/5 text-white placeholder:text-white/30"
-              />
-            </div>
-            <div className="mb-4 flex gap-3">
-              {(['cook', 'buyer'] as const).map((r) => (
-                <button
-                  key={r}
-                  onClick={() => setNewUser((p) => ({ ...p, role: r }))}
-                  className="flex-1 rounded-xl py-2.5 text-sm font-bold transition-all"
-                  style={
-                    newUser.role === r
-                      ? { background: '#E8390E', color: 'white' }
-                      : {
-                          background: 'rgba(255,255,255,0.05)',
-                          color: 'rgba(255,255,255,0.5)',
-                          border: '1px solid rgba(255,255,255,0.08)',
-                        }
-                  }
-                >
-                  {r === 'cook' ? '🍳 Chef' : '🍽️ Food Lover'}
-                </button>
-              ))}
-            </div>
-            <div className="flex gap-2">
-              <Button
-                variant="primary"
-                size="sm"
-                loading={creating}
-                onClick={createDemoUser}
-                pill
-              >
-                Create User
-              </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setShowCreateUser(false)}
-                className="text-white/40 hover:text-white"
-              >
-                Cancel
-              </Button>
-            </div>
-          </motion.div>
-        )}
-
-        {/* Seed data button */}
-        <div
-          className="mb-6 flex items-center justify-between rounded-2xl border p-4"
-          style={{
-            background: 'rgba(45,106,79,0.08)',
-            borderColor: 'rgba(45,106,79,0.2)',
-          }}
-        >
-          <div>
-            <p className="text-sm font-bold" style={{ color: '#52B788' }}>
-              🌱 Seed Demo Data
-            </p>
-            <p className="text-xs" style={{ color: 'rgba(82,183,136,0.6)' }}>
-              Creates 4 realistic chef accounts you can swipe in the app
-            </p>
-          </div>
-          <Button
-            variant="surface"
-            size="sm"
-            pill
-            onClick={seedDemoChefs}
-            className="border-[#2D6A4F]/30 text-[#52B788] hover:bg-[#2D6A4F]/10"
-          >
-            Seed Chefs
-          </Button>
         </div>
 
         {/* Stats */}
+        {!!stats?.dataCheckFailures?.length && (
+          <div className="mb-4 rounded-lg border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-200">
+            Some operational counts could not be loaded:{' '}
+            {stats.dataCheckFailures.join(', ')}
+          </div>
+        )}
         <div className="mb-6 grid grid-cols-2 gap-3 md:grid-cols-3">
           {statCards.map((c, i) => (
             <motion.div
@@ -431,6 +238,41 @@ export default function AdminDashboard() {
               title: 'Booking Oversight',
               desc: 'Monitor all active bookings',
               icon: '📋',
+              urgent: false,
+            },
+            {
+              href: '/admin/audit',
+              title: 'Admin Audit Log',
+              desc: 'Review sensitive access and staff actions',
+              icon: '🧾',
+              urgent: false,
+            },
+            {
+              href: '/admin/listings',
+              title: 'Meal Listing Moderation',
+              desc: 'Remove or restore unsafe meal listings',
+              icon: '🛡️',
+              urgent: false,
+            },
+            {
+              href: '/admin/messages',
+              title: 'Support Conversations',
+              desc: 'Message buyers and cooks as Food4Love Support',
+              icon: '💬',
+              urgent: false,
+            },
+            {
+              href: '/admin/reports',
+              title: 'Reports Queue',
+              desc: 'Review reports from buyers and cooks',
+              icon: '🚩',
+              urgent: false,
+            },
+            {
+              href: '/admin/access',
+              title: 'Staff Access',
+              desc: 'Assign admin roles and scoped permissions',
+              icon: '🔐',
               urgent: false,
             },
           ].map((l: any) => (

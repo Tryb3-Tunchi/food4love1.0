@@ -5,15 +5,14 @@
   "start_url": "/",
   "display": "standalone",
   "background_color": "#0F0A05",
-  "theme_color": "#E8390E",
+  "theme_color": "#07533F",
   "orientation": "portrait",
   "icons": [
     {
-      "src": "/icon-192.png",
-      "sizes": "192x192",
+      "src": "/logo4lfood11.png",
+      "sizes": "379x373",
       "type": "image/png",
-      "purpose": "maskable"
-    },
-    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png" }
+      "purpose": "any"
+    }
   ]
 }
