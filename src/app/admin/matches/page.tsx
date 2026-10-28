@@ -10,8 +10,8 @@ import {
   Loader2,
   Users,
   MessageCircle,
+  Plus,
 } from 'lucide-react'
-import { createClient } from '@/lib/supabase/client'
 import toast from 'react-hot-toast'
 
 interface MatchRow {
@@ -25,12 +25,23 @@ interface MatchRow {
   user2: { full_name: string; avatar_url: string | null; role: string }
 }
 
+interface MatchCandidate {
+  id: string
+  full_name: string
+  role: 'cook' | 'buyer'
+  suspended: boolean
+}
+
 export default function AdminMatchesPage() {
   const [matches, setMatches] = useState<MatchRow[]>([])
   const [filtered, setFiltered] = useState<MatchRow[]>([])
   const [search, setSearch] = useState('')
   const [loading, setLoading] = useState(true)
   const [deleting, setDeleting] = useState<string | null>(null)
+  const [profiles, setProfiles] = useState<MatchCandidate[]>([])
+  const [buyerId, setBuyerId] = useState('')
+  const [cookId, setCookId] = useState('')
+  const [creating, setCreating] = useState(false)
 
   useEffect(() => {
     fetchMatches()
@@ -50,39 +61,81 @@ export default function AdminMatchesPage() {
 
   async function fetchMatches() {
     setLoading(true)
-    const supabase = createClient()
-    const { data, error } = await supabase
-      .from('matches')
-      .select(
-        `
-        *,
-        user1:profiles!matches_user1_id_fkey(full_name, avatar_url, role),
-        user2:profiles!matches_user2_id_fkey(full_name, avatar_url, role)
-      `,
+    try {
+      const response = await fetch('/api/admin/matches', { cache: 'no-store' })
+      const result = await response.json()
+      if (!response.ok)
+        throw new Error(result.error || 'Failed to load matches')
+      setMatches(result.matches ?? [])
+      setFiltered(result.matches ?? [])
+      setProfiles(result.profiles ?? [])
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : 'Failed to load matches',
       )
-      .order('created_at', { ascending: false })
-
-    if (error) {
-      toast.error('Failed to load matches')
-    } else {
-      setMatches((data as any) ?? [])
-      setFiltered((data as any) ?? [])
     }
     setLoading(false)
   }
 
-  async function deleteMatch(id: string) {
-    if (!confirm('Delete this match? This cannot be undone.')) return
+  async function unmatch(id: string) {
+    const reason = window.prompt('Reason for unmatching:')
+    if (!reason?.trim()) return
     setDeleting(id)
-    const supabase = createClient()
-    const { error } = await supabase.from('matches').delete().eq('id', id)
-    if (error) {
-      toast.error('Failed to delete match')
-    } else {
-      toast.success('Match deleted')
-      setMatches((prev) => prev.filter((m) => m.id !== id))
+    try {
+      const response = await fetch('/api/admin/matches', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'unmatch',
+          match_id: id,
+          reason: reason.trim(),
+        }),
+      })
+      const result = await response.json()
+      if (!response.ok)
+        throw new Error(result.error || 'Could not unmatch users')
+      toast.success('Users unmatched; chat history retained')
+      await fetchMatches()
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : 'Could not unmatch users',
+      )
     }
     setDeleting(null)
+  }
+
+  async function createMatch() {
+    if (!buyerId || !cookId) {
+      toast.error('Choose one buyer and one cook')
+      return
+    }
+    const reason = window.prompt('Reason for creating this match:')
+    if (!reason?.trim()) return
+    setCreating(true)
+    try {
+      const response = await fetch('/api/admin/matches', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'create',
+          user1_id: buyerId,
+          user2_id: cookId,
+          reason: reason.trim(),
+        }),
+      })
+      const result = await response.json()
+      if (!response.ok)
+        throw new Error(result.error || 'Could not create match')
+      toast.success('Match created')
+      setBuyerId('')
+      setCookId('')
+      await fetchMatches()
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : 'Could not create match',
+      )
+    }
+    setCreating(false)
   }
 
   return (
@@ -103,6 +156,55 @@ export default function AdminMatchesPage() {
             {matches.length} matches
           </div>
         </div>
+
+        <section className="mb-6 flex flex-wrap items-end gap-3 border-b border-[var(--border)] pb-6">
+          <label className="min-w-52 flex-1 text-xs font-medium text-[var(--text-2)]">
+            Buyer
+            <select
+              value={buyerId}
+              onChange={(event) => setBuyerId(event.target.value)}
+              className="mt-1 block w-full rounded-lg border border-[var(--border)] bg-[var(--surface-strong)] px-3 py-2 text-sm text-[var(--text-1)]"
+            >
+              <option value="">Select buyer</option>
+              {profiles
+                .filter((profile) => profile.role === 'buyer')
+                .map((profile) => (
+                  <option key={profile.id} value={profile.id}>
+                    {profile.full_name}
+                  </option>
+                ))}
+            </select>
+          </label>
+          <label className="min-w-52 flex-1 text-xs font-medium text-[var(--text-2)]">
+            Cook
+            <select
+              value={cookId}
+              onChange={(event) => setCookId(event.target.value)}
+              className="mt-1 block w-full rounded-lg border border-[var(--border)] bg-[var(--surface-strong)] px-3 py-2 text-sm text-[var(--text-1)]"
+            >
+              <option value="">Select cook</option>
+              {profiles
+                .filter((profile) => profile.role === 'cook')
+                .map((profile) => (
+                  <option key={profile.id} value={profile.id}>
+                    {profile.full_name}
+                  </option>
+                ))}
+            </select>
+          </label>
+          <button
+            onClick={createMatch}
+            disabled={creating}
+            className="inline-flex h-10 items-center gap-2 rounded-lg bg-[var(--accent)] px-4 text-sm font-semibold text-white disabled:opacity-50"
+          >
+            {creating ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Plus className="h-4 w-4" />
+            )}
+            Create match
+          </button>
+        </section>
 
         {/* Search */}
         <div className="relative mb-6">
@@ -200,14 +302,19 @@ export default function AdminMatchesPage() {
                       <td className="px-4 py-3 text-right">
                         <div className="flex items-center justify-end gap-2">
                           <Link
-                            href={`/chat/${match.id}`}
+                            href={`/admin/messages?match_id=${match.id}`}
                             className="rounded-lg bg-[var(--bg-2)] p-2 text-[var(--text-2)] transition hover:bg-[var(--accent-soft)] hover:text-[var(--accent)]"
                           >
                             <MessageCircle className="h-4 w-4" />
                           </Link>
                           <button
-                            onClick={() => deleteMatch(match.id)}
-                            disabled={deleting === match.id}
+                            onClick={() => unmatch(match.id)}
+                            disabled={
+                              deleting === match.id ||
+                              match.status !== 'matched'
+                            }
+                            aria-label="Unmatch users and retain chat history"
+                            title="Unmatch users and retain chat history"
                             className="rounded-lg bg-[var(--bg-2)] p-2 text-[var(--text-2)] transition hover:bg-red-500/10 hover:text-red-500 disabled:opacity-50"
                           >
                             {deleting === match.id ? (

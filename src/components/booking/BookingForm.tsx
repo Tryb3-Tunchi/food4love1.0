@@ -51,6 +51,7 @@ export function BookingForm({ cookId, matchId }: BookingFormProps) {
         .from('daily_specials')
         .select('*')
         .eq('cook_id', cookId)
+        .eq('moderation_status', 'active')
         .gte('available_until', new Date().toISOString())
       setSpecials((data ?? []).filter((s) => !s.is_paused))
       setIsLoadingSpecials(false)

@@ -1,5 +1,6 @@
 import Image from 'next/image'
 import type { Post } from '@/types/db'
+import { ReportButton } from '@/components/reports/ReportButton'
 
 export function PostFeed({
   posts,
@@ -50,13 +51,16 @@ export function PostFeed({
               {post.caption}
             </p>
           )}
-          <p className="px-3 pb-3 text-xs text-[var(--text-3)]">
-            {new Date(post.created_at).toLocaleDateString('en-NG', {
-              month: 'short',
-              day: 'numeric',
-              year: 'numeric',
-            })}
-          </p>
+          <div className="flex items-center justify-between gap-2 px-3 pb-3">
+            <p className="text-xs text-[var(--text-3)]">
+              {new Date(post.created_at).toLocaleDateString('en-NG', {
+                month: 'short',
+                day: 'numeric',
+                year: 'numeric',
+              })}
+            </p>
+            <ReportButton targetType="post" targetId={post.id} />
+          </div>
         </article>
       ))}
     </div>

@@ -16,16 +16,24 @@ export default function AdminDisputesPage() {
   }, [])
 
   const resolve = async (id: string) => {
-    const resolution = prompt('Resolution notes:')
+    const resolution = window.prompt(
+      'Resolution notes (at least 10 characters):',
+    )
     if (!resolution) return
-    const refundPct = prompt('Refund % to buyer (0-100):')
-    if (!refundPct) return
+    const outcome = window
+      .prompt('Outcome: buyer, cook, or partial')
+      ?.trim()
+      .toLowerCase()
+    if (outcome !== 'buyer' && outcome !== 'cook' && outcome !== 'partial') {
+      toast.error('Choose buyer, cook, or partial')
+      return
+    }
     try {
-      await resolveDispute(id, resolution, Number(refundPct), resolution)
+      await resolveDispute(id, resolution, outcome, resolution)
       setDisputes((p) => p.filter((d) => d.id !== id))
-      toast.success('Dispute resolved')
-    } catch {
-      toast.error('Failed to resolve')
+      toast.success('Dispute resolved. No payment refund was processed.')
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to resolve')
     }
   }
 
@@ -42,7 +50,8 @@ export default function AdminDisputesPage() {
     <div className="mx-auto min-h-screen max-w-4xl bg-char p-6">
       <h1 className="mb-2 text-2xl font-bold text-white">Dispute Resolution</h1>
       <p className="mb-6 text-mist">
-        AI pre-analyzes every dispute. You make the final call.
+        AI analysis is advisory. Record the decision here; this does not issue a
+        payment refund.
       </p>
       {loading ? (
         <p className="text-mist">Loading...</p>

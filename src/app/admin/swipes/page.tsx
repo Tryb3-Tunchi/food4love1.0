@@ -2,7 +2,6 @@
 
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { createClient } from '@/lib/supabase/client'
 import { motion } from 'framer-motion'
 import {
   Heart,
@@ -19,7 +18,7 @@ import toast from 'react-hot-toast'
 interface SwipeRecord {
   id: string
   swiper_id: string
-  swiped_user_id: string
+  swiped_id: string
   action: string
   created_at: string
   swiper: { full_name: string; avatar_url: string | null; role: string } | null
@@ -29,7 +28,6 @@ interface SwipeRecord {
 export default function AdminSwipesPage() {
   const router = useRouter()
   const queryClient = useQueryClient()
-  const supabase = createClient()
   const [filter, setFilter] = useState<'all' | 'like' | 'superlike' | 'pass'>(
     'all',
   )
@@ -37,64 +35,44 @@ export default function AdminSwipesPage() {
   const { data: swipes = [], isLoading } = useQuery({
     queryKey: ['admin-swipes', filter],
     queryFn: async () => {
-      let query = supabase
-        .from('swipes')
-        .select(
-          `*, swiper:profiles!swiper_id(full_name, avatar_url, role), swiped:profiles!swiped_user_id(full_name, avatar_url, role)`,
-        )
-        .order('created_at', { ascending: false })
-
-      if (filter !== 'all') {
-        query = query.eq('action', filter)
-      }
-
-      const { data, error } = await query.limit(100)
-      if (error) throw error
-      return (data ?? []) as SwipeRecord[]
+      const params = new URLSearchParams()
+      if (filter !== 'all') params.set('action', filter)
+      const response = await fetch(`/api/admin/swipes?${params.toString()}`, {
+        cache: 'no-store',
+      })
+      const result = await response.json()
+      if (!response.ok)
+        throw new Error(result.error || 'Could not load swipe activity')
+      return (result.swipes ?? []) as SwipeRecord[]
     },
   })
 
   const createMatchMutation = useMutation({
     mutationFn: async ({ user1, user2 }: { user1: string; user2: string }) => {
-      // Check if match already exists
-      const { data: existing } = await supabase
-        .from('matches')
-        .select('id')
-        .or(
-          `and(user1_id.eq.${user1},user2_id.eq.${user2}),and(user1_id.eq.${user2},user2_id.eq.${user1})`,
-        )
-        .single()
-
-      if (existing) {
-        throw new Error('Match already exists')
-      }
-
-      const { error } = await supabase.from('matches').insert({
-        user1_id: user1,
-        user2_id: user2,
-        status: 'active',
+      const reason = window.prompt('Reason for creating this match:')
+      if (!reason?.trim()) throw new Error('A reason is required')
+      const response = await fetch('/api/admin/matches', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'create',
+          user1_id: user1,
+          user2_id: user2,
+          reason: reason.trim(),
+        }),
       })
-      if (error) throw error
+      const result = await response.json().catch(() => ({}))
+      if (!response.ok)
+        throw new Error(result.error || 'Could not create match')
     },
     onSuccess: () => {
       toast.success('Match created successfully')
       queryClient.invalidateQueries({ queryKey: ['admin-swipes'] })
     },
-    onError: (err: any) => {
-      toast.error(err.message)
+    onError: (err: unknown) => {
+      toast.error(err instanceof Error ? err.message : 'Could not create match')
     },
   })
-
-  const checkMutual = async (swiper: string, swiped: string) => {
-    const { data } = await supabase
-      .from('swipes')
-      .select('id')
-      .eq('swiper_id', swiped)
-      .eq('swiped_user_id', swiper)
-      .in('action', ['like', 'superlike'])
-      .single()
-    return !!data
-  }
 
   if (isLoading) {
     return (
@@ -216,18 +194,10 @@ export default function AdminSwipesPage() {
                 {/* Actions */}
                 <div className="flex gap-2">
                   <button
-                    onClick={async () => {
-                      const isMutual = await checkMutual(
-                        s.swiper_id,
-                        s.swiped_user_id,
-                      )
-                      if (!isMutual) {
-                        toast('Not a mutual like yet', { icon: 'ℹ️' })
-                        return
-                      }
+                    onClick={() => {
                       createMatchMutation.mutate({
                         user1: s.swiper_id,
-                        user2: s.swiped_user_id,
+                        user2: s.swiped_id,
                       })
                     }}
                     disabled={createMatchMutation.isPending}
@@ -237,11 +207,11 @@ export default function AdminSwipesPage() {
                     Match
                   </button>
                   <button
-                    onClick={() => router.push(`/admin/users/${s.swiper_id}`)}
+                    onClick={() => router.push('/admin/users')}
                     className="flex items-center gap-1 rounded-full bg-white/5 px-3 py-1.5 text-xs font-medium text-white/60 hover:bg-white/10"
                   >
                     <MessageCircle className="h-3 w-3" />
-                    View
+                    Users
                   </button>
                 </div>
               </motion.div>

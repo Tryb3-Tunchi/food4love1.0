@@ -7,29 +7,33 @@ import {
   MessageCircle,
   User,
   Map,
-  ChefHat,
   Shield,
+  ShieldCheck,
 } from 'lucide-react'
 import { useAuthStore } from '@/stores/useAuthStore'
 import { Avatar } from '@/components/ui/Avatar'
+import { Brand } from '@/components/ui/Brand'
 
 const buyerNav = [
   { href: '/swipe', icon: Flame, label: 'Discover', id: 'bottom-nav-swipe' },
   { href: '/matches', icon: Heart, label: 'Matches', id: 'bottom-nav-matches' },
   { href: '/chat', icon: MessageCircle, label: 'Chat', id: 'bottom-nav-chat' },
   { href: '/map', icon: Map, label: 'Map', id: '' },
+  { href: '/support', icon: MessageCircle, label: 'Support', id: '' },
   { href: '/profile', icon: User, label: 'Profile', id: '' },
 ]
 const cookNav = [
   { href: '/requests', icon: Flame, label: 'Requests', id: '' },
   { href: '/matches', icon: Heart, label: 'Matches', id: 'bottom-nav-matches' },
   { href: '/chat', icon: MessageCircle, label: 'Chat', id: 'bottom-nav-chat' },
+  { href: '/support', icon: MessageCircle, label: 'Support', id: '' },
   { href: '/profile', icon: User, label: 'Profile', id: '' },
 ]
 
 export function SidebarNav() {
   const pathname = usePathname()
   const profile = useAuthStore((s) => s.profile)
+  const isAdmin = useAuthStore((s) => s.isAdmin)
   const nav = profile?.role === 'cook' ? cookNav : buyerNav
 
   return (
@@ -39,23 +43,7 @@ export function SidebarNav() {
         className="border-b p-5 pb-4"
         style={{ borderColor: 'var(--nav-border)' }}
       >
-        <Link href="/swipe" className="flex items-center gap-2.5">
-          <div
-            className="flex h-9 w-9 items-center justify-center rounded-2xl"
-            style={{
-              background:
-                'linear-gradient(135deg, var(--accent-alt), var(--accent))',
-            }}
-          >
-            <ChefHat className="h-5 w-5 text-white" strokeWidth={2} />
-          </div>
-          <span
-            className="text-xl font-extrabold tracking-tight"
-            style={{ color: 'var(--text-1)' }}
-          >
-            Food<span style={{ color: '#E8390E' }}>4</span>Love
-          </span>
-        </Link>
+        <Brand href="/swipe" size="regular" />
       </div>
 
       {/* Nav */}
@@ -85,6 +73,15 @@ export function SidebarNav() {
             </Link>
           )
         })}
+        {isAdmin && (
+          <Link
+            href="/admin"
+            className="border-[var(--accent)]/20 mt-3 flex items-center gap-3 rounded-xl border bg-[var(--accent-soft)] px-3 py-2.5 text-sm font-semibold text-[var(--accent)]"
+          >
+            <ShieldCheck className="h-5 w-5 shrink-0" />
+            Admin dashboard
+          </Link>
+        )}
       </nav>
 
       {/* KYC warning */}

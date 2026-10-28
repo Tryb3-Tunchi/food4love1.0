@@ -6,6 +6,7 @@ export async function getDailySpecialsByCook(cookId: string) {
     .from('daily_specials')
     .select('*')
     .eq('cook_id', cookId)
+    .eq('moderation_status', 'active')
     .gte('available_until', new Date().toISOString())
     .order('created_at', { ascending: false })
 
@@ -18,6 +19,7 @@ export async function getAllActiveSpecials() {
   const { data, error } = await supabase
     .from('daily_specials')
     .select(`*, cook:profiles(id, full_name, avatar_url, rating)`)
+    .eq('moderation_status', 'active')
     .gte('available_until', new Date().toISOString())
     .order('created_at', { ascending: false })
 

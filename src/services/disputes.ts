@@ -66,6 +66,13 @@ export async function raiseDispute(
 }
 
 export async function getDisputes(adminMode = false): Promise<Dispute[]> {
+  if (adminMode) {
+    const response = await fetch('/api/admin/disputes', { cache: 'no-store' })
+    const result = await response.json().catch(() => ({}))
+    if (!response.ok) throw new Error(result.error || 'Could not load disputes')
+    return result.disputes ?? []
+  }
+
   const q = sb()
     .from('disputes')
     .select(
@@ -79,21 +86,15 @@ export async function getDisputes(adminMode = false): Promise<Dispute[]> {
 export async function resolveDispute(
   id: string,
   resolution: string,
-  refundAmount: number,
+  outcome: 'buyer' | 'cook' | 'partial',
   adminNotes: string,
 ) {
-  const { data, error } = await sb()
-    .from('disputes')
-    .update({
-      status: 'resolved_partial',
-      resolution,
-      refund_amount: refundAmount,
-      admin_notes: adminNotes,
-      updated_at: new Date().toISOString(),
-    })
-    .eq('id', id)
-    .select()
-    .single()
-  if (error) throw error
-  return data
+  const response = await fetch('/api/admin/disputes', {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ id, outcome, resolution, admin_notes: adminNotes }),
+  })
+  const result = await response.json().catch(() => ({}))
+  if (!response.ok) throw new Error(result.error || 'Could not resolve dispute')
+  return result.dispute
 }
