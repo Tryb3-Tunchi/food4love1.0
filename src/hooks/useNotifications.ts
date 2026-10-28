@@ -42,7 +42,7 @@ export function useNotifications() {
     const supabase = createClient()
 
     // Use a unique channel name per mount to avoid collision
-    const channelName = `notifications-${userId}-${Date.now()}`
+    const channelName = `notifications-${userId}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
     const channel = supabase
       .channel(channelName)
       .on(
