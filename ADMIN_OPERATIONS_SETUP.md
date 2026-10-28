@@ -91,6 +91,13 @@ Review the deployed schema and apply these additive SQL files to staging before 
 4. `supabase-migration-match-chat-access.sql`
 5. `supabase-migration-reports.sql`
 6. `supabase-migration-admin-support-chat.sql`
+7. `supabase-migration-admin-support-realtime.sql`
+
+The support Realtime migration grants authenticated users read access only to
+their own support thread, and grants staff read access only when trusted
+`app_metadata` includes `messages:manage`. It adds both support tables to the
+`supabase_realtime` publication. Writes continue through the existing server
+routes; do not grant client insert, update, or delete access.
 
 Do not apply these directly to production without validating the live schema, backup/rollback plan, and staging behavior.
 

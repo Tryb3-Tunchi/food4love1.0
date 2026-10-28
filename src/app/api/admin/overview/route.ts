@@ -6,27 +6,51 @@ export async function GET() {
   const actor = await getAdminUser()
   if (!actor) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
+  const permissions: string[] = Array.isArray(
+    actor.app_metadata?.admin_permissions,
+  )
+    ? actor.app_metadata.admin_permissions
+    : []
+  const can = (permission: string) => permissions.includes(permission)
   const admin = createAdminClient()
+  const noAccess = Promise.resolve({ count: null, error: null })
   const results = await Promise.all([
-    admin.from('profiles').select('id', { count: 'exact', head: true }),
-    admin
-      .from('profiles')
-      .select('id', { count: 'exact', head: true })
-      .eq('role', 'cook'),
-    admin.from('matches').select('id', { count: 'exact', head: true }),
-    admin.from('bookings').select('id', { count: 'exact', head: true }),
-    admin
-      .from('disputes')
-      .select('id', { count: 'exact', head: true })
-      .in('status', ['open', 'ai_reviewed', 'admin_review']),
-    admin
-      .from('kyc_submissions')
-      .select('id', { count: 'exact', head: true })
-      .eq('status', 'pending'),
-    admin
-      .from('profiles')
-      .select('id', { count: 'exact', head: true })
-      .eq('suspended', true),
+    can('users:manage')
+      ? admin.from('profiles').select('id', { count: 'exact', head: true })
+      : noAccess,
+    can('users:manage')
+      ? admin
+          .from('profiles')
+          .select('id', { count: 'exact', head: true })
+          .eq('role', 'cook')
+      : noAccess,
+    can('matches:manage')
+      ? admin
+          .from('matches')
+          .select('id', { count: 'exact', head: true })
+          .eq('status', 'matched')
+      : noAccess,
+    can('bookings:manage')
+      ? admin.from('bookings').select('id', { count: 'exact', head: true })
+      : noAccess,
+    can('disputes:manage')
+      ? admin
+          .from('disputes')
+          .select('id', { count: 'exact', head: true })
+          .in('status', ['open', 'ai_reviewed', 'admin_review'])
+      : noAccess,
+    can('kyc:review')
+      ? admin
+          .from('kyc_submissions')
+          .select('id', { count: 'exact', head: true })
+          .eq('status', 'pending')
+      : noAccess,
+    can('users:manage')
+      ? admin
+          .from('profiles')
+          .select('id', { count: 'exact', head: true })
+          .eq('suspended', true)
+      : noAccess,
   ])
   const keys = [
     'users',
@@ -40,7 +64,19 @@ export async function GET() {
   const failures = results.flatMap((result, index) =>
     result.error ? [keys[index]] : [],
   )
-  const counts = results.map((result) => result.count ?? 0)
+  const counts = results.map((result) => result.count)
+  const permissionsByMetric = [
+    'users:manage',
+    'users:manage',
+    'matches:manage',
+    'bookings:manage',
+    'disputes:manage',
+    'kyc:review',
+    'users:manage',
+  ]
+  const restrictedMetrics = keys.filter(
+    (_, index) => !can(permissionsByMetric[index]),
+  )
 
   return NextResponse.json({
     totalUsers: counts[0],
@@ -51,5 +87,6 @@ export async function GET() {
     pendingKyc: counts[5],
     suspendedUsers: counts[6],
     dataCheckFailures: failures,
+    restrictedMetrics,
   })
 }

@@ -9,6 +9,16 @@ export default async function AdminLayout({
 }) {
   const user = await getAdminUser()
   if (!user) redirect('/login')
+  const permissionClaims = user.app_metadata?.admin_permissions
+  const permissions = Array.isArray(permissionClaims)
+    ? permissionClaims.filter(
+        (permission): permission is string => typeof permission === 'string',
+      )
+    : []
 
-  return <AdminThemeProvider>{children}</AdminThemeProvider>
+  return (
+    <AdminThemeProvider permissions={permissions}>
+      {children}
+    </AdminThemeProvider>
+  )
 }
