@@ -1,321 +1,238 @@
 'use client'
-import { useEffect, useState } from 'react'
-import { getAdminStats } from '@/services/admin'
+
+import { useCallback, useEffect, useState } from 'react'
+import Link from 'next/link'
 import {
-  Users,
+  AlertTriangle,
   ChefHat,
   Heart,
-  ShoppingBag,
-  AlertTriangle,
-  Shield,
   RefreshCw,
+  ShieldCheck,
+  ShoppingBag,
+  Users,
+  type LucideIcon,
 } from 'lucide-react'
-import Link from 'next/link'
-import { motion } from 'framer-motion'
-import { Button } from '@/components/ui/Button'
-import toast from 'react-hot-toast'
-import { AdminThemeToggle } from '@/components/admin/AdminThemeProvider'
+import { getAdminStats } from '@/services/admin'
 
 interface Stats {
-  totalUsers: number
-  totalChefs: number
-  totalMatches: number
-  totalBookings: number
-  openDisputes: number
-  pendingKyc: number
-  suspendedUsers?: number
-  dataCheckFailures?: string[]
+  totalUsers: number | null
+  totalChefs: number | null
+  totalMatches: number | null
+  totalBookings: number | null
+  openDisputes: number | null
+  pendingKyc: number | null
+  suspendedUsers: number | null
+  dataCheckFailures: string[]
+  restrictedMetrics: string[]
 }
 
 export default function AdminDashboard() {
   const [stats, setStats] = useState<Stats | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
 
-  useEffect(() => {
-    getAdminStats()
-      .then(setStats)
-      .catch((error) => {
-        toast.error(
-          error instanceof Error
-            ? error.message
-            : 'Could not load operations overview',
-        )
-      })
+  const refresh = useCallback(async () => {
+    setLoading(true)
+    setError('')
+    try {
+      setStats(await getAdminStats())
+    } catch (cause) {
+      setError(
+        cause instanceof Error
+          ? cause.message
+          : 'Could not load the operations overview',
+      )
+    } finally {
+      setLoading(false)
+    }
   }, [])
 
-  const statCards = stats
+  useEffect(() => {
+    void refresh()
+  }, [refresh])
+
+  const metrics: {
+    key: string
+    label: string
+    value: number | null
+    href: string
+    icon: LucideIcon
+  }[] = stats
     ? [
         {
-          label: 'Total Users',
+          key: 'totalUsers',
+          label: 'Members',
           value: stats.totalUsers,
+          href: '/admin/users',
           icon: Users,
-          href: '/admin/users',
-          color: '#3B82F6',
-          bg: 'rgba(59,130,246,0.1)',
         },
         {
-          label: 'Home Chefs',
+          key: 'totalChefs',
+          label: 'Home cooks',
           value: stats.totalChefs,
+          href: '/admin/users?role=cook',
           icon: ChefHat,
-          href: '/admin/users',
-          color: '#F59E0B',
-          bg: 'rgba(245,158,11,0.1)',
         },
         {
-          label: 'Total Matches',
+          key: 'totalMatches',
+          label: 'Active matches',
           value: stats.totalMatches,
-          icon: Heart,
           href: '/admin/matches',
-          color: '#E8390E',
-          bg: 'rgba(232,57,14,0.1)',
+          icon: Heart,
         },
         {
+          key: 'totalBookings',
           label: 'Bookings',
           value: stats.totalBookings,
-          icon: ShoppingBag,
           href: '/admin/bookings',
-          color: '#22C55E',
-          bg: 'rgba(34,197,94,0.1)',
+          icon: ShoppingBag,
         },
         {
-          label: 'Open Disputes',
+          key: 'openDisputes',
+          label: 'Open disputes',
           value: stats.openDisputes,
-          icon: AlertTriangle,
           href: '/admin/disputes',
-          color: '#EF4444',
-          bg: 'rgba(239,68,68,0.1)',
-          urgent: stats.openDisputes > 0,
+          icon: AlertTriangle,
         },
         {
-          label: 'Pending KYC',
+          key: 'pendingKyc',
+          label: 'Chef verifications',
           value: stats.pendingKyc,
-          icon: Shield,
           href: '/admin/kyc',
-          color: '#F59E0B',
-          bg: 'rgba(245,158,11,0.1)',
-          urgent: stats.pendingKyc > 0,
+          icon: ShieldCheck,
         },
         {
-          label: 'Suspended Users',
-          value: stats.suspendedUsers ?? 0,
+          key: 'suspendedUsers',
+          label: 'Suspended accounts',
+          value: stats.suspendedUsers,
+          href: '/admin/users?status=suspended',
           icon: Users,
-          href: '/admin/users',
-          color: '#EF4444',
-          bg: 'rgba(239,68,68,0.1)',
         },
-      ]
+      ].filter((metric) => !stats.restrictedMetrics.includes(metric.key))
     : []
 
+  const failedMetrics = new Set(stats?.dataCheckFailures ?? [])
+
   return (
-    <div className="min-h-screen bg-[var(--admin-bg)] text-[var(--admin-text)]">
-      <div className="mx-auto max-w-5xl px-5 py-8">
-        {/* Header */}
-        <div className="mb-8 flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-extrabold tracking-tight text-white">
-              Admin
-            </h1>
-            <p
-              className="mt-1 text-sm"
-              style={{ color: 'rgba(255,255,255,0.4)' }}
-            >
-              Food4Love Operations Centre
-            </p>
-          </div>
-          <div className="flex gap-2">
-            <AdminThemeToggle />
-            <Button
-              variant="surface"
-              size="sm"
-              onClick={() =>
-                getAdminStats()
-                  .then(setStats)
-                  .catch((error) =>
-                    toast.error(
-                      error instanceof Error
-                        ? error.message
-                        : 'Could not refresh overview',
-                    ),
-                  )
-              }
-              leftIcon={<RefreshCw className="h-3.5 w-3.5" />}
-            >
-              Refresh
-            </Button>
-          </div>
+    <section className="mx-auto min-h-[calc(100dvh-4rem)] max-w-7xl px-4 py-7 text-[var(--admin-text)] sm:px-6 sm:py-9 lg:px-8">
+      <header className="mb-8 flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <p className="text-xs font-bold uppercase tracking-[0.16em] text-[var(--admin-accent)]">
+            Food4Love operations
+          </p>
+          <h1 className="mt-2 font-display text-3xl font-bold tracking-tight sm:text-4xl">
+            Dashboard
+          </h1>
+          <p className="mt-2 max-w-2xl text-sm text-[var(--admin-muted)]">
+            A live view of the marketplace areas your staff access allows you to
+            manage.
+          </p>
         </div>
+        <button
+          type="button"
+          onClick={() => void refresh()}
+          disabled={loading}
+          className="inline-flex min-h-10 items-center gap-2 rounded-lg border border-[var(--admin-border)] bg-[var(--admin-surface)] px-3 text-sm font-semibold text-[var(--admin-text)] transition hover:bg-[var(--admin-hover)] disabled:cursor-wait disabled:opacity-60"
+        >
+          <RefreshCw
+            aria-hidden="true"
+            className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`}
+          />
+          Refresh
+        </button>
+      </header>
 
-        {/* Stats */}
-        {!!stats?.dataCheckFailures?.length && (
-          <div className="mb-4 rounded-lg border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-200">
-            Some operational counts could not be loaded:{' '}
-            {stats.dataCheckFailures.join(', ')}
-          </div>
-        )}
-        <div className="mb-6 grid grid-cols-2 gap-3 md:grid-cols-3">
-          {statCards.map((c, i) => (
-            <motion.div
-              key={c.label}
-              initial={{ opacity: 0, y: 16 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: i * 0.06 }}
-            >
+      {error && (
+        <div
+          role="alert"
+          className="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-800 dark:text-red-200"
+        >
+          <span>{error}</span>
+          <button
+            type="button"
+            onClick={() => void refresh()}
+            className="font-semibold underline underline-offset-2"
+          >
+            Try again
+          </button>
+        </div>
+      )}
+
+      {!!stats?.dataCheckFailures.length && (
+        <div
+          role="status"
+          className="mb-6 rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 text-sm text-amber-900 dark:text-amber-100"
+        >
+          Some counts could not be loaded. A dash marks unavailable data; it is
+          not a zero count.
+        </div>
+      )}
+
+      {loading && !stats ? (
+        <div
+          aria-label="Loading operations overview"
+          className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3"
+        >
+          {Array.from({ length: 6 }, (_, index) => (
+            <div
+              key={index}
+              className="h-36 animate-pulse rounded-2xl border border-[var(--admin-border)] bg-[var(--admin-surface)]"
+            />
+          ))}
+        </div>
+      ) : error && !stats ? (
+        <div className="rounded-2xl border border-[var(--admin-border)] bg-[var(--admin-surface)] p-8 text-center">
+          <p className="font-semibold text-[var(--admin-text)]">
+            The dashboard could not load its counts.
+          </p>
+          <p className="mt-2 text-sm text-[var(--admin-muted)]">
+            Retry the request or use the sections in the admin navigation.
+          </p>
+        </div>
+      ) : metrics.length ? (
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+          {metrics.map((metric) => {
+            const Icon = metric.icon
+            const hasError = failedMetrics.has(metric.key)
+            return (
               <Link
-                href={c.href}
-                className="block rounded-2xl border p-4 transition-all hover:scale-[1.01]"
-                style={{
-                  background: 'rgba(255,255,255,0.03)',
-                  borderColor: c.urgent
-                    ? `${c.color}40`
-                    : 'rgba(255,255,255,0.06)',
-                }}
+                key={metric.key}
+                href={metric.href}
+                className="hover:border-[var(--admin-accent)]/50 group rounded-2xl border border-[var(--admin-border)] bg-[var(--admin-surface)] p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--admin-accent)]"
               >
-                <div className="mb-3 flex items-center justify-between">
-                  <div
-                    className="flex h-9 w-9 items-center justify-center rounded-xl"
-                    style={{ background: c.bg }}
-                  >
-                    <c.icon className="h-5 w-5" style={{ color: c.color }} />
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <p className="text-sm font-medium text-[var(--admin-muted)]">
+                      {metric.label}
+                    </p>
+                    <p className="mt-3 font-display text-3xl font-bold tabular-nums text-[var(--admin-text)]">
+                      {metric.value === null || hasError
+                        ? '—'
+                        : metric.value.toLocaleString()}
+                    </p>
                   </div>
-                  {c.urgent && (
-                    <span
-                      className="h-2 w-2 animate-pulse rounded-full"
-                      style={{ background: c.color }}
-                    />
-                  )}
-                </div>
-                <div className="mb-1 text-3xl font-extrabold text-white">
-                  {stats ? (
-                    c.value.toLocaleString()
-                  ) : (
-                    <span className="opacity-20">—</span>
-                  )}
-                </div>
-                <div
-                  className="text-xs"
-                  style={{ color: 'rgba(255,255,255,0.4)' }}
-                >
-                  {c.label}
-                </div>
-              </Link>
-            </motion.div>
-          ))}
-        </div>
-
-        {/* Quick links */}
-        <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-          {[
-            {
-              title: 'Swipe Activity',
-              desc: 'View and manage user swipes',
-              href: '/admin/swipes',
-              icon: Heart,
-              color: 'text-pink-500',
-              urgent: false,
-            },
-            {
-              href: '/admin/kyc',
-              title: 'KYC Review Queue',
-              desc: 'Review chef video verifications',
-              icon: '🎥',
-              urgent: (stats?.pendingKyc ?? 0) > 0,
-            },
-            {
-              href: '/admin/disputes',
-              title: 'Dispute Resolution',
-              desc: 'AI-analyzed buyer-chef conflicts',
-              icon: '⚖️',
-              urgent: (stats?.openDisputes ?? 0) > 0,
-            },
-            {
-              href: '/admin/users',
-              title: 'User Management',
-              desc: 'Search, view, suspend users',
-              icon: '👥',
-              urgent: false,
-            },
-            {
-              href: '/admin/bookings',
-              title: 'Booking Oversight',
-              desc: 'Monitor all active bookings',
-              icon: '📋',
-              urgent: false,
-            },
-            {
-              href: '/admin/audit',
-              title: 'Admin Audit Log',
-              desc: 'Review sensitive access and staff actions',
-              icon: '🧾',
-              urgent: false,
-            },
-            {
-              href: '/admin/listings',
-              title: 'Meal Listing Moderation',
-              desc: 'Remove or restore unsafe meal listings',
-              icon: '🛡️',
-              urgent: false,
-            },
-            {
-              href: '/admin/messages',
-              title: 'Support Conversations',
-              desc: 'Message buyers and cooks as Food4Love Support',
-              icon: '💬',
-              urgent: false,
-            },
-            {
-              href: '/admin/reports',
-              title: 'Reports Queue',
-              desc: 'Review reports from buyers and cooks',
-              icon: '🚩',
-              urgent: false,
-            },
-            {
-              href: '/admin/access',
-              title: 'Staff Access',
-              desc: 'Assign admin roles and scoped permissions',
-              icon: '🔐',
-              urgent: false,
-            },
-          ].map((l: any) => (
-            <Link
-              key={l.href}
-              href={l.href}
-              className="flex items-center gap-4 rounded-2xl border p-4 transition-all hover:bg-white/5"
-              style={{
-                borderColor: l.urgent
-                  ? 'rgba(232,57,14,0.25)'
-                  : 'rgba(255,255,255,0.06)',
-                background: l.urgent
-                  ? 'rgba(232,57,14,0.05)'
-                  : 'rgba(255,255,255,0.02)',
-              }}
-            >
-              <span className="shrink-0 text-2xl">
-                {typeof l.icon === 'string' ? (
-                  l.icon
-                ) : (
-                  <l.icon className={`h-6 w-6 ${l.color || ''}`} />
-                )}
-              </span>
-              <div className="min-w-0 flex-1">
-                <div className="flex items-center gap-2">
-                  <span className="text-sm font-bold text-white">
-                    {l.title}
+                  <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-[var(--admin-accent-soft)] text-[var(--admin-accent)]">
+                    <Icon aria-hidden="true" className="h-5 w-5" />
                   </span>
-                  {l.urgent && (
-                    <span className="h-2 w-2 shrink-0 animate-pulse rounded-full bg-pepper" />
-                  )}
                 </div>
-                <p
-                  className="mt-0.5 text-xs"
-                  style={{ color: 'rgba(255,255,255,0.35)' }}
-                >
-                  {l.desc}
+                <p className="mt-5 text-xs font-semibold text-[var(--admin-accent)] opacity-0 transition group-hover:opacity-100 group-focus-visible:opacity-100">
+                  Open {metric.label.toLowerCase()} →
                 </p>
-              </div>
-            </Link>
-          ))}
+              </Link>
+            )
+          })}
         </div>
-      </div>
-    </div>
+      ) : (
+        <div className="rounded-2xl border border-[var(--admin-border)] bg-[var(--admin-surface)] p-8 text-center">
+          <p className="font-semibold text-[var(--admin-text)]">
+            No overview counts are available for your current access.
+          </p>
+          <p className="mt-2 text-sm text-[var(--admin-muted)]">
+            Ask an administrator to grant the specific operational permissions
+            you need.
+          </p>
+        </div>
+      )}
+    </section>
   )
 }

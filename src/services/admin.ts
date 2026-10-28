@@ -6,15 +6,25 @@ export async function getAdminStats() {
   return result
 }
 
-export async function getAllUsers(search?: string) {
+export async function getAllUsers(
+  search?: string,
+  role?: 'buyer' | 'cook',
+  status?: 'suspended',
+  page = 1,
+  pageSize = 25,
+) {
   const params = new URLSearchParams()
   if (search) params.set('search', search)
+  if (role) params.set('role', role)
+  if (status) params.set('status', status)
+  params.set('page', String(page))
+  params.set('page_size', String(pageSize))
   const response = await fetch(`/api/admin/users?${params.toString()}`, {
     cache: 'no-store',
   })
   const result = await response.json().catch(() => ({}))
   if (!response.ok) throw new Error(result.error || 'Could not load users')
-  return result.users ?? []
+  return result
 }
 
 export async function suspendUser(

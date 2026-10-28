@@ -1,6 +1,13 @@
 'use client'
 
-import { FormEvent, useCallback, useEffect, useState } from 'react'
+import {
+  FormEvent,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react'
 import {
   ChevronLeft,
   ChevronRight,
@@ -10,6 +17,7 @@ import {
   Search,
   Send,
 } from 'lucide-react'
+import { createClient } from '@/lib/supabase/client'
 
 interface SupportThread {
   id: string
@@ -31,6 +39,7 @@ interface SupportUser {
 
 interface SupportMessage {
   id: string
+  thread_id: string
   sender_id: string | null
   staff_actor_id: string | null
   sender_type: 'user' | 'staff'
@@ -40,7 +49,39 @@ interface SupportMessage {
 
 const PAGE_SIZE = 25
 
+function appendMessage(
+  current: SupportMessage[],
+  incoming: SupportMessage,
+): SupportMessage[] {
+  if (current.some((message) => message.id === incoming.id)) return current
+  return [...current, incoming].sort(
+    (left, right) =>
+      new Date(left.created_at).getTime() -
+      new Date(right.created_at).getTime(),
+  )
+}
+
+function mergeMessages(
+  current: SupportMessage[],
+  history: SupportMessage[],
+  threadId: string | undefined,
+): SupportMessage[] {
+  const byId = new Map<string, SupportMessage>()
+  for (const message of history) byId.set(message.id, message)
+  for (const message of current) {
+    if (threadId && message.thread_id === threadId)
+      byId.set(message.id, message)
+  }
+  return Array.from(byId.values()).sort(
+    (left, right) =>
+      new Date(left.created_at).getTime() -
+      new Date(right.created_at).getTime(),
+  )
+}
+
 export default function AdminMessagesPage() {
+  const supabase = useMemo(() => createClient(), [])
+  const activeSelectedIdRef = useRef('')
   const [users, setUsers] = useState<SupportUser[]>([])
   const [selectedId, setSelectedId] = useState('')
   const [messages, setMessages] = useState<SupportMessage[]>([])
@@ -56,7 +97,15 @@ export default function AdminMessagesPage() {
   const [messagesError, setMessagesError] = useState('')
   const [sentNotice, setSentNotice] = useState('')
   const [refreshKey, setRefreshKey] = useState(0)
+  const [threadRealtimeReady, setThreadRealtimeReady] = useState(false)
+  const [messageRealtimeReady, setMessageRealtimeReady] = useState(false)
   const selected = users.find((user) => user.id === selectedId)
+  const selectedThreadId = selected?.thread?.id
+  const realtimeReady = Boolean(
+    selectedId &&
+    threadRealtimeReady &&
+    (!selectedThreadId || messageRealtimeReady),
+  )
 
   const loadUsers = useCallback(
     async (signal?: AbortSignal) => {
@@ -102,6 +151,7 @@ export default function AdminMessagesPage() {
         setLoadingMessages(false)
         return
       }
+      if (signal?.aborted || activeSelectedIdRef.current !== userId) return
       setLoadingMessages(true)
       setMessagesError('')
       try {
@@ -113,9 +163,12 @@ export default function AdminMessagesPage() {
           },
         )
         const result = await response.json()
+        if (signal?.aborted || activeSelectedIdRef.current !== userId) return
         if (!response.ok)
           throw new Error(result.error || 'Could not load conversation')
-        setMessages(result.messages ?? [])
+        setMessages((current) =>
+          mergeMessages(current, result.messages ?? [], result.thread?.id),
+        )
         setUsers((current) =>
           current.map((user) =>
             user.id === userId
@@ -124,14 +177,20 @@ export default function AdminMessagesPage() {
           ),
         )
       } catch (error) {
-        if (error instanceof DOMException && error.name === 'AbortError') return
+        if (
+          (error instanceof DOMException && error.name === 'AbortError') ||
+          activeSelectedIdRef.current !== userId
+        )
+          return
         setMessagesError(
           error instanceof Error
             ? error.message
             : 'Could not load conversation',
         )
       } finally {
-        if (!signal?.aborted) setLoadingMessages(false)
+        if (!signal?.aborted && activeSelectedIdRef.current === userId) {
+          setLoadingMessages(false)
+        }
       }
     },
     [],
@@ -150,24 +209,97 @@ export default function AdminMessagesPage() {
   }, [loadUsers, refreshKey, search])
 
   useEffect(() => {
+    activeSelectedIdRef.current = selectedId
+    setMessages([])
+    setMessagesError('')
     if (!selectedId) {
-      setMessages([])
-      setMessagesError('')
+      setThreadRealtimeReady(false)
+      setMessageRealtimeReady(false)
       return
     }
     const controller = new AbortController()
     void loadMessages(selectedId, controller.signal)
-    // Poll the scoped support thread so replies appear without a broad realtime
-    // subscription or relying on support_messages being in the Realtime publication.
+    return () => {
+      controller.abort()
+      if (activeSelectedIdRef.current === selectedId) {
+        activeSelectedIdRef.current = ''
+      }
+    }
+  }, [loadMessages, selectedId])
+
+  useEffect(() => {
+    if (!selectedId) {
+      setThreadRealtimeReady(false)
+      return
+    }
+
+    setThreadRealtimeReady(false)
+    const channel = supabase
+      .channel(`admin-support-thread:${selectedId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'support_threads',
+          filter: `user_id=eq.${selectedId}`,
+        },
+        () => void loadMessages(selectedId),
+      )
+      .subscribe((status) => {
+        const connected = status === 'SUBSCRIBED'
+        setThreadRealtimeReady(connected)
+        if (connected) void loadMessages(selectedId)
+      })
+
+    return () => {
+      void supabase.removeChannel(channel)
+    }
+  }, [loadMessages, selectedId, supabase])
+
+  useEffect(() => {
+    if (!selectedId || !selectedThreadId) {
+      setMessageRealtimeReady(false)
+      return
+    }
+
+    setMessageRealtimeReady(false)
+    const channel = supabase
+      .channel(`admin-support-messages:${selectedThreadId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'support_messages',
+          filter: `thread_id=eq.${selectedThreadId}`,
+        },
+        (payload) => {
+          setMessages((current) =>
+            appendMessage(current, payload.new as SupportMessage),
+          )
+        },
+      )
+      .subscribe((status) => {
+        const connected = status === 'SUBSCRIBED'
+        setMessageRealtimeReady(connected)
+        // Fetch after the subscription is active to close the history/live gap.
+        if (connected) void loadMessages(selectedId)
+      })
+
+    return () => {
+      void supabase.removeChannel(channel)
+    }
+  }, [loadMessages, selectedId, selectedThreadId, supabase])
+
+  useEffect(() => {
+    if (!selectedId || realtimeReady) return
     const interval = window.setInterval(
       () => void loadMessages(selectedId),
       15000,
     )
-    return () => {
-      controller.abort()
-      window.clearInterval(interval)
-    }
-  }, [loadMessages, selectedId])
+    return () => window.clearInterval(interval)
+  }, [loadMessages, realtimeReady, selectedId])
 
   async function sendMessage(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -191,7 +323,7 @@ export default function AdminMessagesPage() {
       const result = await response.json()
       if (!response.ok)
         throw new Error(result.error || 'Could not send message')
-      setMessages((current) => [...current, result.message])
+      setMessages((current) => appendMessage(current, result.message))
       setUsers((current) =>
         current.map((user) =>
           user.id === selected.id ? { ...user, thread: result.thread } : user,
@@ -223,7 +355,10 @@ export default function AdminMessagesPage() {
         </div>
         <button
           type="button"
-          onClick={() => setRefreshKey((value) => value + 1)}
+          onClick={() => {
+            setRefreshKey((value) => value + 1)
+            if (selectedId) void loadMessages(selectedId)
+          }}
           disabled={loadingUsers}
           className="inline-flex min-h-10 items-center gap-2 rounded-lg border border-[var(--border)] px-3 text-sm font-medium hover:bg-[var(--bg-2)] disabled:opacity-50"
         >
@@ -345,6 +480,17 @@ export default function AdminMessagesPage() {
                   ? 'Suspended account · support contact remains available'
                   : 'Account active'}
                 {selected.kyc_status ? ` · KYC ${selected.kyc_status}` : ''}
+                {selectedId && (
+                  <span className="ml-2 inline-flex items-center gap-1.5">
+                    <span
+                      aria-hidden="true"
+                      className={`h-1.5 w-1.5 rounded-full ${realtimeReady ? 'bg-emerald-500' : 'bg-amber-500'}`}
+                    />
+                    {realtimeReady
+                      ? 'Live updates'
+                      : 'Reconnecting · auto-refresh enabled'}
+                  </span>
+                )}
               </p>
             )}
           </div>
