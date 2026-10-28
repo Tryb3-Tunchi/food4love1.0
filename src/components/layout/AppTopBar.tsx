@@ -2,18 +2,14 @@
 import { useHungerMode } from '@/components/providers/HungerModeProviders'
 import { motion, AnimatePresence } from 'framer-motion'
 import { NotificationCenter } from '@/components/notifications/NotificationCenter'
+import { Brand } from '@/components/ui/Brand'
 
 export function AppTopBar() {
   const { hungerMode, toggleHungerMode } = useHungerMode()
 
   return (
     <div className="f4l-nav flex shrink-0 items-center justify-between border-b px-4 py-3 lg:hidden">
-      <span
-        className="text-base font-extrabold tracking-tight"
-        style={{ color: 'var(--text-1)' }}
-      >
-        Food<span style={{ color: 'var(--accent)' }}>4</span>Love
-      </span>
+      <Brand href="/swipe" size="compact" />
 
       <div className="flex items-center gap-2">
         {/* Hunger mode toggle */}

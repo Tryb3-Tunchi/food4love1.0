@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef } from 'react'
+import { useEffect } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { createClient } from '@/lib/supabase/client'
 import { useAuthStore } from '@/stores/useAuthStore'
@@ -19,9 +19,6 @@ export function useNotifications() {
   }
   const preferencesKey = JSON.stringify(preferences)
   const queryClient = useQueryClient()
-  const channelRef = useRef<ReturnType<
-    ReturnType<typeof createClient>['channel']
-  > | null>(null)
 
   const unreadQuery = useQuery({
     queryKey: ['notifications-unread', userId, preferencesKey],
@@ -41,8 +38,7 @@ export function useNotifications() {
 
     const supabase = createClient()
 
-    // Use a unique channel name per mount to avoid collision
-    const channelName = `notifications-${userId}-${Date.now()}`
+    const channelName = `notifications-${userId}-${crypto.randomUUID()}`
     const channel = supabase
       .channel(channelName)
       .on(
@@ -62,13 +58,8 @@ export function useNotifications() {
       )
       .subscribe()
 
-    channelRef.current = channel
-
     return () => {
-      if (channelRef.current) {
-        supabase.removeChannel(channelRef.current)
-        channelRef.current = null
-      }
+      void supabase.removeChannel(channel)
     }
   }, [userId, queryClient])
 

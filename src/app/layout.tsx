@@ -31,13 +31,13 @@ export const metadata: Metadata = {
     siteName: 'Food4Love',
   },
   icons: {
-    icon: '/favicon.svg', // Placed inside the /public folder
+    icon: '/logo4lfood11.png',
   },
   manifest: '/manifest.json',
 }
 
 export const viewport: Viewport = {
-  themeColor: '#E87428',
+  themeColor: '#07533F',
   width: 'device-width',
   initialScale: 1,
   maximumScale: 1,

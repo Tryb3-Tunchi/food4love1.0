@@ -4,6 +4,7 @@ import { useState } from 'react'
 import Link from 'next/link'
 import { motion } from 'framer-motion'
 import { ArrowRight, Check, ChefHat, MapPin, Utensils } from 'lucide-react'
+import { Brand } from '@/components/ui/Brand'
 
 export function WaitlistLanding() {
   const [email, setEmail] = useState('')
@@ -42,18 +43,7 @@ export function WaitlistLanding() {
 
       <div className="mx-auto w-full max-w-6xl">
         <header className="flex items-center justify-between">
-          <Link
-            href="/waitlist"
-            className="inline-flex items-center gap-3"
-            aria-label="Food4Love home"
-          >
-            <span className="flex h-11 w-11 items-center justify-center rounded-full bg-meadow text-white shadow-card">
-              <ChefHat className="h-5 w-5" />
-            </span>
-            <span className="font-heading text-xl font-extrabold">
-              Food<span className="text-pepper">4</span>Love
-            </span>
-          </Link>
+          <Brand href="/waitlist" size="regular" />
           <Link
             href="/login"
             className="rounded-lg px-3 py-2 text-body text-sm font-semibold transition hover:bg-white/70 hover:text-ink"

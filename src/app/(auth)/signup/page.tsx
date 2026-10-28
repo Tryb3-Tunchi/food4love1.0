@@ -10,7 +10,6 @@ import toast from 'react-hot-toast'
 import {
   ArrowRight,
   Check,
-  ChefHat,
   Lock,
   Mail,
   Phone,
@@ -21,6 +20,7 @@ import { signupSchema, SignupInput } from '@/lib/validations'
 import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
+import { Brand } from '@/components/ui/Brand'
 
 const PERKS = [
   'Role-based experience from day one',
@@ -65,17 +65,7 @@ function SignupPageContent() {
       <div className="mx-auto grid min-h-[calc(100dvh-3rem)] max-w-7xl gap-6 lg:grid-cols-[0.94fr_1.06fr]">
         <div className="f4l-auth-spotlight hidden rounded-[2.75rem] p-10 text-white lg:flex lg:flex-col lg:justify-between">
           <div className="relative z-10">
-            <Link
-              href="/"
-              className="inline-flex items-center gap-3 rounded-full bg-white/10 px-3 py-2 backdrop-blur-sm"
-            >
-              <div className="bg-white/18 flex h-10 w-10 items-center justify-center rounded-full">
-                <ChefHat className="h-5 w-5 text-white" />
-              </div>
-              <span className="font-heading text-xl font-extrabold tracking-tight">
-                Food4Love
-              </span>
-            </Link>
+            <Brand href="/" size="large" tone="dark" />
 
             <div className="bg-white/12 mt-10 inline-flex rounded-full px-4 py-2 text-sm font-semibold">
               {isCook ? 'Cook experience' : 'Buyer experience'}
@@ -125,19 +115,7 @@ function SignupPageContent() {
             transition={{ duration: 0.4 }}
             className="f4l-auth-panel w-full max-w-xl rounded-[2.5rem] p-6 sm:p-8 lg:p-10"
           >
-            <Link
-              href="/"
-              className="mb-8 inline-flex items-center gap-3 rounded-full bg-white/80 px-3 py-2 lg:hidden"
-            >
-              <div
-                className={`flex h-10 w-10 items-center justify-center rounded-full ${isCook ? 'bg-blush text-pepper' : 'bg-mint text-meadow'}`}
-              >
-                <ChefHat className="h-5 w-5" />
-              </div>
-              <span className="font-heading text-xl font-extrabold tracking-tight text-ink">
-                Food4Love
-              </span>
-            </Link>
+            <Brand href="/" size="regular" className="mb-8 lg:hidden" />
 
             <div className="mb-8">
               <div

@@ -8,6 +8,7 @@ import { useAuthStore } from '@/stores/useAuthStore'
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const router = useRouter()
   const setProfile = useAuthStore((s) => s.setProfile)
+  const setIsAdmin = useAuthStore((s) => s.setIsAdmin)
   const setLoading = useAuthStore((s) => s.setLoading)
 
   useEffect(() => {
@@ -23,6 +24,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       if (sessionError || !session?.user) {
         setProfile(null)
+        setIsAdmin(false)
         setLoading(false)
         return
       }
@@ -51,6 +53,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
 
       setProfile(profile)
+      setIsAdmin(session.user.app_metadata?.role === 'admin')
       setLoading(false)
     }
 
@@ -61,6 +64,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (event === 'SIGNED_OUT') {
         setProfile(null)
+        setIsAdmin(false)
         return
       }
 
@@ -72,11 +76,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           .maybeSingle()
 
         setProfile(profile)
+        setIsAdmin(session.user.app_metadata?.role === 'admin')
       }
     })
 
     return () => subscription.unsubscribe()
-  }, [setProfile, setLoading, router])
+  }, [setProfile, setIsAdmin, setLoading, router])
 
   return <>{children}</>
 }

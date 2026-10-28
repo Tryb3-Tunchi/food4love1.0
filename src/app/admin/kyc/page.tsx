@@ -28,7 +28,7 @@ export default function AdminKYCPage() {
       .finally(() => setLoading(false))
   }, [])
 
-  const handle = async (id: string, approved: boolean, reason?: string) => {
+  const handle = async (id: string, approved: boolean, reason: string) => {
     setReviewing(id)
     try {
       await reviewKYC(id, approved, reason)
@@ -106,7 +106,13 @@ export default function AdminKYCPage() {
                   size="sm"
                   className="flex-1 bg-lime shadow-none hover:bg-lime/90"
                   loading={reviewing === s.id}
-                  onClick={() => handle(s.id, true)}
+                  onClick={() => {
+                    const reason = window.prompt(
+                      'Reason for approval (minimum 5 characters):',
+                    )
+                    if (reason?.trim() && reason.trim().length >= 5)
+                      handle(s.id, true, reason.trim())
+                  }}
                 >
                   ✓ Approve & Verify
                 </Button>
@@ -116,8 +122,11 @@ export default function AdminKYCPage() {
                   className="flex-1"
                   loading={reviewing === s.id}
                   onClick={() => {
-                    const r = prompt('Rejection reason (shown to chef):')
-                    if (r) handle(s.id, false, r)
+                    const reason = window.prompt(
+                      'Rejection reason (shown to chef, minimum 5 characters):',
+                    )
+                    if (reason?.trim() && reason.trim().length >= 5)
+                      handle(s.id, false, reason.trim())
                   }}
                 >
                   ✕ Reject

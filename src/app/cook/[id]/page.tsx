@@ -13,6 +13,7 @@ import {
 import type { Metadata } from 'next'
 import type { Post } from '@/types/db'
 import { PostFeed } from '@/components/posts/PostFeed'
+import { ReportButton } from '@/components/reports/ReportButton'
 
 export async function generateMetadata({
   params,
@@ -46,6 +47,8 @@ export default async function CookPublicPage({
     .select('*, daily_special:daily_specials(*)')
     .eq('id', params.id)
     .eq('role', 'cook')
+    .eq('suspended', false)
+    .eq('daily_special.moderation_status', 'active')
     .single()
   if (!chef) notFound()
 
@@ -119,12 +122,15 @@ export default async function CookPublicPage({
             </div>
           </div>
 
-          <h1
-            className="mb-0.5 font-heading text-2xl font-bold"
-            style={{ color: 'var(--text-1)' }}
-          >
-            {chef.full_name}
-          </h1>
+          <div className="flex items-start justify-between gap-3">
+            <h1
+              className="mb-0.5 font-heading text-2xl font-bold"
+              style={{ color: 'var(--text-1)' }}
+            >
+              {chef.full_name}
+            </h1>
+            <ReportButton targetType="profile" targetId={chef.id} />
+          </div>
           <div className="mb-1.5 flex items-center gap-2">
             <span
               className="text-sm font-medium"
