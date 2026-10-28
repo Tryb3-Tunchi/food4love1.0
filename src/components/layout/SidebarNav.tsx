@@ -1,7 +1,15 @@
 'use client'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Flame, Heart, MessageCircle, User, Map, Shield, ShieldCheck } from 'lucide-react'
+import {
+  Flame,
+  Heart,
+  MessageCircle,
+  User,
+  Map,
+  Shield,
+  ShieldCheck,
+} from 'lucide-react'
 import { useAuthStore } from '@/stores/useAuthStore'
 import { Avatar } from '@/components/ui/Avatar'
 import { Brand } from '@/components/ui/Brand'
@@ -68,7 +76,7 @@ export function SidebarNav() {
         {isAdmin && (
           <Link
             href="/admin"
-            className="mt-3 flex items-center gap-3 rounded-xl border border-[var(--accent)]/20 bg-[var(--accent-soft)] px-3 py-2.5 text-sm font-semibold text-[var(--accent)]"
+            className="border-[var(--accent)]/20 mt-3 flex items-center gap-3 rounded-xl border bg-[var(--accent-soft)] px-3 py-2.5 text-sm font-semibold text-[var(--accent)]"
           >
             <ShieldCheck className="h-5 w-5 shrink-0" />
             Admin dashboard

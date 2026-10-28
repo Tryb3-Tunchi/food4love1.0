@@ -8,7 +8,11 @@ const AdminThemeContext = createContext<{
   toggleTheme: () => void
 } | null>(null)
 
-export function AdminThemeProvider({ children }: { children: React.ReactNode }) {
+export function AdminThemeProvider({
+  children,
+}: {
+  children: React.ReactNode
+}) {
   const [theme, setTheme] = useState<AdminTheme>('dark')
 
   useEffect(() => {
@@ -24,10 +28,14 @@ export function AdminThemeProvider({ children }: { children: React.ReactNode }) 
     <AdminThemeContext.Provider
       value={{
         theme,
-        toggleTheme: () => setTheme((current) => current === 'dark' ? 'light' : 'dark'),
+        toggleTheme: () =>
+          setTheme((current) => (current === 'dark' ? 'light' : 'dark')),
       }}
     >
-      <div className={`f4l-admin-shell f4l-admin-${theme}`} data-admin-theme={theme}>
+      <div
+        className={`f4l-admin-shell f4l-admin-${theme}`}
+        data-admin-theme={theme}
+      >
         {children}
       </div>
     </AdminThemeContext.Provider>

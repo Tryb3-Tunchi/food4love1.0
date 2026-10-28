@@ -4,7 +4,8 @@ export default function AccountSuspendedPage() {
       <section className="max-w-md">
         <h1 className="text-2xl font-bold">Account access paused</h1>
         <p className="mt-3 text-sm text-[var(--text-2)]">
-          Your Food4Love account is currently suspended. Contact Food4Love Support for help.
+          Your Food4Love account is currently suspended. Contact Food4Love
+          Support for help.
         </p>
       </section>
     </main>

@@ -67,7 +67,7 @@ export default function AdminAccessPage() {
     if (!selected) return
     setIsAdmin(selected.is_admin)
     setPermissions(selected.admin_permissions)
-  }, [selectedId, users])
+  }, [selected])
 
   async function saveAccess() {
     if (!selected) return

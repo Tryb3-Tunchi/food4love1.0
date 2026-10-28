@@ -258,7 +258,7 @@ export default function ProfilePage() {
           {isAdmin && (
             <Link
               href="/admin"
-              className="mb-4 inline-flex min-h-10 items-center gap-2 rounded-lg border border-[var(--accent)]/25 bg-[var(--accent-soft)] px-3 py-2 text-sm font-semibold text-[var(--accent)] transition hover:border-[var(--accent)]/50"
+              className="border-[var(--accent)]/25 hover:border-[var(--accent)]/50 mb-4 inline-flex min-h-10 items-center gap-2 rounded-lg border bg-[var(--accent-soft)] px-3 py-2 text-sm font-semibold text-[var(--accent)] transition"
             >
               <ShieldCheck className="h-4 w-4" />
               Admin dashboard
@@ -267,7 +267,7 @@ export default function ProfilePage() {
 
           <Link
             href="/support"
-            className="mb-4 inline-flex min-h-10 items-center gap-2 rounded-lg border border-[var(--border)] bg-[var(--card)] px-3 py-2 text-sm font-semibold text-[var(--text-2)] transition hover:border-[var(--accent)]/40 hover:text-[var(--accent)]"
+            className="hover:border-[var(--accent)]/40 mb-4 inline-flex min-h-10 items-center gap-2 rounded-lg border border-[var(--border)] bg-[var(--card)] px-3 py-2 text-sm font-semibold text-[var(--text-2)] transition hover:text-[var(--accent)]"
           >
             <MessageCircle className="h-4 w-4" />
             Food4Love Support
