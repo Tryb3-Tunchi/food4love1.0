@@ -13,6 +13,8 @@ import {
 import type { Metadata } from 'next'
 import type { Post } from '@/types/db'
 import { PostFeed } from '@/components/posts/PostFeed'
+import { AvailabilityCard } from '@/components/cook/AvailabilityCard'
+import { StoryRow } from '@/components/cook/StoryRow'
 import { ReportButton } from '@/components/reports/ReportButton'
 
 export async function generateMetadata({
@@ -60,6 +62,19 @@ export default async function CookPublicPage({
 
   if (postsError) throw postsError
   const posts = (postsData ?? []) as Post[]
+
+  const { data: availability } = await sb
+    .from('cook_availability')
+    .select('*')
+    .eq('cook_id', chef.id)
+    .maybeSingle()
+
+  const { data: stories } = await sb
+    .from('stories')
+    .select('*')
+    .eq('cook_id', chef.id)
+    .gte('expires_at', new Date().toISOString())
+    .order('created_at', { ascending: false })
 
   return (
     <div className="pb-10" style={{ background: 'var(--bg)' }}>
@@ -177,6 +192,13 @@ export default async function CookPublicPage({
             </div>
           )}
 
+          {stories && stories.length > 0 && (
+            <div className="mb-5">
+              <p className="f4l-section-label mb-2">Stories</p>
+              <StoryRow stories={stories} />
+            </div>
+          )}
+
           {chef.price_min && (
             <div
               className="mb-5 flex items-center justify-between rounded-2xl p-4"
@@ -202,6 +224,8 @@ export default async function CookPublicPage({
               />
             </div>
           )}
+
+          {availability && <AvailabilityCard availability={availability} />}
 
           <Link
             href={`/signup?ref_chef=${params.id}`}

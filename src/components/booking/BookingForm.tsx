@@ -50,7 +50,9 @@ export function BookingForm({ cookId, matchId }: BookingFormProps) {
     let cancelled = false
     getDailySpecialsByCook(cookId)
       .then((data) => {
-        if (!cancelled) setSpecials(data)
+        if (!cancelled) {
+          setSpecials(data.filter((special) => !special.is_paused))
+        }
       })
       .catch(() => {
         if (!cancelled) toast.error('Could not load this cook’s current menu')

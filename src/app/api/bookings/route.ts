@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
+import { checkAvailability } from '@/lib/availability'
 
 const bookingRequestSchema = z
   .object({
@@ -121,6 +122,7 @@ export async function POST(req: NextRequest) {
       .select('id, title, price')
       .eq('cook_id', request.cook_id)
       .eq('moderation_status', 'active')
+      .eq('is_paused', false)
       .gte('available_until', new Date().toISOString())
       .in(
         'id',
@@ -162,6 +164,55 @@ export async function POST(req: NextRequest) {
           `${item.quantity} × ${specialById.get(item.special_id)?.title}`,
       )
       .join(', ')
+
+    const requestedAt = new Date(request.scheduled_at)
+    // Cook schedules are stored and displayed in Nigeria time (UTC+1).
+    const lagosAt = new Date(requestedAt.getTime() + 60 * 60 * 1000)
+    const serviceDate = lagosAt.toISOString().slice(0, 10)
+    const serviceTime = lagosAt.toISOString().slice(11, 16)
+    const dayStart = new Date(`${serviceDate}T00:00:00+01:00`)
+    const dayEnd = new Date(dayStart.getTime() + 24 * 60 * 60 * 1000)
+
+    const { data: availability, error: availabilityError } = await admin
+      .from('cook_availability')
+      .select('*')
+      .eq('cook_id', request.cook_id)
+      .maybeSingle()
+    if (availabilityError) {
+      return NextResponse.json(
+        { error: 'Could not verify this cook’s availability' },
+        { status: 503 },
+      )
+    }
+
+    if (availability) {
+      const { count, error: countError } = await admin
+        .from('bookings')
+        .select('id', { count: 'exact', head: true })
+        .eq('cook_id', request.cook_id)
+        .gte('scheduled_for', dayStart.toISOString())
+        .lt('scheduled_for', dayEnd.toISOString())
+        .neq('status', 'cancelled')
+      if (countError) {
+        return NextResponse.json(
+          { error: 'Could not check this cook’s bookings' },
+          { status: 500 },
+        )
+      }
+
+      const availabilityCheck = checkAvailability(availability, {
+        date: serviceDate,
+        time: serviceTime,
+        ordersThatDay: count ?? 0,
+      })
+      if (!availabilityCheck.ok) {
+        return NextResponse.json(
+          { error: availabilityCheck.reason },
+          { status: 409 },
+        )
+      }
+    }
+
     const { data: booking, error } = await admin
       .from('bookings')
       .insert({

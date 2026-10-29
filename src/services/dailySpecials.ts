@@ -20,6 +20,7 @@ export async function getAllActiveSpecials() {
     .from('daily_specials')
     .select(`*, cook:profiles(id, full_name, avatar_url, rating)`)
     .eq('moderation_status', 'active')
+    .eq('is_paused', false)
     .gte('available_until', new Date().toISOString())
     .order('created_at', { ascending: false })
 
@@ -27,18 +28,50 @@ export async function getAllActiveSpecials() {
   return data ?? []
 }
 
-export async function createDailySpecial(special: {
+export interface DailySpecialChanges {
+  title?: string
+  description?: string | null
+  price?: number
+  image_url?: string | null
+  available_until?: string
+  is_paused?: boolean
+  serving_size?: number | null
+  lead_time_hours?: number | null
+  fulfillment_options?: string[] | null
+  fulfillment_notes?: string | null
+  ingredients?: string | null
+  allergens?: string[] | null
+  portions_available?: number | null
+}
+
+export interface DailySpecialInput extends DailySpecialChanges {
   cook_id: string
   title: string
-  description?: string
   price: number
-  image_url?: string
   available_until: string
-}) {
+}
+
+export async function createDailySpecial(special: DailySpecialInput) {
   const supabase = createClient()
   const { data, error } = await supabase
     .from('daily_specials')
     .insert(special)
+    .select()
+    .single()
+
+  if (error) throw error
+  return data
+}
+
+export async function updateDailySpecial(
+  id: string,
+  changes: DailySpecialChanges,
+) {
+  const supabase = createClient()
+  const { data, error } = await supabase
+    .from('daily_specials')
+    .update(changes)
+    .eq('id', id)
     .select()
     .single()
 

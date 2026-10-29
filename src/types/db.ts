@@ -68,6 +68,31 @@ export interface DailySpecial {
   image_url?: string
   available_until: string
   created_at: string
+  is_paused?: boolean
+  serving_size?: number | null
+  lead_time_hours?: number | null
+  fulfillment_options?: string[] | null
+  fulfillment_notes?: string | null
+  ingredients?: string | null
+  allergens?: string[] | null
+  portions_available?: number | null
+}
+
+export type WeekdayKey = 'mon' | 'tue' | 'wed' | 'thu' | 'fri' | 'sat' | 'sun'
+
+export interface DayHours {
+  open: string
+  close: string
+}
+
+export interface CookAvailability {
+  cook_id: string
+  weekly_hours: Partial<Record<WeekdayKey, DayHours | null>>
+  max_orders_per_day?: number | null
+  notice_hours?: number | null
+  service_areas: string[]
+  is_paused: boolean
+  updated_at?: string
 }
 
 export interface Swipe {

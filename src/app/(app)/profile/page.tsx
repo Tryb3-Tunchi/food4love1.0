@@ -35,6 +35,7 @@ import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import toast from 'react-hot-toast'
 import { useProfile } from '@/hooks/useProfile'
+import { AvailabilityText } from '@/components/cook/AvailabilityText'
 import { updateProfile as updateProfileRecord } from '@/services/profiles'
 import { TOUR_SEGMENT_KEY } from '@/components/tour/AppTour'
 ;('')
@@ -506,7 +507,7 @@ export default function ProfilePage() {
                     {[
                       {
                         label: 'Availability',
-                        value: 'Mon–Sat · 12pm–8pm',
+                        value: <AvailabilityText cookId={profile.id} />,
                         icon: Clock,
                       },
                       { label: 'Serves', value: '1–6 people', icon: Users },
