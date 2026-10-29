@@ -19,23 +19,29 @@ alter table stories add column if not exists video_url text;
 alter table stories enable row level security;
 
 drop policy if exists "Stories are publicly readable" on stories;
-create policy "Stories are publicly readable" on stories
-  for select using (true);
-
+drop policy if exists "Read active stories" on public.stories;
+drop policy if exists "Chefs create their own stories" on public.stories;
+drop policy if exists "Chefs delete their own stories" on public.stories;
 drop policy if exists "Cooks manage their own stories" on stories;
-create policy "Cooks manage their own stories" on stories
-  for all using (
-    auth.uid() = cook_id
+drop policy if exists "Active stories are publicly readable" on public.stories;
+drop policy if exists "Active cooks manage their own stories" on public.stories;
+create policy "Active stories are publicly readable" on public.stories
+  for select to anon, authenticated using (expires_at > now());
+
+create policy "Active cooks manage their own stories" on public.stories
+  for all to authenticated using (
+    cook_id = (select auth.uid())
     and exists (
       select 1 from public.profiles p
-      where p.id = auth.uid()
+      where p.id = (select auth.uid())
         and p.role = 'cook'
+        and p.suspended = false
     )
   ) with check (
-    auth.uid() = cook_id
+    cook_id = (select auth.uid())
     and exists (
       select 1 from public.profiles p
-      where p.id = auth.uid()
+      where p.id = (select auth.uid())
         and p.role = 'cook'
         and p.suspended = false
     )

@@ -14,12 +14,17 @@ export function AppTopBar() {
       <div className="flex items-center gap-2">
         {/* Hunger mode toggle */}
         <button
+          type="button"
           onClick={toggleHungerMode}
+          aria-pressed={hungerMode}
+          aria-label={
+            hungerMode ? 'Switch to light appearance' : 'Switch to Hunger Mode'
+          }
           className="flex items-center gap-2 rounded-full px-3 py-1.5 transition-all duration-300"
           style={{
             background: hungerMode
-              ? 'color-mix(in srgb, var(--accent-alt) 18%, white 82%)'
-              : 'rgba(255,255,255,0.65)',
+              ? 'var(--surface-strong)'
+              : 'var(--glass-bg)',
             border: `1px solid ${hungerMode ? 'var(--accent-alt)' : 'var(--border)'}`,
           }}
         >

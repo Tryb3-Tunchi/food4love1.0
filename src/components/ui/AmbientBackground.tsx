@@ -1,6 +1,6 @@
 'use client'
 
-import { motion } from 'framer-motion'
+import { motion, useReducedMotion } from 'framer-motion'
 import { ReactNode } from 'react'
 
 interface Props {
@@ -149,6 +149,7 @@ export function AmbientBackground({
 }: Props) {
   const orbs = configs[variant]
   const op = opacities[intensity]
+  const shouldReduceMotion = useReducedMotion()
 
   return (
     <div className="relative isolate min-h-screen">
@@ -157,7 +158,13 @@ export function AmbientBackground({
         className="ambient-bg pointer-events-none fixed inset-0 -z-10"
         aria-hidden="true"
       >
-        <div className="f4l-map-texture absolute inset-[-8%] opacity-60" />
+        <div className="ambient-dot-field absolute inset-0" />
+        <div className="f4l-map-texture absolute inset-[-8%] opacity-20" />
+        <div className="ambient-lanterns absolute inset-0">
+          <span className="ambient-lantern ambient-lantern-one" />
+          <span className="ambient-lantern ambient-lantern-two" />
+          <span className="ambient-lantern ambient-lantern-three" />
+        </div>
         {orbs.map((orb, i) => (
           <motion.div
             key={i}
@@ -172,13 +179,17 @@ export function AmbientBackground({
               background: `radial-gradient(circle, rgba(${orb.color},${op}), transparent 70%)`,
               filter: 'blur(60px)',
             }}
-            animate={{
-              x: [0, 18, -10, 0],
-              y: [0, -22, 14, 0],
-              scale: [1, 1.04, 0.98, 1],
-            }}
+            animate={
+              shouldReduceMotion
+                ? {}
+                : {
+                    x: [0, 18, -10, 0],
+                    y: [0, -22, 14, 0],
+                    scale: [1, 1.04, 0.98, 1],
+                  }
+            }
             transition={{
-              duration: orb.dur,
+              duration: shouldReduceMotion ? 0 : orb.dur,
               delay: orb.delay,
               repeat: Infinity,
               ease: 'easeInOut',

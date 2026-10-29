@@ -26,7 +26,11 @@ begin
 end;
 $$;
 
-revoke all on function public.food4love_handle_new_user() from public;
+-- Trigger functions are invoked by the trigger, not by an API caller.
+-- Supabase may grant EXECUTE to anon/authenticated through default privileges,
+-- so revoke those grants explicitly as well as PUBLIC.
+revoke all on function public.food4love_handle_new_user()
+  from public, anon, authenticated, service_role;
 
 drop trigger if exists food4love_create_profile_after_signup on auth.users;
 create trigger food4love_create_profile_after_signup
