@@ -21,6 +21,7 @@ export default function KYCPage() {
   const [idDoc, setIdDoc] = useState('')
   const [faceVideo, setFaceVideo] = useState('')
   const [uploading, setUploading] = useState(false)
+  const [submitting, setSubmitting] = useState(false)
   const [idType, setIdType] = useState<
     'nin' | 'bvn' | 'passport' | 'drivers_license'
   >('nin')
@@ -30,7 +31,11 @@ export default function KYCPage() {
     async (file: File, folder: string) => {
       if (!profile) throw new Error('Sign in to upload verification documents')
       const sb = createClient()
-      const path = `${profile.id}/${folder}/${Date.now()}-${file.name}`
+      const extension = file.name
+        .split('.')
+        .pop()
+        ?.replace(/[^a-z0-9]/gi, '')
+      const path = `${profile.id}/${folder}/${crypto.randomUUID()}${extension ? `.${extension}` : ''}`
       const { error } = await sb.storage
         .from('kyc-documents')
         .upload(path, file)
@@ -47,8 +52,12 @@ export default function KYCPage() {
       try {
         setIdDoc(await uploadFile(files[0], 'id-docs'))
         toast.success('ID uploaded')
-      } catch {
-        toast.error('Upload failed')
+      } catch (error) {
+        toast.error(
+          error instanceof Error && /bucket.*not found/i.test(error.message)
+            ? 'Secure KYC uploads are not configured yet. Please contact support.'
+            : 'Could not upload the ID document. Check the file type and try again.',
+        )
       } finally {
         setUploading(false)
       }
@@ -63,8 +72,12 @@ export default function KYCPage() {
       try {
         setFaceVideo(await uploadFile(files[0], 'face-videos'))
         toast.success('Video uploaded')
-      } catch {
-        toast.error('Upload failed')
+      } catch (error) {
+        toast.error(
+          error instanceof Error && /bucket.*not found/i.test(error.message)
+            ? 'Secure KYC uploads are not configured yet. Please contact support.'
+            : 'Could not upload the face video. Check the file type and try again.',
+        )
       } finally {
         setUploading(false)
       }
@@ -74,13 +87,23 @@ export default function KYCPage() {
 
   const idDz = useDropzone({
     onDrop: onDropId,
-    accept: { 'image/*': [], 'application/pdf': [] },
+    accept: {
+      'image/jpeg': ['.jpg', '.jpeg'],
+      'image/png': ['.png'],
+      'image/webp': ['.webp'],
+      'application/pdf': ['.pdf'],
+    },
     maxFiles: 1,
+    maxSize: 50 * 1024 * 1024,
   })
   const vidDz = useDropzone({
     onDrop: onDropVideo,
-    accept: { 'video/*': [] },
+    accept: {
+      'video/mp4': ['.mp4'],
+      'video/quicktime': ['.mov'],
+    },
     maxFiles: 1,
+    maxSize: 50 * 1024 * 1024,
   })
 
   const submit = async (data: { idNumber: string }) => {
@@ -88,6 +111,7 @@ export default function KYCPage() {
       toast.error('Please upload all documents')
       return
     }
+    setSubmitting(true)
     try {
       await submitKYC({
         id_type: idType,
@@ -101,6 +125,7 @@ export default function KYCPage() {
           ? error.message
           : 'Could not submit verification',
       )
+      setSubmitting(false)
       return
     }
     updateStore({ kyc_status: 'pending' })
@@ -212,8 +237,8 @@ export default function KYCPage() {
             type="submit"
             size="lg"
             className="w-full"
-            loading={uploading}
-            disabled={!idDoc || !faceVideo}
+            loading={submitting}
+            disabled={!idDoc || !faceVideo || uploading || submitting}
           >
             Submit for Review →
           </Button>

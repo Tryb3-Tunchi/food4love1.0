@@ -38,12 +38,11 @@ export function getProfileChecklist(profile: Profile): ChecklistItem[] {
 }
 
 export function bookingAmount(booking: Booking) {
-  return booking.amount ?? booking.total_amount ?? 0
+  return booking.amount ?? booking.price ?? 0
 }
 
 function bookingTime(booking: Booking) {
-  const when =
-    booking.delivery_date ?? booking.scheduled_at ?? booking.created_at
+  const when = booking.scheduled_for ?? booking.created_at
   return new Date(when).getTime()
 }
 
@@ -72,16 +71,14 @@ export function summarizeOrders(
 
   const completed = bookings.filter(
     (b) =>
-      b.status === 'delivered' &&
+      b.status === 'completed' &&
       b.payment_status !== 'refunded' &&
       new Date(b.updated_at ?? b.created_at).getTime() >= since,
   )
 
   return {
     newOrders: bookings.filter((b) => b.status === 'pending').length,
-    inProgress: bookings.filter((b) =>
-      ['confirmed', 'preparing', 'ready'].includes(b.status),
-    ).length,
+    inProgress: bookings.filter((b) => b.status === 'confirmed').length,
     completed: completed.length,
     earned: completed.reduce((sum, b) => sum + bookingAmount(b), 0),
   }
@@ -90,9 +87,9 @@ export function summarizeOrders(
 export function splitBookings(bookings: Booking[]) {
   const pending = bookings.filter((b) => b.status === 'pending')
   const upcoming = bookings
-    .filter((b) => ['confirmed', 'preparing', 'ready'].includes(b.status))
+    .filter((b) => b.status === 'confirmed')
     .sort((a, b) => bookingTime(a) - bookingTime(b))
-  const completed = bookings.filter((b) => b.status === 'delivered')
+  const completed = bookings.filter((b) => b.status === 'completed')
   const earned = completed.reduce((sum, b) => sum + bookingAmount(b), 0)
 
   return { pending, upcoming, completed, earned }

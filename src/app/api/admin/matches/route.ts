@@ -38,8 +38,9 @@ export async function GET() {
     )
   const { data: profiles, error: profilesError } = await admin
     .from('profiles')
-    .select('id, full_name, role, suspended')
+    .select('id, full_name, role, suspended, onboarding_complete, kyc_status')
     .eq('suspended', false)
+    .eq('onboarding_complete', true)
     .order('full_name')
   if (profilesError)
     return NextResponse.json(
@@ -90,7 +91,7 @@ export async function POST(request: NextRequest) {
     } else {
       const { data: profiles, error: profileError } = await admin
         .from('profiles')
-        .select('id, role, suspended, kyc_status')
+        .select('id, role, suspended, onboarding_complete')
         .in('id', [parsed.data.user1_id, parsed.data.user2_id])
       const cook = profiles?.find((profile) => profile.role === 'cook')
       const buyer = profiles?.find((profile) => profile.role === 'buyer')
@@ -100,11 +101,10 @@ export async function POST(request: NextRequest) {
         !cook ||
         !buyer ||
         profiles?.some((profile) => profile.suspended) ||
-        cook.kyc_status !== 'verified'
+        profiles?.some((profile) => !profile.onboarding_complete)
       ) {
         resultError = {
-          message:
-            'An active buyer and verified, active cook account are required',
+          message: 'An active, onboarded buyer and cook are required',
         }
       } else {
         const { data: existing, error: existingError } = await admin

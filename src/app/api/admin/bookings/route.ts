@@ -54,9 +54,7 @@ export async function POST(request: NextRequest) {
   const admin = createAdminClient()
   const { data: booking, error: bookingError } = await admin
     .from('bookings')
-    .select(
-      'id, amount, total_amount, payment_status, payment_reference, status',
-    )
+    .select('id, amount, price, payment_status, payment_reference, status')
     .eq('id', parsed.data.booking_id)
     .maybeSingle()
   if (bookingError || !booking)
@@ -71,7 +69,7 @@ export async function POST(request: NextRequest) {
     )
   }
 
-  const bookingAmountNgn = Number(booking.amount ?? booking.total_amount)
+  const bookingAmountNgn = Number(booking.amount ?? booking.price)
   const requestedKobo = parsed.data.amount_ngn * 100
   if (
     !Number.isSafeInteger(bookingAmountNgn) ||

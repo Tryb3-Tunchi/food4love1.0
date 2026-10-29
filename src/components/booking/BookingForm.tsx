@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { motion } from 'framer-motion'
 import {
@@ -11,8 +11,8 @@ import {
   ArrowLeft,
 } from 'lucide-react'
 import { useAuthStore } from '@/stores/useAuthStore'
-import { createClient } from '@/lib/supabase/client'
 import { createBooking } from '@/services/bookings'
+import { getDailySpecialsByCook } from '@/services/dailySpecials'
 import { MenuSelector } from './MenuSelector'
 import { PriceBreakdown } from './PriceBreakdown'
 import toast from 'react-hot-toast'
@@ -44,20 +44,26 @@ export function BookingForm({ cookId, matchId }: BookingFormProps) {
   const [isLoadingSpecials, setIsLoadingSpecials] = useState(true)
 
   // Fetch cook's daily specials
-  useState(() => {
-    const fetchSpecials = async () => {
-      const supabase = createClient()
-      const { data } = await supabase
-        .from('daily_specials')
-        .select('*')
-        .eq('cook_id', cookId)
-        .eq('moderation_status', 'active')
-        .gte('available_until', new Date().toISOString())
-      setSpecials((data ?? []).filter((s) => !s.is_paused))
-      setIsLoadingSpecials(false)
+  const [guestCount, setGuestCount] = useState(1)
+
+  useEffect(() => {
+    let cancelled = false
+    getDailySpecialsByCook(cookId)
+      .then((data) => {
+        if (!cancelled) {
+          setSpecials(data.filter((special) => !special.is_paused))
+        }
+      })
+      .catch(() => {
+        if (!cancelled) toast.error('Could not load this cook’s current menu')
+      })
+      .finally(() => {
+        if (!cancelled) setIsLoadingSpecials(false)
+      })
+    return () => {
+      cancelled = true
     }
-    fetchSpecials()
-  })
+  }, [cookId])
 
   const menuItems = specials.map((s) => ({
     id: s.id,
@@ -96,26 +102,25 @@ export function BookingForm({ cookId, matchId }: BookingFormProps) {
     setIsSubmitting(true)
     try {
       await createBooking({
-        buyer_id: profile.id,
         cook_id: cookId,
         match_id: matchId,
         items: selectedItems.map((s) => ({
-          item_name: s.item.name,
+          special_id: s.item.id,
           quantity: s.qty,
-          unit_price: s.item.price,
         })),
         scheduled_at: new Date(scheduledAt).toISOString(),
-        delivery_address: address,
-        notes: notes || undefined,
-        delivery_fee: deliveryFee,
-        service_fee: serviceFee,
+        service_address: address,
+        special_requests: notes || undefined,
+        guest_count: guestCount,
       })
 
       toast.success('Booking sent! Waiting for chef to confirm.')
       router.push('/bookings')
     } catch (err) {
       console.error(err)
-      toast.error('Something went wrong. Try again.')
+      toast.error(
+        err instanceof Error ? err.message : 'Could not send your request.',
+      )
     } finally {
       setIsSubmitting(false)
     }
@@ -162,6 +167,28 @@ export function BookingForm({ cookId, matchId }: BookingFormProps) {
               value={scheduledAt}
               onChange={(e) => setScheduledAt(e.target.value)}
               min={new Date().toISOString().slice(0, 16)}
+              className="w-full rounded-2xl border border-[var(--border)] bg-[var(--surface)] px-4 py-3 text-[var(--text)] outline-none transition focus:border-[var(--primary)] focus:ring-1 focus:ring-[var(--primary)]"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <label
+              htmlFor="guest-count"
+              className="text-sm font-semibold uppercase tracking-wider text-[var(--text-muted)]"
+            >
+              Number of guests
+            </label>
+            <input
+              id="guest-count"
+              type="number"
+              min={1}
+              max={20}
+              value={guestCount}
+              onChange={(event) =>
+                setGuestCount(
+                  Math.min(20, Math.max(1, Number(event.target.value) || 1)),
+                )
+              }
               className="w-full rounded-2xl border border-[var(--border)] bg-[var(--surface)] px-4 py-3 text-[var(--text)] outline-none transition focus:border-[var(--primary)] focus:ring-1 focus:ring-[var(--primary)]"
             />
           </div>

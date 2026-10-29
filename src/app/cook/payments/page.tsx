@@ -122,9 +122,9 @@ export default function CookPaymentsPage() {
             <div className="grid grid-cols-2 gap-3">
               <Figure
                 icon={CheckCircle2}
-                label="Delivered"
-                value={formatAmount(summary.deliveredValue)}
-                note={`${summary.deliveredCount} order${summary.deliveredCount === 1 ? '' : 's'}, before any fee`}
+                label="Completed"
+                value={formatAmount(summary.completedValue)}
+                note={`${summary.completedCount} order${summary.completedCount === 1 ? '' : 's'}, before any fee`}
               />
               <Figure
                 icon={Banknote}
@@ -142,11 +142,7 @@ export default function CookPaymentsPage() {
                 icon={RotateCcw}
                 label="Refunded"
                 value={formatAmount(summary.refundedValue)}
-                note={
-                  summary.disputedCount > 0
-                    ? `${summary.disputedCount} order${summary.disputedCount === 1 ? '' : 's'} in dispute`
-                    : `${summary.refundedCount} order${summary.refundedCount === 1 ? '' : 's'}`
-                }
+                note={`${summary.refundedCount} order${summary.refundedCount === 1 ? '' : 's'}`}
               />
             </div>
           </section>

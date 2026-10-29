@@ -21,7 +21,7 @@ interface BookingRecord {
   payment_status: string
   payment_reference: string | null
   amount: number | null
-  total_amount: number | null
+  price: number
   created_at: string
   buyer?: { id: string; full_name: string } | null
   cook?: { id: string; full_name: string } | null
@@ -60,7 +60,7 @@ export default function AdminBookingsPage() {
   }, [])
 
   async function requestRefund(booking: BookingRecord) {
-    const paidAmount = Number(booking.amount ?? booking.total_amount ?? 0)
+    const paidAmount = Number(booking.amount ?? booking.price ?? 0)
     const amountInput = window.prompt(
       `Refund amount in NGN. Maximum: ${paidAmount}`,
     )
@@ -181,9 +181,7 @@ export default function AdminBookingsPage() {
             </thead>
             <tbody>
               {bookings.map((booking) => {
-                const amount = Number(
-                  booking.amount ?? booking.total_amount ?? 0,
-                )
+                const amount = Number(booking.amount ?? booking.price ?? 0)
                 const inFlight = (booking.payment_refunds ?? []).some(
                   (refund) => ['requested', 'pending'].includes(refund.status),
                 )

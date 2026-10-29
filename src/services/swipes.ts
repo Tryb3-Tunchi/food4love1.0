@@ -1,31 +1,19 @@
 import { createClient } from '@/lib/supabase/client'
 
 export async function recordSwipe(
-  swiperId: string,
   swipedId: string,
   action: 'like' | 'pass' | 'superlike',
-) {
-  const supabase = createClient()
-  const { error } = await supabase.from('swipes').insert({
-    swiper_id: swiperId,
-    swiped_id: swipedId,
-    action,
+): Promise<{ match: boolean; match_id?: string }> {
+  const response = await fetch('/api/swipes', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ target_id: swipedId, action }),
   })
-  if (error) throw error
-}
-
-export async function checkMutualLike(user1: string, user2: string) {
-  const supabase = createClient()
-  const { data, error } = await supabase
-    .from('swipes')
-    .select('id')
-    .eq('swiper_id', user2)
-    .eq('swiped_id', user1)
-    .in('action', ['like', 'superlike'])
-    .single()
-
-  if (error && error.code !== 'PGRST116') throw error // PGRST116 = no rows
-  return !!data
+  const result = await response.json().catch(() => ({}))
+  if (!response.ok) {
+    throw new Error(result.error || 'Could not save this swipe')
+  }
+  return result
 }
 
 export async function getSwipesForUser(userId: string) {

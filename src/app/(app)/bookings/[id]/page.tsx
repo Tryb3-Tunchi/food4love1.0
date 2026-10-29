@@ -20,7 +20,7 @@ import {
 import { createClient } from '@/lib/supabase/client'
 import toast from 'react-hot-toast'
 
-const statusSteps = ['pending', 'confirmed', 'preparing', 'ready', 'delivered']
+const statusSteps = ['pending', 'confirmed', 'completed']
 
 export default function BookingDetailPage({
   params,
@@ -152,14 +152,11 @@ export default function BookingDetailPage({
     booking.payment_status === 'unpaid' &&
     !isCook
   const isPaid = booking.payment_status === 'paid'
-  const bookingAmount = Number(booking.amount ?? booking.total_amount ?? 0)
-  const scheduledAt = booking.scheduled_at
-    ? new Date(booking.scheduled_at)
-    : booking.delivery_date
-      ? new Date(`${booking.delivery_date}T${booking.delivery_time ?? '00:00'}`)
-      : null
-  const serviceAddress =
-    booking.address ?? booking.delivery_address ?? 'Address not provided'
+  const bookingAmount = Number(booking.amount ?? booking.price)
+  const scheduledAt = booking.scheduled_for
+    ? new Date(booking.scheduled_for)
+    : null
+  const serviceAddress = booking.service_address ?? 'Address not provided'
 
   return (
     <div className="min-h-screen bg-[var(--bg)] pb-24 pt-4">
@@ -216,11 +213,9 @@ export default function BookingDetailPage({
             {booking.status === 'confirmed' &&
               isPaid &&
               'Payment confirmed! Chef will start preparing.'}
-            {booking.status === 'preparing' &&
-              'Your cook is preparing for the at-home session.'}
-            {booking.status === 'ready' &&
-              'Your cook is ready for the scheduled session.'}
-            {booking.status === 'delivered' && 'Cooking session completed.'}
+            {booking.status === 'completed' && 'Cooking session completed.'}
+            {booking.status === 'cancelled' &&
+              'This cooking session was cancelled.'}
           </div>
         </div>
 
@@ -230,14 +225,11 @@ export default function BookingDetailPage({
           </h3>
           <p className="text-sm leading-relaxed text-[var(--text)]">
             {booking.meal_description ??
-              booking.items
-                ?.map((item) => `${item.quantity}x ${item.item_name}`)
-                .join(', ') ??
               'Cooking service details not provided.'}
           </p>
-          {(booking.special_requests ?? booking.notes) ? (
+          {booking.special_requests ? (
             <p className="mt-3 text-sm leading-relaxed text-[var(--text-muted)]">
-              {booking.special_requests ?? booking.notes}
+              {booking.special_requests}
             </p>
           ) : null}
           <div className="mt-3 flex justify-between border-t border-[var(--border)] pt-3 text-base font-bold text-[var(--text)]">
@@ -268,17 +260,6 @@ export default function BookingDetailPage({
               <p className="font-medium text-[var(--text)]">{serviceAddress}</p>
             </div>
           </div>
-          {booking.notes && !booking.special_requests && (
-            <div className="flex items-start gap-3">
-              <CreditCard className="mt-0.5 h-4 w-4 text-[var(--primary)]" />
-              <div>
-                <p className="text-[var(--text-muted)]">Notes</p>
-                <p className="font-medium text-[var(--text)]">
-                  {booking.notes}
-                </p>
-              </div>
-            </div>
-          )}
         </div>
 
         {/* Actions */}

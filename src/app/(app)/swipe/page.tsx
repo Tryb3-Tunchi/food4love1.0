@@ -9,8 +9,7 @@ import { MatchCelebration } from '@/components/swipe/MatchCelebration'
 import { AppPage } from '@/components/ui/AppPage'
 import { Button } from '@/components/ui/Button'
 import Link from 'next/link'
-import { recordSwipe, checkMutualLike } from '@/services/swipes'
-import { createMatch } from '@/services/matches'
+import { recordSwipe } from '@/services/swipes'
 import { SlidersHorizontal, Flame, X, Check, MapPin } from 'lucide-react'
 import {
   motion,
@@ -21,6 +20,7 @@ import {
 } from 'framer-motion'
 import toast from 'react-hot-toast'
 import { NotificationCenter } from '@/components/notifications/NotificationCenter'
+import { StoryHighlights } from '@/components/stories/StoryHighlights'
 
 const CUISINES = [
   'Igbo Cuisine',
@@ -110,34 +110,23 @@ export default function SwipePage() {
       await new Promise((resolve) => setTimeout(resolve, 400))
 
       try {
-        await recordSwipe(profile.id, current.id, action)
+        const result = await recordSwipe(current.id, action)
+        if (result.match) {
+          setMatchedChef(current)
+          setShowMatch(true)
+        }
       } catch (err) {
-        console.error('Swipe error:', err)
         setIsAnimating(false)
         setExitDirection(null)
-        toast.error('Your swipe could not be saved. Please try again.')
+        toast.error(
+          err instanceof Error ? err.message : 'Your swipe could not be saved.',
+        )
         return
       }
 
       setCurrentIndex((prev) => prev + 1)
       setIsAnimating(false)
       setExitDirection(null)
-
-      if (action === 'like') {
-        try {
-          const mutual = await checkMutualLike(profile.id, current.id)
-          if (mutual) {
-            await createMatch(profile.id, current.id)
-            setMatchedChef(current)
-            setShowMatch(true)
-          }
-        } catch (err) {
-          console.error('Match creation error:', err)
-          toast.error(
-            'Your like was saved, but the match could not be created.',
-          )
-        }
-      }
     },
     [current, profile, isAnimating],
   )
@@ -322,6 +311,8 @@ export default function SwipePage() {
         </div>
       </div>
 
+      <StoryHighlights />
+
       {/* Card Area */}
       <div
         data-tour={
@@ -399,7 +390,7 @@ export default function SwipePage() {
           </motion.div>
         ) : (
           <>
-            <div className="relative aspect-[3/4] max-h-[65vh] w-full max-w-sm">
+            <div className="relative aspect-[3/4] max-h-[56vh] w-full max-w-sm">
               <AnimatePresence mode="popLayout">
                 <motion.div
                   key={current.id}

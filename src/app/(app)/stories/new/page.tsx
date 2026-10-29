@@ -16,26 +16,25 @@ const MAX_VIDEO_MB = 50
 const MAX_IMAGE_MB = 10
 
 const ACCEPTED_TYPES = {
-  'image/jpeg': [],
-  'image/png': [],
-  'image/webp': [],
-  'video/mp4': [],
-  'video/quicktime': [],
-  'video/webm': [],
-  'video/x-m4v': [],
+  'image/jpeg': ['.jpg', '.jpeg'],
+  'image/png': ['.png'],
+  'image/webp': ['.webp'],
+  'video/mp4': ['.mp4'],
+  'video/quicktime': ['.mov'],
+  'video/webm': ['.webm'],
+  'video/x-m4v': ['.m4v'],
 }
 
 export default function NewStoryPage() {
   const router = useRouter()
   const profile = useAuthStore((s) => s.profile)
   const { postStory } = useStories(profile?.id ?? null)
-
   const [file, setFile] = useState<File | null>(null)
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
   const [caption, setCaption] = useState('')
   const [uploading, setUploading] = useState(false)
 
-  const isVideo = !!file?.type.startsWith('video/')
+  const isVideo = Boolean(file?.type.startsWith('video/'))
 
   const onDrop = useCallback(
     (files: File[]) => {
@@ -46,7 +45,7 @@ export default function NewStoryPage() {
       const maxMb = pickedVideo ? MAX_VIDEO_MB : MAX_IMAGE_MB
       if (picked.size > maxMb * 1024 * 1024) {
         toast.error(
-          `Keep ${pickedVideo ? 'videos' : 'photos'} under ${maxMb}MB`,
+          `Keep ${pickedVideo ? 'videos' : 'photos'} under ${maxMb} MB`,
         )
         return
       }
@@ -60,9 +59,13 @@ export default function NewStoryPage() {
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
+    onDropRejected: () =>
+      toast.error(
+        'Use JPG, PNG, WebP, MP4, MOV, WebM, or M4V. Photos max 10 MB; videos max 50 MB.',
+      ),
     accept: ACCEPTED_TYPES,
     maxFiles: 1,
-    onDropRejected: () => toast.error('That file type isn’t supported'),
+    disabled: uploading,
   })
 
   const clearFile = () => {
@@ -84,21 +87,24 @@ export default function NewStoryPage() {
     }
     setUploading(true)
     try {
-      const sb = createClient()
+      const supabase = createClient()
       const body = isVideo
         ? file
         : await imageCompression(file, {
             maxSizeMB: 1,
             maxWidthOrHeight: 1600,
           })
-      const filename = file.name.replace(/[^a-zA-Z0-9._-]/g, '-')
-      const path = `${profile.id}/${Date.now()}-${filename}`
-      const { error: uploadError } = await sb.storage
+      const extension = file.name
+        .split('.')
+        .pop()
+        ?.replace(/[^a-z0-9]/gi, '')
+      const path = `${profile.id}/${crypto.randomUUID()}${extension ? `.${extension}` : ''}`
+      const { error: uploadError } = await supabase.storage
         .from('story-media')
-        .upload(path, body, { contentType: file.type })
+        .upload(path, body, { contentType: body.type || file.type })
       if (uploadError) throw uploadError
 
-      const { data } = sb.storage.from('story-media').getPublicUrl(path)
+      const { data } = supabase.storage.from('story-media').getPublicUrl(path)
       await postStory(
         isVideo
           ? { caption, video_url: data.publicUrl }
@@ -107,9 +113,9 @@ export default function NewStoryPage() {
 
       toast.success('Story posted — live for 24 hours')
       router.push('/requests')
-    } catch (err) {
+    } catch (error) {
       toast.error(
-        err instanceof Error ? err.message : 'Could not post your story',
+        error instanceof Error ? error.message : 'Could not post your story',
       )
     } finally {
       setUploading(false)
@@ -144,7 +150,7 @@ export default function NewStoryPage() {
               <div
                 className="flex gap-3"
                 style={{ color: 'var(--accent)' }}
-                aria-hidden
+                aria-hidden="true"
               >
                 <ImageIcon className="h-9 w-9" />
                 <Film className="h-9 w-9" />
@@ -156,7 +162,6 @@ export default function NewStoryPage() {
                 Show your food at its best
               </p>
             </div>
-
             <details className="mt-2 text-xs text-[var(--text-3)]">
               <summary className="inline-flex cursor-pointer items-center gap-1.5">
                 Supported files
@@ -165,8 +170,8 @@ export default function NewStoryPage() {
                 </span>
               </summary>
               <ul className="mt-2 space-y-1 pl-1">
-                <li>Photos: JPG, PNG, WebP (up to {MAX_IMAGE_MB}MB)</li>
-                <li>Videos: MP4, MOV, WebM (up to {MAX_VIDEO_MB}MB)</li>
+                <li>Photos: JPG, PNG, WebP (up to {MAX_IMAGE_MB} MB)</li>
+                <li>Videos: MP4, MOV, WebM, M4V (up to {MAX_VIDEO_MB} MB)</li>
               </ul>
             </details>
           </div>
@@ -187,7 +192,8 @@ export default function NewStoryPage() {
             )}
             <button
               onClick={clearFile}
-              className="absolute right-3 top-3 flex h-9 w-9 items-center justify-center rounded-full bg-black/60 text-white"
+              disabled={uploading}
+              className="absolute right-3 top-3 flex h-9 w-9 items-center justify-center rounded-full bg-black/60 text-white disabled:opacity-50"
               aria-label="Remove file"
             >
               <X className="h-4 w-4" />
@@ -196,12 +202,16 @@ export default function NewStoryPage() {
         )}
 
         <div className="space-y-1.5">
-          <label className="text-sm font-medium">Caption</label>
+          <label htmlFor="story-caption" className="text-sm font-medium">
+            Caption
+          </label>
           <textarea
+            id="story-caption"
             value={caption}
-            onChange={(e) => setCaption(e.target.value)}
+            onChange={(event) => setCaption(event.target.value)}
             placeholder="What did you make today?"
             rows={3}
+            maxLength={500}
             className="w-full resize-none rounded-xl border border-[var(--border)] bg-[var(--card)] px-3.5 py-2.5 text-sm outline-none focus:border-[var(--accent)]"
           />
         </div>
@@ -216,7 +226,7 @@ export default function NewStoryPage() {
           className="w-full bg-[var(--accent)]"
           leftIcon={!uploading ? <Upload className="h-4 w-4" /> : undefined}
           loading={uploading}
-          disabled={!file}
+          disabled={!file || uploading}
           onClick={submit}
         >
           {file ? 'Post story' : 'Add a photo or video to continue'}

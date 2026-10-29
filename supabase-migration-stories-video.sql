@@ -24,7 +24,39 @@ create policy "Stories are publicly readable" on stories
 
 drop policy if exists "Cooks manage their own stories" on stories;
 create policy "Cooks manage their own stories" on stories
-  for all using (auth.uid() = cook_id) with check (auth.uid() = cook_id);
+  for all using (
+    auth.uid() = cook_id
+    and exists (
+      select 1 from public.profiles p
+      where p.id = auth.uid()
+        and p.role = 'cook'
+    )
+  ) with check (
+    auth.uid() = cook_id
+    and exists (
+      select 1 from public.profiles p
+      where p.id = auth.uid()
+        and p.role = 'cook'
+        and p.suspended = false
+    )
+  );
+
+-- Discovery listens after joining the channel, then fetches the current rows.
+do $$
+begin
+  if not exists (select 1 from pg_publication where pubname = 'supabase_realtime') then
+    raise exception 'Supabase Realtime publication is not available';
+  end if;
+
+  if not exists (
+    select 1 from pg_publication_tables
+    where pubname = 'supabase_realtime'
+      and schemaname = 'public'
+      and tablename = 'stories'
+  ) then
+    execute 'alter publication supabase_realtime add table public.stories';
+  end if;
+end $$;
 
 -- 3. Storage bucket for the story files (public so they can be viewed,
 --    50 MB per file, photos and videos only)
@@ -56,6 +88,12 @@ create policy "Cooks upload their own story media" on storage.objects
   for insert with check (
     bucket_id = 'story-media'
     and auth.uid()::text = (storage.foldername(name))[1]
+    and exists (
+      select 1 from public.profiles p
+      where p.id = auth.uid()
+        and p.role = 'cook'
+        and p.suspended = false
+    )
   );
 
 drop policy if exists "Cooks delete their own story media" on storage.objects;
@@ -63,4 +101,9 @@ create policy "Cooks delete their own story media" on storage.objects
   for delete using (
     bucket_id = 'story-media'
     and auth.uid()::text = (storage.foldername(name))[1]
+    and exists (
+      select 1 from public.profiles p
+      where p.id = auth.uid()
+        and p.role = 'cook'
+    )
   );

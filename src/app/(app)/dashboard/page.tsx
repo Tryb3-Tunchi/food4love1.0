@@ -43,8 +43,8 @@ import { DashboardGallery } from '@/components/cook/DashboardGallery'
 
 const STATUS_LABELS: Record<string, string> = {
   confirmed: 'Confirmed',
-  preparing: 'Preparing',
-  ready: 'Ready',
+  completed: 'Completed',
+  cancelled: 'Cancelled',
 }
 
 const SECTION_LINKS = [
@@ -568,19 +568,18 @@ export default function CookDashboardPage() {
                         className="truncate text-xs"
                         style={{ color: 'var(--text-3)' }}
                       >
-                        {booking.delivery_date
-                          ? new Date(booking.delivery_date).toLocaleDateString(
+                        {booking.scheduled_for
+                          ? new Date(booking.scheduled_for).toLocaleDateString(
                               'en-NG',
                               {
                                 weekday: 'short',
                                 day: 'numeric',
                                 month: 'short',
+                                hour: 'numeric',
+                                minute: '2-digit',
                               },
                             )
                           : 'Date to be confirmed'}
-                        {booking.delivery_time
-                          ? ` · ${booking.delivery_time.slice(0, 5)}`
-                          : ''}
                         {booking.meal_description
                           ? ` · ${booking.meal_description}`
                           : ''}

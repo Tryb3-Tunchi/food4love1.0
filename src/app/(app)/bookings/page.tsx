@@ -69,20 +69,12 @@ export default function BookingsPage() {
         ) : (
           <div className="space-y-3">
             {bookings.map((booking, i) => {
-              const scheduledAt = booking.scheduled_at
-                ? new Date(booking.scheduled_at)
-                : booking.delivery_date
-                  ? new Date(
-                      `${booking.delivery_date}T${booking.delivery_time ?? '00:00'}`,
-                    )
-                  : null
+              const scheduledAt = booking.scheduled_for
+                ? new Date(booking.scheduled_for)
+                : null
               const serviceAddress =
-                booking.address ??
-                booking.delivery_address ??
-                'Address not provided'
-              const bookingAmount = Number(
-                booking.amount ?? booking.total_amount ?? 0,
-              )
+                booking.service_address ?? 'Address not provided'
+              const bookingAmount = Number(booking.amount ?? booking.price)
 
               return (
                 <motion.div
