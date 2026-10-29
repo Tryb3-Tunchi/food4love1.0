@@ -14,6 +14,8 @@ import Image from 'next/image'
 
 export interface Chef {
   id: string
+  role?: 'cook' | 'buyer'
+  kyc_status?: 'unverified' | 'pending' | 'verified' | 'rejected' | null
   full_name?: string | null
   avatar_url?: string | null
   bio?: string | null
@@ -115,6 +117,11 @@ export function SwipeCard({ chef }: SwipeCardProps) {
                     </span>
                   )}
                 </div>
+                {chef.role === 'cook' && chef.kyc_status !== 'verified' && (
+                  <p className="mt-2 inline-flex rounded-full border border-amber-200/40 bg-black/35 px-2.5 py-1 text-xs font-medium text-amber-100 backdrop-blur">
+                    Match and chat now · booking after KYC approval
+                  </p>
+                )}
               </div>
               {chef.rating && (
                 <div className="flex flex-shrink-0 items-center gap-1 rounded-full bg-black/40 px-3 py-1.5 backdrop-blur-md">

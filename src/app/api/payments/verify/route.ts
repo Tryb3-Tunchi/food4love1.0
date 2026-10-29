@@ -49,7 +49,7 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    const bookingAmount = Number(booking.amount ?? booking.total_amount)
+    const bookingAmount = Number(booking.amount ?? booking.price)
     if (!Number.isSafeInteger(bookingAmount) || bookingAmount <= 0) {
       return NextResponse.json(
         { error: 'Booking has no valid agreed amount' },

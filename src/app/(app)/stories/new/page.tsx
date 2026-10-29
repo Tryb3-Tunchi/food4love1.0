@@ -53,7 +53,17 @@ export default function NewStoryPage() {
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
-    accept: { 'image/*': [], 'video/*': [] },
+    onDropRejected: () =>
+      toast.error(
+        'Use JPG, PNG, WebP, MP4, or MOV. Images max 10 MB; videos max 50 MB.',
+      ),
+    accept: {
+      'image/jpeg': ['.jpg', '.jpeg'],
+      'image/png': ['.png'],
+      'image/webp': ['.webp'],
+      'video/mp4': ['.mp4'],
+      'video/quicktime': ['.mov'],
+    },
     maxFiles: 1,
   })
 
@@ -77,8 +87,11 @@ export default function NewStoryPage() {
     setUploading(true)
     try {
       const sb = createClient()
-      const filename = file.name.replace(/[^a-zA-Z0-9._-]/g, '-')
-      const path = `${profile.id}/${Date.now()}-${filename}`
+      const extension = file.name
+        .split('.')
+        .pop()
+        ?.replace(/[^a-z0-9]/gi, '')
+      const path = `${profile.id}/${crypto.randomUUID()}${extension ? `.${extension}` : ''}`
       const { error: uploadError } = await sb.storage
         .from('story-media')
         .upload(path, file, { contentType: file.type })
@@ -128,7 +141,9 @@ export default function NewStoryPage() {
             <input {...getInputProps()} />
             <Film className="mx-auto mb-3 h-8 w-8 text-[var(--text-3)]" />
             <p className="text-sm font-medium">
-              {isDragActive ? 'Drop your video here' : 'Tap to add a video'}
+              {isDragActive
+                ? 'Drop your photo or video here'
+                : 'Tap to add a photo or video'}
             </p>
             <p className="mt-1 text-xs text-[var(--text-3)]">
               Photos up to {MAX_IMAGE_MB}MB · Videos up to {MAX_VIDEO_MB}MB

@@ -4,9 +4,12 @@ import { useState, useCallback } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { createClient } from '@/lib/supabase/client'
 import { useAuthStore } from '@/stores/useAuthStore'
+import { recordSwipe } from '@/services/swipes'
 
 export interface SwipeCard {
   id: string
+  role: 'cook' | 'buyer'
+  kyc_status: 'unverified' | 'pending' | 'verified' | 'rejected'
   full_name: string
   bio: string | null
   avatar_url: string | null
@@ -16,7 +19,7 @@ export interface SwipeCard {
   location: string | null
   rating: number | null
   photos: string[] | null
-  daily_specials: { title: string; price: number }[] | null
+  daily_specials?: { title: string; price: number }[] | null
   lat: number | null
   lng: number | null
 }
@@ -65,7 +68,7 @@ export function useSwipeDeck(filters?: {
       let query = supabase
         .from('profiles')
         .select(
-          'id, full_name, bio, avatar_url, cuisines, price_min, price_max, location, rating, photos, lat, lng',
+          'id, full_name, bio, avatar_url, role, kyc_status, is_verified, cuisines, price_min, price_max, location, rating, photos, lat, lng',
         )
         .eq('role', isBuyer ? 'cook' : 'buyer')
         .eq('onboarding_complete', true)
@@ -87,10 +90,6 @@ export function useSwipeDeck(filters?: {
 
       if (isBuyer && filters?.priceMax) {
         query = query.lte('price_min', filters.priceMax)
-      }
-
-      if (isBuyer) {
-        query = query.eq('kyc_status', 'verified')
       }
 
       const { data, error: queryError } = await query.limit(20)
@@ -139,36 +138,8 @@ export function useSwipeDeck(filters?: {
       swipedUserId: string
       action: 'like' | 'pass' | 'superlike'
     }) => {
-      const { error } = await supabase.from('swipes').insert({
-        swiper_id: userId,
-        swiped_id: swipedUserId,
-        action,
-      })
-      if (error) throw error
-
-      if (action === 'like' || action === 'superlike') {
-        const { data: mutual } = await supabase
-          .from('swipes')
-          .select('id')
-          .eq('swiper_id', swipedUserId)
-          .eq('swiped_id', userId)
-          .in('action', ['like', 'superlike'])
-          .single()
-
-        if (mutual) {
-          const { error: matchError } = await supabase.from('matches').insert({
-            user1_id: userId,
-            user2_id: swipedUserId,
-            status: 'matched',
-            expires_at: new Date(
-              Date.now() + 24 * 60 * 60 * 1000,
-            ).toISOString(),
-          })
-          if (matchError) throw matchError
-          return { match: true }
-        }
-      }
-      return { match: false }
+      if (!userId) throw new Error('Not authenticated')
+      return recordSwipe(swipedUserId, action)
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['swipe-candidates'] })

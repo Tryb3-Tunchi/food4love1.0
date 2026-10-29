@@ -42,12 +42,18 @@ export async function POST(request: NextRequest) {
     }
 
     const admin = createAdminClient()
-    const { data: profile } = await admin
+    const { data: profile, error: profileError } = await admin
       .from('profiles')
       .select('full_name, role, kyc_status, suspended')
       .eq('id', user.id)
       .maybeSingle()
 
+    if (profileError) {
+      return NextResponse.json(
+        { error: 'Could not verify cook account status' },
+        { status: 500 },
+      )
+    }
     if (!profile || profile.role !== 'cook' || profile.suspended) {
       return NextResponse.json(
         { error: 'Cook account is not eligible' },
@@ -61,12 +67,18 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const { data: existing } = await admin
+    const { data: existing, error: existingError } = await admin
       .from('kyc_submissions')
       .select('id')
       .eq('user_id', user.id)
       .eq('status', 'pending')
       .maybeSingle()
+    if (existingError) {
+      return NextResponse.json(
+        { error: 'Could not check for an existing KYC submission' },
+        { status: 500 },
+      )
+    }
     if (existing) {
       return NextResponse.json(
         { error: 'A KYC submission is already under review' },
@@ -90,15 +102,39 @@ export async function POST(request: NextRequest) {
 
     if (error || !submission) {
       return NextResponse.json(
-        { error: 'Could not save KYC submission' },
-        { status: 500 },
+        {
+          error:
+            error?.code === '23505'
+              ? 'A KYC submission is already under review'
+              : 'Could not save KYC submission',
+        },
+        { status: error?.code === '23505' ? 409 : 500 },
       )
     }
 
-    await admin
+    const { error: statusError } = await admin
       .from('profiles')
       .update({ kyc_status: 'pending' })
       .eq('id', user.id)
+    if (statusError) {
+      const { error: cleanupError } = await admin
+        .from('kyc_submissions')
+        .delete()
+        .eq('id', submission.id)
+      if (cleanupError) {
+        return NextResponse.json(
+          {
+            error:
+              'Your submission was saved, but its account status needs support review',
+          },
+          { status: 500 },
+        )
+      }
+      return NextResponse.json(
+        { error: 'Could not update cook verification status' },
+        { status: 500 },
+      )
+    }
 
     return NextResponse.json({ submission }, { status: 201 })
   } catch {

@@ -3,17 +3,43 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 
-const bookingRequestSchema = z.object({
-  cook_id: z.string().uuid(),
-  match_id: z.string().uuid(),
-  meal_description: z.string().trim().min(1).max(2000),
-  service_date: z.string().date(),
-  service_time: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/),
-  address: z.string().trim().min(8).max(1000),
-  special_requests: z.string().trim().max(2000).nullable().optional(),
-  guests: z.number().int().min(1).max(20),
-  amount: z.number().int().positive(),
-})
+const bookingRequestSchema = z
+  .object({
+    cook_id: z.string().uuid(),
+    match_id: z.string().uuid(),
+    items: z
+      .array(
+        z.object({
+          special_id: z.string().uuid(),
+          quantity: z.number().int().min(1).max(20),
+        }),
+      )
+      .min(1)
+      .max(20),
+    scheduled_at: z.string().datetime(),
+    service_address: z.string().trim().min(8).max(1000),
+    special_requests: z.string().trim().max(2000).optional(),
+    guest_count: z.number().int().min(1).max(20),
+  })
+  .superRefine((data, context) => {
+    if (new Date(data.scheduled_at).getTime() <= Date.now()) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['scheduled_at'],
+        message: 'Choose a future cooking-session time',
+      })
+    }
+    if (
+      new Set(data.items.map((item) => item.special_id)).size !==
+      data.items.length
+    ) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['items'],
+        message: 'Remove duplicate menu items',
+      })
+    }
+  })
 
 export async function POST(req: NextRequest) {
   try {
@@ -35,19 +61,20 @@ export async function POST(req: NextRequest) {
     }
     const request = parsed.data
 
+    const admin = createAdminClient()
     const [{ data: buyer }, { data: cook }, { data: match }] =
       await Promise.all([
-        supabase
+        admin
           .from('profiles')
-          .select('role, suspended')
+          .select('role, suspended, onboarding_complete')
           .eq('id', user.id)
           .maybeSingle(),
-        supabase
+        admin
           .from('profiles')
-          .select('role, suspended, kyc_status, price_min')
+          .select('role, suspended, onboarding_complete, kyc_status, price_min')
           .eq('id', request.cook_id)
           .maybeSingle(),
-        supabase
+        admin
           .from('matches')
           .select('id, user1_id, user2_id, status')
           .eq('id', request.match_id)
@@ -55,7 +82,12 @@ export async function POST(req: NextRequest) {
           .maybeSingle(),
       ])
 
-    if (!buyer || buyer.role !== 'buyer' || buyer.suspended) {
+    if (
+      !buyer ||
+      buyer.role !== 'buyer' ||
+      buyer.suspended ||
+      !buyer.onboarding_complete
+    ) {
       return NextResponse.json(
         { error: 'Buyer account is not eligible' },
         { status: 403 },
@@ -65,6 +97,7 @@ export async function POST(req: NextRequest) {
       !cook ||
       cook.role !== 'cook' ||
       cook.suspended ||
+      !cook.onboarding_complete ||
       cook.kyc_status !== 'verified'
     ) {
       return NextResponse.json(
@@ -83,28 +116,68 @@ export async function POST(req: NextRequest) {
         { status: 403 },
       )
     }
-    if (request.amount < (cook.price_min ?? 0)) {
+    const { data: specials, error: specialsError } = await admin
+      .from('daily_specials')
+      .select('id, title, price')
+      .eq('cook_id', request.cook_id)
+      .eq('moderation_status', 'active')
+      .gte('available_until', new Date().toISOString())
+      .in(
+        'id',
+        request.items.map((item) => item.special_id),
+      )
+    if (specialsError) {
       return NextResponse.json(
-        { error: 'Proposed amount is below the cook minimum' },
+        { error: 'Could not verify the selected menu items' },
+        { status: 500 },
+      )
+    }
+    if (!specials || specials.length !== request.items.length) {
+      return NextResponse.json(
+        { error: 'One or more selected specials are no longer available' },
+        { status: 409 },
+      )
+    }
+
+    const specialById = new Map(
+      specials.map((special) => [special.id, special]),
+    )
+    const subtotal = request.items.reduce((sum, item) => {
+      const special = specialById.get(item.special_id)
+      return sum + Number(special?.price ?? 0) * item.quantity
+    }, 0)
+    if (!Number.isSafeInteger(subtotal) || subtotal < (cook.price_min ?? 0)) {
+      return NextResponse.json(
+        { error: 'Selected dishes do not meet the cook minimum' },
         { status: 400 },
       )
     }
 
-    const admin = createAdminClient()
+    const deliveryFee = 500
+    const serviceFee = Math.round(subtotal * 0.05)
+    const amount = subtotal + deliveryFee + serviceFee
+    const mealDescription = request.items
+      .map(
+        (item) =>
+          `${item.quantity} × ${specialById.get(item.special_id)?.title}`,
+      )
+      .join(', ')
     const { data: booking, error } = await admin
       .from('bookings')
       .insert({
         buyer_id: user.id,
         cook_id: request.cook_id,
         match_id: request.match_id,
-        meal_description: request.meal_description,
-        delivery_date: request.service_date,
-        delivery_time: request.service_time,
-        delivery_type: 'at_home_cooking',
-        address: request.address,
+        dish_title: mealDescription.slice(0, 250),
+        price: subtotal,
+        meal_description: mealDescription,
+        scheduled_for: request.scheduled_at,
+        service_address: request.service_address,
         special_requests: request.special_requests || null,
-        guests: request.guests,
-        amount: request.amount,
+        guest_count: request.guest_count,
+        delivery_fee: deliveryFee,
+        service_fee: serviceFee,
+        amount,
         status: 'pending',
         payment_status: 'unpaid',
       })
@@ -112,7 +185,6 @@ export async function POST(req: NextRequest) {
       .single()
 
     if (error) {
-      console.error('Booking insert error:', error)
       return NextResponse.json(
         { error: 'Could not create the cooking-service request' },
         { status: 500 },
@@ -120,8 +192,7 @@ export async function POST(req: NextRequest) {
     }
 
     return NextResponse.json({ booking }, { status: 201 })
-  } catch (err: any) {
-    console.error('Booking API error:', err)
+  } catch {
     return NextResponse.json(
       { error: 'Could not create the cooking-service request' },
       { status: 500 },

@@ -19,7 +19,7 @@ export async function GET() {
   const { data, error } = await admin
     .from('disputes')
     .select(
-      'id, booking_id, raised_by, against, reason, description, evidence_urls, status, ai_recommendation, ai_reasoning, ai_confidence, admin_notes, resolution, created_at, updated_at, booking:bookings(id, status, payment_status, amount, total_amount, payment_reference, delivery_date, delivery_time, cook:profiles!bookings_cook_id_fkey(id, full_name), buyer:profiles!bookings_buyer_id_fkey(id, full_name))',
+      'id, booking_id, raised_by, against, reason, description, evidence_urls, status, ai_recommendation, ai_reasoning, ai_confidence, admin_notes, resolution, created_at, updated_at, booking:bookings(id, status, payment_status, amount, price, payment_reference, scheduled_for, service_address, cook:profiles!bookings_cook_id_fkey(id, full_name), buyer:profiles!bookings_buyer_id_fkey(id, full_name))',
     )
     .order('created_at', { ascending: false })
     .limit(200)

@@ -30,6 +30,7 @@ interface MatchCandidate {
   full_name: string
   role: 'cook' | 'buyer'
   suspended: boolean
+  kyc_status: 'unverified' | 'pending' | 'verified' | 'rejected'
 }
 
 export default function AdminMatchesPage() {
@@ -187,7 +188,7 @@ export default function AdminMatchesPage() {
                 .filter((profile) => profile.role === 'cook')
                 .map((profile) => (
                   <option key={profile.id} value={profile.id}>
-                    {profile.full_name}
+                    {profile.full_name} · {profile.kyc_status}
                   </option>
                 ))}
             </select>
