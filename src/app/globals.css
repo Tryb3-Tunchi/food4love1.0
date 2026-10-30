@@ -580,6 +580,7 @@
 
   .f4l-auth-grid {
     position: relative;
+    isolation: isolate;
     min-height: 100vh;
     min-height: 100dvh;
     overflow: hidden;
@@ -593,6 +594,7 @@
     content: '';
     position: absolute;
     inset: -8%;
+    z-index: 0;
     pointer-events: none;
     background:
       radial-gradient(circle at 16% 22%, var(--theme-soft), transparent 18%),
@@ -602,12 +604,69 @@
     animation: ambient-orb-drift 22s ease-in-out infinite alternate-reverse;
   }
 
+  .f4l-auth-grid::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+    background-image: radial-gradient(
+      circle,
+      var(--ambient-dot) 1px,
+      transparent 1.5px
+    );
+    background-size: 25px 25px;
+    opacity: 0.3;
+    mask-image: linear-gradient(
+      135deg,
+      transparent 2%,
+      #000 28%,
+      #000 68%,
+      transparent 98%
+    );
+  }
+
+  .f4l-auth-grid > * {
+    position: relative;
+    z-index: 1;
+  }
+
   .f4l-auth-panel {
-    background: var(--theme-panel);
+    position: relative;
+    isolation: isolate;
+    overflow: hidden;
+    background:
+      radial-gradient(circle at 100% 0%, var(--theme-soft-2), transparent 38%),
+      var(--theme-panel);
     border: 1px solid var(--border);
     box-shadow: var(--shadow-float);
     backdrop-filter: blur(20px);
     -webkit-backdrop-filter: blur(20px);
+  }
+
+  .f4l-auth-panel::before {
+    content: '';
+    position: absolute;
+    top: -7rem;
+    right: -6rem;
+    z-index: 0;
+    width: 17rem;
+    height: 17rem;
+    border: 1px solid var(--theme-ring);
+    border-radius: 9999px;
+    background:
+      radial-gradient(circle, var(--theme-soft), transparent 68%),
+      radial-gradient(circle, var(--ambient-dot) 1px, transparent 1.5px);
+    background-size:
+      auto,
+      12px 12px;
+    opacity: 0.42;
+    pointer-events: none;
+  }
+
+  .f4l-auth-panel > * {
+    position: relative;
+    z-index: 1;
   }
 
   .f4l-auth-spotlight {
