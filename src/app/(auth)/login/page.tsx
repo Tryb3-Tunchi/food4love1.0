@@ -1,7 +1,6 @@
 'use client'
 
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
 import { motion } from 'framer-motion'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -33,7 +32,6 @@ const LOGIN_CARDS = [
 ]
 
 export default function LoginPage() {
-  const router = useRouter()
   const {
     register,
     handleSubmit,
@@ -49,8 +47,15 @@ export default function LoginPage() {
       toast.error('Incorrect email or password. Try again.')
       return
     }
-    toast.success('Welcome back.')
-    router.push(await getPostLoginRedirect(sb, authData.user.id))
+    try {
+      const nextPath = await getPostLoginRedirect(sb, authData.user.id)
+      toast.success('Welcome back.')
+      window.location.assign(nextPath)
+    } catch {
+      toast.error(
+        'You are signed in, but we could not load your profile. Please try again.',
+      )
+    }
   }
 
   return (
@@ -113,7 +118,7 @@ export default function LoginPage() {
             <div className="mb-8">
               <div className="inline-flex items-center gap-2 rounded-full bg-mint px-3 py-1.5 text-xs font-semibold text-meadow">
                 <Sparkles className="h-3.5 w-3.5" />
-                Welcome back
+                Your table is ready
               </div>
               <h2 className="mt-4 font-heading text-4xl font-bold tracking-[-0.04em] text-ink">
                 Sign in to your account

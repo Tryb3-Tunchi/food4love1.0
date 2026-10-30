@@ -6,6 +6,7 @@ import {
   useEffect,
   useCallback,
 } from 'react'
+import { useTheme } from 'next-themes'
 
 interface HungerModeCtx {
   hungerMode: boolean
@@ -23,27 +24,32 @@ export function HungerModeProvider({
   children: React.ReactNode
 }) {
   const [hungerMode, setHungerMode] = useState(false)
+  const { setTheme } = useTheme()
 
   useEffect(() => {
-    const saved = localStorage.getItem('f4l-hunger')
-    if (saved === 'true') {
-      setHungerMode(true)
-      document.documentElement.classList.add('hunger')
+    let enabled = false
+    try {
+      enabled = window.localStorage.getItem('f4l-hunger') === 'true'
+    } catch {
+      // Keep the default light appearance when browser storage is unavailable.
     }
-  }, [])
+
+    setHungerMode(enabled)
+    document.documentElement.classList.toggle('hunger', enabled)
+    setTheme(enabled ? 'dark' : 'light')
+  }, [setTheme])
 
   const toggleHungerMode = useCallback(() => {
-    setHungerMode((prev) => {
-      const next = !prev
-      localStorage.setItem('f4l-hunger', String(next))
-      if (next) {
-        document.documentElement.classList.add('hunger')
-      } else {
-        document.documentElement.classList.remove('hunger')
-      }
-      return next
-    })
-  }, [])
+    const next = !hungerMode
+    setHungerMode(next)
+    document.documentElement.classList.toggle('hunger', next)
+    setTheme(next ? 'dark' : 'light')
+    try {
+      window.localStorage.setItem('f4l-hunger', String(next))
+    } catch {
+      // The appearance still changes for this session without local storage.
+    }
+  }, [hungerMode, setTheme])
 
   return (
     <Ctx.Provider value={{ hungerMode, toggleHungerMode }}>

@@ -1,6 +1,7 @@
 'use client'
 
 import { createContext, useContext, useEffect, useState } from 'react'
+import { Moon, Sun } from 'lucide-react'
 import { AdminNavigation } from '@/components/admin/AdminNavigation'
 
 type AdminTheme = 'dark' | 'light'
@@ -100,7 +101,13 @@ export function AdminThemeToggle() {
       onClick={context.toggleTheme}
       aria-label={`Switch to ${context.theme === 'dark' ? 'light' : 'dark'} admin theme`}
       className="rounded-lg border border-[var(--admin-border)] bg-[var(--admin-surface)] px-3 py-2 text-sm font-semibold text-[var(--admin-text)] transition hover:bg-[var(--admin-hover)]"
+      aria-pressed={context.theme === 'dark'}
     >
+      {context.theme === 'dark' ? (
+        <Sun aria-hidden="true" className="mr-2 inline h-4 w-4" />
+      ) : (
+        <Moon aria-hidden="true" className="mr-2 inline h-4 w-4" />
+      )}
       {context.theme === 'dark' ? 'Light mode' : 'Dark mode'}
     </button>
   )

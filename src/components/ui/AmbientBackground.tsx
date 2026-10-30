@@ -1,12 +1,13 @@
 'use client'
 
-import { motion } from 'framer-motion'
+import { motion, useReducedMotion } from 'framer-motion'
 import { ReactNode } from 'react'
 
 interface Props {
   children?: ReactNode
   variant?: 'pepper' | 'ember' | 'green' | 'mixed'
   intensity?: 'low' | 'medium' | 'high'
+  backgroundOnly?: boolean
 }
 
 const configs = {
@@ -140,24 +141,39 @@ const configs = {
   ],
 }
 
-const opacities = { low: 0.05, medium: 0.08, high: 0.13 }
+const opacities = { low: 0.1, medium: 0.15, high: 0.2 }
 
 export function AmbientBackground({
   children,
   variant = 'mixed',
   intensity = 'medium',
+  backgroundOnly = false,
 }: Props) {
   const orbs = configs[variant]
   const op = opacities[intensity]
+  const shouldReduceMotion = useReducedMotion()
 
   return (
-    <div className="relative isolate min-h-screen">
+    <div
+      aria-hidden={backgroundOnly || undefined}
+      className={
+        backgroundOnly
+          ? 'pointer-events-none absolute inset-0 isolate z-0'
+          : 'relative isolate min-h-screen'
+      }
+    >
       {/* Background layer */}
       <div
-        className="ambient-bg pointer-events-none fixed inset-0 -z-10"
+        className={`ambient-bg pointer-events-none inset-0 ${backgroundOnly ? 'absolute' : 'fixed'} z-0`}
         aria-hidden="true"
       >
-        <div className="f4l-map-texture absolute inset-[-8%] opacity-60" />
+        <div className="ambient-dot-field absolute inset-0" />
+        <div className="f4l-map-texture absolute inset-[-8%] opacity-20" />
+        <div className="ambient-lanterns absolute inset-0">
+          <span className="ambient-lantern ambient-lantern-one" />
+          <span className="ambient-lantern ambient-lantern-two" />
+          <span className="ambient-lantern ambient-lantern-three" />
+        </div>
         {orbs.map((orb, i) => (
           <motion.div
             key={i}
@@ -172,13 +188,17 @@ export function AmbientBackground({
               background: `radial-gradient(circle, rgba(${orb.color},${op}), transparent 70%)`,
               filter: 'blur(60px)',
             }}
-            animate={{
-              x: [0, 18, -10, 0],
-              y: [0, -22, 14, 0],
-              scale: [1, 1.04, 0.98, 1],
-            }}
+            animate={
+              shouldReduceMotion
+                ? {}
+                : {
+                    x: [0, 18, -10, 0],
+                    y: [0, -22, 14, 0],
+                    scale: [1, 1.04, 0.98, 1],
+                  }
+            }
             transition={{
-              duration: orb.dur,
+              duration: shouldReduceMotion ? 0 : orb.dur,
               delay: orb.delay,
               repeat: Infinity,
               ease: 'easeInOut',
@@ -198,7 +218,7 @@ export function AmbientBackground({
       </div>
 
       {/* Content */}
-      {children}
+      {!backgroundOnly && <div className="relative z-10">{children}</div>}
     </div>
   )
 }

@@ -20,16 +20,16 @@ export function AppPage({
   return (
     <div
       className={cn(
-        'relative overflow-hidden rounded-[1.75rem]',
+        'relative isolate overflow-hidden rounded-[1.75rem]',
         fullHeight && 'flex h-[100dvh] flex-col overflow-hidden',
       )}
       style={{ background: 'var(--app-bg)' }}
     >
-      {/* ✅ FIX: Absolute layer so AmbientBackground's min-h-screen
-          can't steal space from the flex column */}
-      <div className="absolute inset-0 -z-10">
-        <AmbientBackground variant={ambient} intensity={ambientIntensity} />
-      </div>
+      <AmbientBackground
+        variant={ambient}
+        intensity={ambientIntensity}
+        backgroundOnly
+      />
 
       <div
         className={cn(

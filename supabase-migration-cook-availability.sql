@@ -20,8 +20,26 @@ alter table cook_availability enable row level security;
 -- Buyers need to read this to see whether a cook can take their booking.
 drop policy if exists "Availability is publicly readable" on cook_availability;
 create policy "Availability is publicly readable" on cook_availability
-  for select using (true);
+  for select to anon, authenticated using (true);
 
 drop policy if exists "Cooks manage their own availability" on cook_availability;
 create policy "Cooks manage their own availability" on cook_availability
-  for all using (auth.uid() = cook_id) with check (auth.uid() = cook_id);
+  for all to authenticated
+  using (
+    cook_id = (select auth.uid())
+    and exists (
+      select 1 from public.profiles p
+      where p.id = (select auth.uid())
+        and p.role = 'cook'
+        and p.suspended = false
+    )
+  )
+  with check (
+    cook_id = (select auth.uid())
+    and exists (
+      select 1 from public.profiles p
+      where p.id = (select auth.uid())
+        and p.role = 'cook'
+        and p.suspended = false
+    )
+  );
