@@ -28,6 +28,8 @@ import {
   Loader2,
   RotateCcw,
   ShieldCheck,
+  Sun,
+  Moon,
 } from 'lucide-react'
 import { useAuthStore } from '@/stores/useAuthStore'
 import { formatNaira } from '@/lib/utils'
@@ -38,6 +40,7 @@ import { useProfile } from '@/hooks/useProfile'
 import { AvailabilityText } from '@/components/cook/AvailabilityText'
 import { updateProfile as updateProfileRecord } from '@/services/profiles'
 import { TOUR_SEGMENT_KEY } from '@/components/tour/AppTour'
+import { useHungerMode } from '@/components/providers/HungerModeProviders'
 ;('')
 const TABS = ['Overview', 'Posts', 'Specials', 'Reviews', 'Info'] as const
 type Tab = (typeof TABS)[number]
@@ -70,6 +73,7 @@ export default function ProfilePage() {
   const { data: profile, isLoading: profileLoading } = useProfile()
   const updateStore = useAuthStore((state) => state.updateProfile)
   const isAdmin = useAuthStore((state) => state.isAdmin)
+  const { hungerMode, toggleHungerMode } = useHungerMode()
   const [tab, setTab] = useState<Tab>('Overview')
   const [editing, setEditing] = useState(false)
 
@@ -273,6 +277,35 @@ export default function ProfilePage() {
             <MessageCircle className="h-4 w-4" />
             Food4Love Support
           </Link>
+
+          <button
+            type="button"
+            onClick={toggleHungerMode}
+            aria-pressed={hungerMode}
+            aria-label={
+              hungerMode ? 'Switch to light mode' : 'Switch to Hunger Mode'
+            }
+            className="hover:border-[var(--accent)]/40 mb-4 flex min-h-12 w-full items-center gap-3 rounded-xl border border-[var(--border)] bg-[var(--card)] px-4 py-3 text-left transition hover:bg-[var(--bg-2)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]"
+          >
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[var(--accent-soft)] text-[var(--accent)]">
+              {hungerMode ? (
+                <Moon aria-hidden="true" className="h-4 w-4" />
+              ) : (
+                <Sun aria-hidden="true" className="h-4 w-4" />
+              )}
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className="block text-sm font-semibold text-[var(--text-1)]">
+                {hungerMode ? 'Hunger Mode is on' : 'Light mode is on'}
+              </span>
+              <span className="mt-0.5 block text-xs text-[var(--text-3)]">
+                Tap to switch to {hungerMode ? 'bright light' : 'warm dark'}
+              </span>
+            </span>
+            <span className="text-xs font-bold text-[var(--accent)]">
+              {hungerMode ? 'Dark' : 'Light'}
+            </span>
+          </button>
 
           {profile.location && (
             <div className="mb-3 flex items-center gap-1.5">

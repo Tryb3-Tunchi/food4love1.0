@@ -51,7 +51,7 @@
     --bg-gradient-end: #fff6ee;
     --ambient-dot: rgba(114, 72, 49, 0.16);
     --ambient-string: rgba(142, 92, 57, 0.3);
-    --ambient-lantern-glow: rgba(243, 179, 61, 0.2);
+    --ambient-lantern-glow: rgba(243, 179, 61, 0.3);
     --glass-bg: rgba(255, 254, 252, 0.72);
     --glass-highlight: rgba(255, 255, 255, 0.78);
 
@@ -84,7 +84,7 @@
     --bg-gradient-end: #1d1411;
     --ambient-dot: rgba(255, 205, 151, 0.18);
     --ambient-string: rgba(255, 187, 114, 0.34);
-    --ambient-lantern-glow: rgba(255, 144, 71, 0.24);
+    --ambient-lantern-glow: rgba(255, 144, 71, 0.34);
     --glass-bg: rgba(49, 35, 30, 0.82);
     --glass-highlight: rgba(255, 236, 215, 0.08);
     --card: rgba(48, 34, 29, 0.88);
@@ -906,13 +906,14 @@
       transparent 1.35px
     );
     background-size: 25px 25px;
-    mask-image: radial-gradient(ellipse at 50% 16%, #000 0%, transparent 76%);
-    opacity: 0.72;
+    mask-image: radial-gradient(ellipse at 50% 25%, #000 0%, transparent 92%);
+    opacity: 0.88;
+    animation: ambient-grid-drift 36s linear infinite;
   }
 
   .ambient-lanterns {
     overflow: hidden;
-    opacity: 0.72;
+    opacity: 0.9;
   }
 
   .ambient-lantern {
@@ -944,9 +945,9 @@
     position: absolute;
     top: 2rem;
     left: 50%;
-    width: 1.65rem;
-    height: 2.5rem;
-    border: 1px solid color-mix(in srgb, var(--accent-alt) 38%, transparent);
+    width: 2rem;
+    height: 2.9rem;
+    border: 1px solid color-mix(in srgb, var(--accent-alt) 52%, transparent);
     border-radius: 48% 48% 42% 42%;
     background: radial-gradient(
       ellipse at 50% 38%,
@@ -954,7 +955,7 @@
       color-mix(in srgb, var(--accent) 16%, transparent) 68%,
       transparent
     );
-    box-shadow: 0 0 2.6rem var(--ambient-lantern-glow);
+    box-shadow: 0 0 3.2rem var(--ambient-lantern-glow);
     transform: translateX(-50%);
   }
 
