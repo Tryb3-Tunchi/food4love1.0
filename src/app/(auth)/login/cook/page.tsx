@@ -1,7 +1,6 @@
 'use client'
 
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
 import { motion } from 'framer-motion'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -39,7 +38,6 @@ const LOGIN_CARDS = [
 ]
 
 export default function CookLoginPage() {
-  const router = useRouter()
   const {
     register,
     handleSubmit,
@@ -55,8 +53,15 @@ export default function CookLoginPage() {
       toast.error('Incorrect email or password. Try again.')
       return
     }
-    toast.success('Welcome back, chef.')
-    router.push(await getPostLoginRedirect(sb, authData.user.id))
+    try {
+      const nextPath = await getPostLoginRedirect(sb, authData.user.id)
+      toast.success('Welcome back, chef.')
+      window.location.assign(nextPath)
+    } catch {
+      toast.error(
+        'You are signed in, but we could not load your profile. Please try again.',
+      )
+    }
   }
 
   return (
