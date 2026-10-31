@@ -97,9 +97,9 @@ function getSegments(role: 'cook' | 'buyer'): TourSegment[] {
   }
 
   return [
-    { path: '/swipe', steps: discoverySteps, nextPath: '/requests' },
+    { path: '/swipe', steps: discoverySteps, nextPath: '/stories' },
     {
-      path: '/requests',
+      path: '/stories',
       steps: [
         {
           element: '[data-tour="story-management"]',
@@ -120,20 +120,11 @@ function getSegments(role: 'cook' | 'buyer'): TourSegment[] {
           },
         },
       ],
-      nextPath: '/matches',
+      nextPath: '/chat',
     },
     {
-      path: '/matches',
+      path: '/chat',
       steps: [
-        {
-          element: '[data-tour="matches-content"]',
-          popover: {
-            title: 'Your matches',
-            description:
-              'See your connections and open a conversation to plan a meal.',
-            side: 'bottom',
-          },
-        },
         {
           element: '[data-tour="nav-chat"]',
           popover: {
@@ -217,7 +208,7 @@ export function AppTour() {
             title: 'Next up',
             description:
               role === 'cook' && segment.path === '/swipe'
-                ? 'Next, take a look at your incoming requests and story tools.'
+                ? 'Next, take a look at your story tools.'
                 : 'Continue to the next part of your Food4Love tour.',
             nextBtnText: 'Continue',
             onNextClick: () => {

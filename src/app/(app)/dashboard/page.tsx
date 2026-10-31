@@ -55,7 +55,7 @@ const SECTION_LINKS = [
     detail: 'Post and manage your meals',
   },
   {
-    href: '/requests',
+    href: '/stories',
     icon: Film,
     title: 'Stories and posts',
     detail: 'Share what you’re cooking',

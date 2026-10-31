@@ -4,12 +4,13 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { motion } from 'framer-motion'
 import {
+  Film,
   Flame,
+  Inbox,
   MessageCircle,
   MapPin,
   User,
   Users,
-  LayoutDashboard,
 } from 'lucide-react'
 import { useAuthStore } from '@/stores/useAuthStore'
 import { useNotifications } from '@/hooks/useNotifications'
@@ -25,13 +26,8 @@ const buyerLinks = [
 
 const cookLinks = [
   { href: '/swipe', label: 'Discover', icon: Flame, badge: 'none' },
-  {
-    href: '/dashboard',
-    label: 'Dashboard',
-    icon: LayoutDashboard,
-    badge: 'none',
-  },
-  { href: '/requests', label: 'Requests', icon: Users, badge: 'notifications' },
+  { href: '/requests', label: 'Requests', icon: Inbox, badge: 'notifications' },
+  { href: '/stories', label: 'Stories', icon: Film, badge: 'none' },
   { href: '/chat', label: 'Chat', icon: MessageCircle, badge: 'notifications' },
   { href: '/profile', label: 'Profile', icon: User, badge: 'none' },
 ]
