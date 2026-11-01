@@ -76,10 +76,10 @@ export function CookTodayStrip() {
       href: '/requests',
       icon: Inbox,
       tone: '#E59A2E',
-      value: data.newRequests,
+      value: data.newRequests + stats.newOrders,
       format: undefined,
       label: 'New requests',
-      needsYou: data.newRequests > 0,
+      needsYou: data.newRequests + stats.newOrders > 0,
     },
     {
       href: '/bookings',
@@ -105,7 +105,7 @@ export function CookTodayStrip() {
     stats.newOrders > 0 && {
       icon: CalendarClock,
       label: `${stats.newOrders} booking${stats.newOrders === 1 ? '' : 's'} waiting`,
-      href: '/bookings',
+      href: '/requests',
     },
     (kyc === 'unverified' || kyc === 'rejected') && {
       icon: ShieldAlert,

@@ -3,6 +3,7 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { checkAvailability } from '@/lib/availability'
+import { DECLINE_KEYS, declineMessage } from '@/lib/bookingDecline'
 
 const bookingRequestSchema = z.object({
   cook_id: z.string().uuid(),
@@ -158,10 +159,18 @@ export async function POST(req: NextRequest) {
   }
 }
 
-const bookingActionSchema = z.object({
-  booking_id: z.string().uuid(),
-  action: z.literal('accept'),
-})
+const bookingActionSchema = z.discriminatedUnion('action', [
+  z.object({
+    booking_id: z.string().uuid(),
+    action: z.literal('accept'),
+  }),
+  z.object({
+    booking_id: z.string().uuid(),
+    action: z.literal('decline'),
+    reason: z.enum(DECLINE_KEYS),
+    note: z.string().trim().max(200).optional(),
+  }),
+])
 
 export async function PATCH(req: NextRequest) {
   try {
@@ -190,7 +199,7 @@ export async function PATCH(req: NextRequest) {
         .maybeSingle(),
       admin
         .from('bookings')
-        .select('id, cook_id, status')
+        .select('id, cook_id, match_id, status, payment_status')
         .eq('id', parsed.data.booking_id)
         .maybeSingle(),
     ])
@@ -211,9 +220,23 @@ export async function PATCH(req: NextRequest) {
       )
     }
 
+    const decision = parsed.data
+    // A paid booking needs a refund to be undone, so it goes through support.
+    if (decision.action === 'decline' && booking.payment_status === 'paid') {
+      return NextResponse.json(
+        {
+          error: 'This booking is already paid. Contact support to cancel it.',
+        },
+        { status: 409 },
+      )
+    }
+
     const { data: updatedBooking, error } = await admin
       .from('bookings')
-      .update({ status: 'confirmed', updated_at: new Date().toISOString() })
+      .update({
+        status: decision.action === 'accept' ? 'confirmed' : 'cancelled',
+        updated_at: new Date().toISOString(),
+      })
       .eq('id', booking.id)
       .eq('cook_id', user.id)
       .eq('status', 'pending')
@@ -222,9 +245,19 @@ export async function PATCH(req: NextRequest) {
 
     if (error || !updatedBooking) {
       return NextResponse.json(
-        { error: 'Booking changed before it could be accepted' },
+        { error: 'Booking changed before it could be updated' },
         { status: 409 },
       )
+    }
+
+    // Tell the buyer why, in the chat they already share with the chef.
+    if (decision.action === 'decline' && booking.match_id) {
+      const { error: messageError } = await admin.from('messages').insert({
+        match_id: booking.match_id,
+        sender_id: user.id,
+        content: declineMessage(decision.reason, decision.note),
+      })
+      if (messageError) console.error('Decline message error:', messageError)
     }
 
     return NextResponse.json({ booking: updatedBooking })

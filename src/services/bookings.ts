@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/client'
+import type { DeclineReason } from '@/lib/bookingDecline'
 
 export interface BookingItem {
   id?: string
@@ -34,6 +35,7 @@ export interface Booking {
   meal_description?: string
   notes?: string | null
   special_requests?: string | null
+  guests?: number | null
   payment_status: 'unpaid' | 'paid' | 'refunded' | 'failed'
   payment_reference: string | null
   created_at: string
@@ -140,6 +142,27 @@ export async function getBookingById(id: string): Promise<Booking | null> {
     throw error
   }
   return data as Booking
+}
+
+export async function declineBooking(
+  bookingId: string,
+  reason: DeclineReason,
+  note?: string,
+): Promise<void> {
+  const response = await fetch('/api/bookings', {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      booking_id: bookingId,
+      action: 'decline',
+      reason,
+      note: note?.trim() || undefined,
+    }),
+  })
+  if (!response.ok) {
+    const result = await response.json().catch(() => ({}))
+    throw new Error(result.error || 'Could not decline booking')
+  }
 }
 
 export async function acceptBooking(bookingId: string): Promise<void> {
