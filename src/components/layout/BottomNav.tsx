@@ -2,17 +2,27 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { motion } from 'framer-motion'
 import {
+  AnimatePresence,
+  LayoutGroup,
+  motion,
+  useReducedMotion,
+  type TargetAndTransition,
+  type Transition,
+} from 'framer-motion'
+import {
+  Film,
   Flame,
+  Inbox,
   MessageCircle,
   MapPin,
   User,
   Users,
-  LayoutDashboard,
 } from 'lucide-react'
 import { useAuthStore } from '@/stores/useAuthStore'
 import { useNotifications } from '@/hooks/useNotifications'
+import { useActiveStories } from '@/hooks/useActiveStories'
+import { RingFrame } from '@/components/stories/StoryRing'
 import { NavBadge } from './NavBadge'
 
 const buyerLinks = [
@@ -25,23 +35,65 @@ const buyerLinks = [
 
 const cookLinks = [
   { href: '/swipe', label: 'Discover', icon: Flame, badge: 'none' },
-  {
-    href: '/dashboard',
-    label: 'Dashboard',
-    icon: LayoutDashboard,
-    badge: 'none',
-  },
-  { href: '/requests', label: 'Requests', icon: Users, badge: 'notifications' },
+  { href: '/requests', label: 'Requests', icon: Inbox, badge: 'notifications' },
+  { href: '/stories', label: 'Stories', icon: Film, badge: 'none' },
   { href: '/chat', label: 'Chat', icon: MessageCircle, badge: 'notifications' },
   { href: '/profile', label: 'Profile', icon: User, badge: 'none' },
 ]
+
+// Every tab has its own colour and its own small idle movement, so the bar
+// never sits still.
+const LOOK: Record<
+  string,
+  { tone: string; move: TargetAndTransition; timing: Transition }
+> = {
+  '/swipe': {
+    tone: '#E8562A',
+    move: { scale: [1, 1.12, 0.96, 1.08, 1], rotate: [0, -6, 4, -3, 0] },
+    timing: { duration: 2.2, repeat: Infinity, repeatDelay: 0.8 },
+  },
+  '/requests': {
+    tone: '#E59A2E',
+    move: { y: [0, 3, 0, 1.5, 0] },
+    timing: { duration: 1.6, repeat: Infinity, repeatDelay: 1.8 },
+  },
+  '/stories': {
+    tone: '#D4457B',
+    move: { rotate: [0, -10, 10, -5, 0] },
+    timing: { duration: 2.4, repeat: Infinity, repeatDelay: 2 },
+  },
+  '/chat': {
+    tone: '#2F9E6B',
+    move: { scale: [1, 1.18, 1, 1.1, 1] },
+    timing: { duration: 1.3, repeat: Infinity, repeatDelay: 2.4 },
+  },
+  '/matches': {
+    tone: '#D4457B',
+    move: { scale: [1, 1.2, 1, 1.12, 1] },
+    timing: { duration: 1.2, repeat: Infinity, repeatDelay: 1.8 },
+  },
+  '/map': {
+    tone: '#2A9DA6',
+    move: { y: [0, -4, 0, -2, 0] },
+    timing: { duration: 1.3, repeat: Infinity, repeatDelay: 2.2 },
+  },
+  '/profile': {
+    tone: '#E8562A',
+    move: {},
+    timing: {},
+  },
+}
+
+const spring = { type: 'spring', stiffness: 460, damping: 36 } as const
 
 export function BottomNav() {
   const pathname = usePathname()
   const { profile } = useAuthStore()
   const { unreadCount } = useNotifications()
+  const reduceMotion = useReducedMotion()
   const isCook = profile?.role === 'cook'
   const links = isCook ? cookLinks : buyerLinks
+  const { data: liveStories = [] } = useActiveStories(profile?.id, isCook)
 
   // Hide on auth pages
   if (
@@ -54,41 +106,124 @@ export function BottomNav() {
   }
 
   return (
-    <nav className="bg-[var(--bg)]/90 safe-area-pb fixed bottom-0 left-0 right-0 z-50 border-t border-[var(--border)] backdrop-blur-xl">
-      <div className="mx-auto flex max-w-lg items-center justify-around px-2 py-2">
-        {links.map((link) => {
-          const isActive =
-            pathname === link.href || pathname.startsWith(`${link.href}/`)
-          const Icon = link.icon
-          const showBadge = link.badge === 'notifications' && unreadCount > 0
+    <nav
+      aria-label="Main"
+      className="pointer-events-none fixed inset-x-0 bottom-0 z-50 px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]"
+    >
+      <LayoutGroup>
+        <div className="pointer-events-auto mx-auto flex max-w-md items-center justify-between rounded-[1.75rem] border border-[var(--border)] bg-[var(--card)] p-1.5 shadow-lift backdrop-blur-xl">
+          {links.map((link, index) => {
+            const isActive =
+              pathname === link.href || pathname.startsWith(`${link.href}/`)
+            const Icon = link.icon
+            const showBadge = link.badge === 'notifications' && unreadCount > 0
+            const isProfile = link.href === '/profile'
+            const showAvatar = isProfile && !!profile?.avatar_url
+            const look = LOOK[link.href]
 
-          return (
-            <Link
-              key={link.href}
-              href={link.href}
-              data-tour={link.href === '/chat' ? 'nav-chat' : undefined}
-              className={`relative flex flex-col items-center gap-0.5 rounded-xl px-3 py-1 transition-colors ${
-                isActive
-                  ? 'text-[var(--primary)]'
-                  : 'text-[var(--text-muted)] hover:text-[var(--text)]'
-              }`}
-            >
-              {isActive && (
-                <motion.div
-                  layoutId="bottomNavIndicator"
-                  className="absolute -top-2 h-1 w-8 rounded-full bg-[var(--primary)]"
-                  transition={{ type: 'spring', stiffness: 400, damping: 30 }}
-                />
-              )}
-              <div className="relative">
-                <Icon className="h-5 w-5" strokeWidth={isActive ? 2.5 : 2} />
-                {showBadge && <NavBadge count={unreadCount} />}
-              </div>
-              <span className="text-[10px] font-medium">{link.label}</span>
-            </Link>
-          )
-        })}
-      </div>
+            return (
+              <motion.div key={link.href} layout transition={spring}>
+                <motion.div whileTap={{ scale: 0.88 }}>
+                  <Link
+                    href={link.href}
+                    aria-label={link.label}
+                    aria-current={isActive ? 'page' : undefined}
+                    data-tour={link.href === '/chat' ? 'nav-chat' : undefined}
+                    className={`relative flex h-11 items-center gap-1.5 rounded-full ${
+                      isActive ? 'px-3.5' : 'px-1.5'
+                    }`}
+                  >
+                    {isActive && (
+                      <motion.span
+                        layoutId="nav-pill"
+                        transition={spring}
+                        className="absolute inset-0 rounded-full"
+                        style={{
+                          background:
+                            'linear-gradient(135deg, #ff9a52, var(--accent))',
+                          boxShadow: 'var(--shadow-warm)',
+                        }}
+                      />
+                    )}
+
+                    <motion.span
+                      key={isActive ? 'on' : 'off'}
+                      initial={isActive ? { scale: 0.5, rotate: -28 } : false}
+                      animate={{ scale: 1, rotate: 0 }}
+                      transition={{
+                        type: 'spring',
+                        stiffness: 520,
+                        damping: 13,
+                      }}
+                      className="relative z-10 flex items-center"
+                    >
+                      <span
+                        className="flex h-8 w-8 items-center justify-center rounded-full transition-colors"
+                        style={{
+                          background:
+                            isActive || showAvatar
+                              ? 'transparent'
+                              : `${look.tone}1f`,
+                        }}
+                      >
+                        <motion.span
+                          className="relative flex"
+                          animate={reduceMotion ? {} : look.move}
+                          transition={{
+                            ...look.timing,
+                            delay: 0.3 + index * 0.35,
+                          }}
+                        >
+                          {showAvatar ? (
+                            <RingFrame
+                              count={isActive ? 0 : liveStories.length}
+                              thickness={2}
+                              gap={1.5}
+                              gapColor="var(--card)"
+                            >
+                              <img
+                                src={profile!.avatar_url!}
+                                alt=""
+                                className={`h-6 w-6 rounded-full object-cover ${
+                                  isActive ? 'ring-2 ring-white' : ''
+                                }`}
+                              />
+                            </RingFrame>
+                          ) : (
+                            <Icon
+                              className="h-[20px] w-[20px]"
+                              strokeWidth={isActive ? 2.4 : 2.2}
+                              fill={isActive ? 'none' : look.tone}
+                              fillOpacity={0.22}
+                              style={{ color: isActive ? '#fff' : look.tone }}
+                            />
+                          )}
+                          {showBadge && <NavBadge count={unreadCount} />}
+                        </motion.span>
+                      </span>
+                    </motion.span>
+
+                    <AnimatePresence initial={false}>
+                      {isActive && (
+                        <motion.span
+                          key="label"
+                          initial={{ width: 0, opacity: 0 }}
+                          animate={{ width: 'auto', opacity: 1 }}
+                          exit={{ width: 0, opacity: 0 }}
+                          transition={{ duration: 0.2 }}
+                          className="relative z-10 overflow-hidden whitespace-nowrap text-xs font-bold text-white"
+                        >
+                          {link.label}
+                        </motion.span>
+                      )}
+                    </AnimatePresence>
+                  </Link>
+                </motion.div>
+              </motion.div>
+            )
+          })}
+        </div>
+      </LayoutGroup>
     </nav>
   )
 }

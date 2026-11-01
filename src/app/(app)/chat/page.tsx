@@ -3,6 +3,7 @@
 import { useMatches } from '@/hooks/useMatches'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { Skeleton } from '@/components/ui/Skeleton'
+import { ChefChiLauncher } from '@/components/chat/ChefChiLauncher'
 import { MessageSquare, ChevronRight } from 'lucide-react'
 import Link from 'next/link'
 import Image from 'next/image'
@@ -23,12 +24,18 @@ export default function ChatIndexPage() {
 
   if (!matches || matches.length === 0) {
     return (
-      <EmptyState
-        icon={<MessageSquare className="h-12 w-12" />}
-        title="No matches yet"
-        description="Start swiping to match with amazing home chefs!"
-        action={{ label: 'Discover Chefs', href: '/swipe' }}
-      />
+      <div className="min-h-screen bg-[var(--bg)]">
+        <div className="bg-[var(--bg)]/80 sticky top-0 z-10 border-b border-[var(--border)] px-4 py-4 backdrop-blur-xl">
+          <h1 className="text-2xl font-bold">Messages</h1>
+        </div>
+        <EmptyState
+          icon={<MessageSquare className="h-12 w-12" />}
+          title="No matches yet"
+          description="Start swiping to match with amazing home chefs!"
+          action={{ label: 'Discover Chefs', href: '/swipe' }}
+        />
+        <ChefChiLauncher />
+      </div>
     )
   }
 
@@ -98,6 +105,7 @@ export default function ChatIndexPage() {
           </Link>
         ))}
       </div>
+      <ChefChiLauncher />
     </div>
   )
 }

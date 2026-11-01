@@ -8,7 +8,7 @@ export async function getPostLoginRedirect(
 ): Promise<string> {
   const { data: profile, error } = await supabase
     .from('profiles')
-    .select('role, onboarding_complete')
+    .select('onboarding_complete')
     .eq('id', userId)
     .maybeSingle()
 
@@ -18,5 +18,5 @@ export async function getPostLoginRedirect(
 
   if (!profile) return '/onboarding/role'
   if (profile.onboarding_complete !== true) return '/onboarding/setup'
-  return profile.role === 'cook' ? '/dashboard' : '/swipe'
+  return '/swipe'
 }

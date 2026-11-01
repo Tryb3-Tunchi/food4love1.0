@@ -15,6 +15,7 @@ import type { Post } from '@/types/db'
 import { PostFeed } from '@/components/posts/PostFeed'
 import { AvailabilityCard } from '@/components/cook/AvailabilityCard'
 import { StoryRow } from '@/components/cook/StoryRow'
+import { StoryRing } from '@/components/stories/StoryRing'
 import { ReportButton } from '@/components/reports/ReportButton'
 
 export async function generateMetadata({
@@ -100,29 +101,35 @@ export default async function CookPublicPage({
         <div className="px-4 pb-0">
           <div className="-mt-10 mb-3 flex items-end gap-4">
             <div className="relative">
-              <div
-                className="flex h-20 w-20 items-center justify-center rounded-2xl border-4 text-2xl font-bold shadow-lift"
-                style={{
-                  background: 'var(--card)',
-                  borderColor: 'var(--card)',
-                  color: 'var(--accent)',
-                }}
+              <StoryRing
+                stories={[...(stories ?? [])].reverse()}
+                author={{ name: chef.full_name, avatarUrl: chef.avatar_url }}
+                shape="rounded"
               >
-                {chef.avatar_url ? (
-                  <img
-                    src={chef.avatar_url}
-                    alt={chef.full_name}
-                    className="h-full w-full rounded-xl object-cover"
-                  />
-                ) : (
-                  chef.full_name
-                    .split(' ')
-                    .map((n: string) => n[0])
-                    .join('')
-                    .slice(0, 2)
-                    .toUpperCase()
-                )}
-              </div>
+                <div
+                  className="flex h-20 w-20 items-center justify-center rounded-2xl border-4 text-2xl font-bold shadow-lift"
+                  style={{
+                    background: 'var(--card)',
+                    borderColor: 'var(--card)',
+                    color: 'var(--accent)',
+                  }}
+                >
+                  {chef.avatar_url ? (
+                    <img
+                      src={chef.avatar_url}
+                      alt={chef.full_name}
+                      className="h-full w-full rounded-xl object-cover"
+                    />
+                  ) : (
+                    chef.full_name
+                      .split(' ')
+                      .map((n: string) => n[0])
+                      .join('')
+                      .slice(0, 2)
+                      .toUpperCase()
+                  )}
+                </div>
+              </StoryRing>
               {chef.is_verified && (
                 <div
                   className="absolute -bottom-1 -right-1 flex h-6 w-6 items-center justify-center rounded-full border-2 border-white"

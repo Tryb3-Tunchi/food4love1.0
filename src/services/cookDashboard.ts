@@ -1,8 +1,8 @@
-import { createClient } from '@/lib/supabase/client'
 import { getMyBookings } from '@/services/bookings'
 import { getDailySpecialsByCook } from '@/services/dailySpecials'
 import { getPostsByCook } from '@/services/posts'
 import { getReviewsForProfile, getReviewStats } from '@/services/reviews'
+import { getMatchRequests } from '@/services/cookRequests'
 
 async function orEmpty<T>(request: Promise<T[]>): Promise<T[]> {
   try {
@@ -13,9 +13,7 @@ async function orEmpty<T>(request: Promise<T[]>): Promise<T[]> {
 }
 
 export async function getCookDashboard(cookId: string) {
-  const supabase = createClient()
-
-  const [bookings, specials, posts, reviews, reviewStats, likes, matches] =
+  const [bookings, specials, posts, reviews, reviewStats, matchRequests] =
     await Promise.all([
       orEmpty(getMyBookings(cookId, 'cook')),
       orEmpty(getDailySpecialsByCook(cookId)),
@@ -26,23 +24,15 @@ export async function getCookDashboard(cookId: string) {
         count: 0,
         distribution: [],
       })),
-      supabase
-        .from('swipes')
-        .select('swiper_id')
-        .eq('swiped_id', cookId)
-        .eq('action', 'like'),
-      supabase
-        .from('matches')
-        .select('user1_id, user2_id')
-        .or(`user1_id.eq.${cookId},user2_id.eq.${cookId}`),
+      orEmpty(getMatchRequests(cookId)),
     ])
 
-  const matchedIds = new Set(
-    (matches.data ?? []).flatMap((m) => [m.user1_id, m.user2_id]),
-  )
-  const newRequests = (likes.data ?? []).filter(
-    (like) => !matchedIds.has(like.swiper_id),
-  ).length
-
-  return { bookings, specials, posts, reviews, reviewStats, newRequests }
+  return {
+    bookings,
+    specials,
+    posts,
+    reviews,
+    reviewStats,
+    newRequests: matchRequests.length,
+  }
 }
