@@ -66,7 +66,9 @@ export function ChefChiPanel({
     saveChat(userId, messages)
   }, [userId, messages])
 
+  // Follow the conversation, but leave the welcome screen at the top.
   useEffect(() => {
+    if (messages.length === 0 && !sending) return
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages, sending])
 
@@ -178,7 +180,7 @@ export function ChefChiPanel({
 
         {/* Messages */}
         <div
-          className="min-h-0 flex-1 space-y-1.5 overflow-y-auto px-3 py-4"
+          className="scrollbar-none min-h-0 flex-1 space-y-1.5 overflow-y-auto px-3 py-4"
           style={{
             backgroundImage:
               'radial-gradient(color-mix(in srgb, var(--accent) 12%, transparent) 1.2px, transparent 1.2px)',
@@ -189,7 +191,7 @@ export function ChefChiPanel({
             <motion.div
               initial={{ opacity: 0, y: 16 }}
               animate={{ opacity: 1, y: 0 }}
-              className="flex flex-col items-center px-3 pb-2 pt-3 text-center"
+              className="flex flex-col items-center px-3 pb-1 pt-3 text-center"
             >
               <motion.div
                 initial={{ scale: 0.6, rotate: -8 }}
@@ -197,10 +199,10 @@ export function ChefChiPanel({
                 transition={{ type: 'spring', stiffness: 260, damping: 12 }}
                 className="rounded-full shadow-lift"
               >
-                <ChefChiAvatar size={104} />
+                <ChefChiAvatar size={92} />
               </motion.div>
               <h3
-                className="mt-3 font-heading text-xl font-bold"
+                className="mt-2 font-heading text-xl font-bold"
                 style={{ color: 'var(--text-1)' }}
               >
                 {CHI_NAME}
@@ -209,7 +211,7 @@ export function ChefChiPanel({
                 AI kitchen buddy · can make mistakes
               </p>
               <div
-                className="mt-4 max-w-[19rem] rounded-2xl rounded-tl-md px-4 py-3 text-left text-sm leading-relaxed shadow-sm"
+                className="mt-3 max-w-[19rem] rounded-2xl rounded-tl-md px-4 py-2.5 text-left text-sm leading-relaxed shadow-sm"
                 style={{
                   background: 'var(--card)',
                   border: '1px solid var(--border)',
@@ -218,7 +220,7 @@ export function ChefChiPanel({
               >
                 {chiWelcome(firstName, role)}
               </div>
-              <div className="mt-4 flex flex-wrap justify-center gap-2">
+              <div className="mt-3 flex flex-wrap justify-center gap-1.5">
                 {chiSuggestions(role).map((suggestion, i) => (
                   <motion.button
                     key={suggestion}
