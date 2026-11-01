@@ -1,19 +1,45 @@
 'use client'
 
+import { useEffect } from 'react'
 import Link from 'next/link'
 import { useQuery } from '@tanstack/react-query'
+import { animate, motion, useMotionValue, useTransform } from 'framer-motion'
 import {
   CalendarClock,
   ChevronRight,
+  Clock,
+  Inbox,
   ShieldAlert,
   UserCircle,
   UtensilsCrossed,
+  Wallet,
 } from 'lucide-react'
 import { useAuthStore } from '@/stores/useAuthStore'
 import { getCookDashboard } from '@/services/cookDashboard'
 import { getProfileChecklist, summarizeOrders } from '@/lib/dashboard'
 import { formatNaira } from '@/lib/utils'
 import { Skeleton } from '@/components/ui/Skeleton'
+
+function CountUp({
+  value,
+  format = (n) => String(n),
+}: {
+  value: number
+  format?: (n: number) => string
+}) {
+  const motionValue = useMotionValue(0)
+  const text = useTransform(motionValue, (v) => format(Math.round(v)))
+
+  useEffect(() => {
+    const controls = animate(motionValue, value, {
+      duration: 0.9,
+      ease: 'easeOut',
+    })
+    return controls.stop
+  }, [value, motionValue])
+
+  return <motion.span>{text}</motion.span>
+}
 
 // A slim summary at the top of Discover for chefs: what is waiting, what is
 // cooking and what came in this month, plus the few things that need action.
@@ -29,7 +55,7 @@ export function CookTodayStrip() {
   if (isLoading || !data || !profile) {
     return (
       <div className="relative z-10 px-4 pb-1">
-        <Skeleton className="h-[70px] w-full rounded-2xl" />
+        <Skeleton className="h-[76px] w-full rounded-2xl" />
       </div>
     )
   }
@@ -41,17 +67,23 @@ export function CookTodayStrip() {
   const figures = [
     {
       href: '/requests',
+      icon: Inbox,
       value: data.newRequests,
+      format: undefined,
       label: 'New requests',
     },
     {
       href: '/bookings',
+      icon: Clock,
       value: stats.inProgress,
+      format: undefined,
       label: 'In progress',
     },
     {
       href: '/cook/payments',
-      value: formatNaira(stats.earned),
+      icon: Wallet,
+      value: stats.earned,
+      format: formatNaira,
       label: 'This month',
     },
   ]
@@ -86,27 +118,43 @@ export function CookTodayStrip() {
 
   return (
     <div className="relative z-10 px-4 pb-1">
-      <div
-        className="f4l-card grid grid-cols-3 divide-x"
-        style={{ borderColor: 'var(--divider)' }}
-      >
-        {figures.map((figure) => (
-          <Link
+      <div className="grid grid-cols-3 gap-2">
+        {figures.map((figure, i) => (
+          <motion.div
             key={figure.label}
-            href={figure.href}
-            className="px-2 py-2.5 text-center transition-colors active:bg-[var(--accent-soft)]"
-            style={{ borderColor: 'var(--divider)' }}
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: i * 0.07 }}
           >
-            <p
-              className="font-heading text-lg font-bold leading-tight"
-              style={{ color: 'var(--text-1)' }}
+            <Link
+              href={figure.href}
+              className="block rounded-2xl border border-[var(--border)] bg-[var(--card)] px-3 py-2.5 shadow-sm backdrop-blur-xl transition-transform active:scale-95"
             >
-              {figure.value}
-            </p>
-            <p className="text-[11px]" style={{ color: 'var(--text-3)' }}>
-              {figure.label}
-            </p>
-          </Link>
+              <div className="flex items-center gap-1.5">
+                <span
+                  className="flex h-5 w-5 items-center justify-center rounded-full"
+                  style={{ background: 'var(--accent-soft)' }}
+                >
+                  <figure.icon
+                    className="h-3 w-3"
+                    style={{ color: 'var(--accent)' }}
+                  />
+                </span>
+                <span
+                  className="truncate text-[10px] font-semibold uppercase tracking-wide"
+                  style={{ color: 'var(--text-3)' }}
+                >
+                  {figure.label}
+                </span>
+              </div>
+              <p
+                className="mt-1 font-heading text-xl font-bold leading-none"
+                style={{ color: 'var(--text-1)' }}
+              >
+                <CountUp value={figure.value} format={figure.format} />
+              </p>
+            </Link>
+          </motion.div>
         ))}
       </div>
 
