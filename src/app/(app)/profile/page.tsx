@@ -20,7 +20,6 @@ import {
   Calendar,
   MessageCircle,
   Heart,
-  Camera,
   Edit3,
   Shield,
   UtensilsCrossed,
@@ -37,11 +36,20 @@ import toast from 'react-hot-toast'
 import { useProfile } from '@/hooks/useProfile'
 import { useActiveStories } from '@/hooks/useActiveStories'
 import { StoryRing } from '@/components/stories/StoryRing'
+import { BusinessPanel } from '@/components/cook/BusinessPanel'
+import { CoverPhotoButton } from '@/components/cook/CoverPhotoButton'
 import { AvailabilityText } from '@/components/cook/AvailabilityText'
 import { updateProfile as updateProfileRecord } from '@/services/profiles'
 import { TOUR_SEGMENT_KEY } from '@/components/tour/AppTour'
 ;('')
-const TABS = ['Overview', 'Posts', 'Specials', 'Reviews', 'Info'] as const
+const TABS = [
+  'Overview',
+  'Business',
+  'Posts',
+  'Specials',
+  'Reviews',
+  'Info',
+] as const
 type Tab = (typeof TABS)[number]
 
 function StatPill({ icon, label }: { icon: string; label: string }) {
@@ -143,7 +151,8 @@ export default function ProfilePage() {
   }
 
   const ratingDisplay = (profile.rating ?? 0).toFixed(1)
-  const visibleTabs = isCook ? TABS : (['Overview', 'Info'] as Tab[])
+  const coverUrl = profile.photos?.[0] ?? null
+  const visibleTabs: readonly Tab[] = isCook ? TABS : ['Overview', 'Info']
 
   return (
     <div className="pb-24" style={{ background: 'var(--bg)' }}>
@@ -156,17 +165,21 @@ export default function ProfilePage() {
               'linear-gradient(135deg, var(--accent-l), var(--divider))',
           }}
         >
-          <div className="absolute inset-0 flex items-center justify-center opacity-20">
-            <span className="text-8xl">{isCook ? '🍲' : '🍽️'}</span>
-          </div>
+          {coverUrl ? (
+            <img
+              src={coverUrl}
+              alt="Your cover"
+              className="h-full w-full object-cover"
+            />
+          ) : (
+            <div className="absolute inset-0 flex items-center justify-center opacity-20">
+              <span className="text-8xl">{isCook ? '🍲' : '🍽️'}</span>
+            </div>
+          )}
           {isCook && (
-            <button
-              className="absolute bottom-3 right-3 flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-bold"
-              style={{ background: 'var(--card)', color: 'var(--text-2)' }}
-            >
-              <Camera className="h-3.5 w-3.5" />
-              Edit cover
-            </button>
+            <div className="absolute bottom-3 right-3">
+              <CoverPhotoButton />
+            </div>
           )}
         </div>
 
@@ -449,7 +462,7 @@ export default function ProfilePage() {
           borderBottom: '1px solid var(--divider)',
         }}
       >
-        <div className="flex gap-1">
+        <div className="flex gap-1 overflow-x-auto">
           {visibleTabs.map((t) => (
             <button
               key={t}
@@ -461,7 +474,7 @@ export default function ProfilePage() {
                     : undefined
               }
               onClick={() => setTab(t)}
-              className="relative px-4 py-3 text-sm font-semibold transition-all"
+              className="relative shrink-0 whitespace-nowrap px-4 py-3 text-sm font-semibold transition-all"
               style={{ color: tab === t ? 'var(--accent)' : 'var(--text-3)' }}
             >
               {t}
@@ -614,6 +627,9 @@ export default function ProfilePage() {
               </button>
             </div>
           )}
+
+          {/* Business */}
+          {tab === 'Business' && isCook && <BusinessPanel />}
 
           {/* Specials */}
           {tab === 'Posts' && isCook && (

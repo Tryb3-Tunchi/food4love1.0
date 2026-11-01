@@ -21,6 +21,7 @@ import {
 } from 'framer-motion'
 import toast from 'react-hot-toast'
 import { NotificationCenter } from '@/components/notifications/NotificationCenter'
+import { CookTodayStrip } from '@/components/cook/CookTodayStrip'
 
 const CUISINES = [
   'Igbo Cuisine',
@@ -321,6 +322,8 @@ export default function SwipePage() {
           </button>
         </div>
       </div>
+
+      {profile?.role === 'cook' && <CookTodayStrip />}
 
       {/* Card Area */}
       <div
