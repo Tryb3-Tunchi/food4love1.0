@@ -11,7 +11,7 @@ import { Button } from '@/components/ui/Button'
 import Link from 'next/link'
 import { recordSwipe, checkMutualLike } from '@/services/swipes'
 import { createMatch } from '@/services/matches'
-import { SlidersHorizontal, Flame, X, Check, MapPin } from 'lucide-react'
+import { SlidersHorizontal, X, Check, MapPin } from 'lucide-react'
 import {
   motion,
   AnimatePresence,
@@ -23,7 +23,10 @@ import toast from 'react-hot-toast'
 import { NotificationCenter } from '@/components/notifications/NotificationCenter'
 import { CookTodayStrip } from '@/components/cook/CookTodayStrip'
 import { ChefChiAvatar } from '@/components/chat/ChefChiAvatar'
-import { greetingFor } from '@/lib/dashboard'
+import {
+  DiscoverGreeting,
+  HeaderAurora,
+} from '@/components/swipe/DiscoverAmbience'
 
 const CUISINES = [
   'Igbo Cuisine',
@@ -220,27 +223,18 @@ export default function SwipePage() {
         className="pointer-events-none absolute inset-0 z-0 bg-gradient-to-r from-rose-400/20 via-transparent to-transparent"
       />
 
+      <HeaderAurora />
+
       {/* Header */}
       <div
         data-tour="discovery"
         className="relative z-10 flex shrink-0 items-center justify-between px-4 pb-3 pt-4"
       >
-        <div className="min-w-0">
-          <p className="flex items-center gap-1.5 text-xs font-medium text-[var(--text-3)]">
-            {greetingFor()}
-            {firstName ? `, ${firstName}` : ''}
-            {(profile?.streak ?? 0) > 1 && (
-              <span className="flex items-center gap-0.5 rounded-full bg-[var(--accent-soft)] px-1.5 py-0.5 text-[10px] font-bold text-[var(--accent)]">
-                <Flame className="h-3 w-3" /> {profile?.streak}
-              </span>
-            )}
-          </p>
-          <h1 className="font-heading text-[1.4rem] font-bold leading-tight text-[var(--text-1)]">
-            {profile?.role === 'cook'
-              ? 'Food lovers near you'
-              : 'Chefs near you'}
-          </h1>
-        </div>
+        <DiscoverGreeting
+          firstName={firstName}
+          streak={profile?.streak ?? 0}
+          title={isCook ? 'Food lovers near you' : 'Chefs near you'}
+        />
 
         <div className="flex items-center gap-2">
           <Link

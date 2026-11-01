@@ -2,7 +2,14 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { AnimatePresence, LayoutGroup, motion } from 'framer-motion'
+import {
+  AnimatePresence,
+  LayoutGroup,
+  motion,
+  useReducedMotion,
+  type TargetAndTransition,
+  type Transition,
+} from 'framer-motion'
 import {
   Film,
   Flame,
@@ -34,12 +41,56 @@ const cookLinks = [
   { href: '/profile', label: 'Profile', icon: User, badge: 'none' },
 ]
 
+// Every tab has its own colour and its own small idle movement, so the bar
+// never sits still.
+const LOOK: Record<
+  string,
+  { tone: string; move: TargetAndTransition; timing: Transition }
+> = {
+  '/swipe': {
+    tone: '#E8562A',
+    move: { scale: [1, 1.12, 0.96, 1.08, 1], rotate: [0, -6, 4, -3, 0] },
+    timing: { duration: 2.2, repeat: Infinity, repeatDelay: 0.8 },
+  },
+  '/requests': {
+    tone: '#E59A2E',
+    move: { y: [0, 3, 0, 1.5, 0] },
+    timing: { duration: 1.6, repeat: Infinity, repeatDelay: 1.8 },
+  },
+  '/stories': {
+    tone: '#D4457B',
+    move: { rotate: [0, -10, 10, -5, 0] },
+    timing: { duration: 2.4, repeat: Infinity, repeatDelay: 2 },
+  },
+  '/chat': {
+    tone: '#2F9E6B',
+    move: { scale: [1, 1.18, 1, 1.1, 1] },
+    timing: { duration: 1.3, repeat: Infinity, repeatDelay: 2.4 },
+  },
+  '/matches': {
+    tone: '#D4457B',
+    move: { scale: [1, 1.2, 1, 1.12, 1] },
+    timing: { duration: 1.2, repeat: Infinity, repeatDelay: 1.8 },
+  },
+  '/map': {
+    tone: '#2A9DA6',
+    move: { y: [0, -4, 0, -2, 0] },
+    timing: { duration: 1.3, repeat: Infinity, repeatDelay: 2.2 },
+  },
+  '/profile': {
+    tone: '#E8562A',
+    move: {},
+    timing: {},
+  },
+}
+
 const spring = { type: 'spring', stiffness: 460, damping: 36 } as const
 
 export function BottomNav() {
   const pathname = usePathname()
   const { profile } = useAuthStore()
   const { unreadCount } = useNotifications()
+  const reduceMotion = useReducedMotion()
   const isCook = profile?.role === 'cook'
   const links = isCook ? cookLinks : buyerLinks
   const { data: liveStories = [] } = useActiveStories(profile?.id, isCook)
@@ -61,13 +112,14 @@ export function BottomNav() {
     >
       <LayoutGroup>
         <div className="pointer-events-auto mx-auto flex max-w-md items-center justify-between rounded-[1.75rem] border border-[var(--border)] bg-[var(--card)] p-1.5 shadow-lift backdrop-blur-xl">
-          {links.map((link) => {
+          {links.map((link, index) => {
             const isActive =
               pathname === link.href || pathname.startsWith(`${link.href}/`)
             const Icon = link.icon
             const showBadge = link.badge === 'notifications' && unreadCount > 0
             const isProfile = link.href === '/profile'
             const showAvatar = isProfile && !!profile?.avatar_url
+            const look = LOOK[link.href]
 
             return (
               <motion.div key={link.href} layout transition={spring}>
@@ -77,7 +129,9 @@ export function BottomNav() {
                     aria-label={link.label}
                     aria-current={isActive ? 'page' : undefined}
                     data-tour={link.href === '/chat' ? 'nav-chat' : undefined}
-                    className="relative flex h-11 items-center gap-1.5 rounded-full px-3.5"
+                    className={`relative flex h-11 items-center gap-1.5 rounded-full ${
+                      isActive ? 'px-3.5' : 'px-1.5'
+                    }`}
                   >
                     {isActive && (
                       <motion.span
@@ -101,45 +155,52 @@ export function BottomNav() {
                         stiffness: 520,
                         damping: 13,
                       }}
-                      className={`relative z-10 flex items-center ${
-                        isActive ? 'text-white' : 'text-[var(--text-3)]'
-                      }`}
+                      className="relative z-10 flex items-center"
                     >
-                      <motion.span
-                        className="relative flex"
-                        animate={
-                          isActive && link.href === '/swipe'
-                            ? {
-                                scale: [1, 1.14, 0.96, 1.1, 1],
-                                rotate: [0, -7, 5, -3, 0],
-                              }
-                            : {}
-                        }
-                        transition={{ duration: 1.5, repeat: Infinity }}
+                      <span
+                        className="flex h-8 w-8 items-center justify-center rounded-full transition-colors"
+                        style={{
+                          background:
+                            isActive || showAvatar
+                              ? 'transparent'
+                              : `${look.tone}1f`,
+                        }}
                       >
-                        {showAvatar ? (
-                          <RingFrame
-                            count={isActive ? 0 : liveStories.length}
-                            thickness={2}
-                            gap={1.5}
-                            gapColor="var(--card)"
-                          >
-                            <img
-                              src={profile!.avatar_url!}
-                              alt=""
-                              className={`h-6 w-6 rounded-full object-cover ${
-                                isActive ? 'ring-2 ring-white' : ''
-                              }`}
+                        <motion.span
+                          className="relative flex"
+                          animate={reduceMotion ? {} : look.move}
+                          transition={{
+                            ...look.timing,
+                            delay: 0.3 + index * 0.35,
+                          }}
+                        >
+                          {showAvatar ? (
+                            <RingFrame
+                              count={isActive ? 0 : liveStories.length}
+                              thickness={2}
+                              gap={1.5}
+                              gapColor="var(--card)"
+                            >
+                              <img
+                                src={profile!.avatar_url!}
+                                alt=""
+                                className={`h-6 w-6 rounded-full object-cover ${
+                                  isActive ? 'ring-2 ring-white' : ''
+                                }`}
+                              />
+                            </RingFrame>
+                          ) : (
+                            <Icon
+                              className="h-[20px] w-[20px]"
+                              strokeWidth={isActive ? 2.4 : 2.2}
+                              fill={isActive ? 'none' : look.tone}
+                              fillOpacity={0.22}
+                              style={{ color: isActive ? '#fff' : look.tone }}
                             />
-                          </RingFrame>
-                        ) : (
-                          <Icon
-                            className="h-[22px] w-[22px]"
-                            strokeWidth={isActive ? 2.4 : 2}
-                          />
-                        )}
-                        {showBadge && <NavBadge count={unreadCount} />}
-                      </motion.span>
+                          )}
+                          {showBadge && <NavBadge count={unreadCount} />}
+                        </motion.span>
+                      </span>
                     </motion.span>
 
                     <AnimatePresence initial={false}>
