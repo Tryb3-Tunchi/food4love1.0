@@ -348,12 +348,14 @@ export default function SwipePage() {
                 Refresh
               </Button>
             </div>
-            <Link
-              href={isCook ? '/stories' : '/chat/chi'}
-              className="text-xs font-semibold text-[var(--accent)]"
-            >
-              {isCook ? 'Post a story' : 'Ask Chef Chi what to eat'} →
-            </Link>
+            {isCook && (
+              <Link
+                href="/stories"
+                className="text-xs font-semibold text-[var(--accent)]"
+              >
+                Post a story →
+              </Link>
+            )}
           </motion.div>
         ) : (
           <>

@@ -2,6 +2,10 @@ export const CHI_NAME = 'Chef Chi'
 export const CHI_HISTORY_LIMIT = 12
 export const CHI_HOURLY_LIMIT = 30
 export const CHI_MAX_MESSAGE = 1000
+export const CHI_STORED_MESSAGES = 60
+
+// Who gets Chef Chi. Add 'buyer' here to open her up to food lovers too.
+export const CHI_ROLES = ['cook'] as const
 
 export interface ChiMessage {
   id: string

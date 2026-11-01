@@ -83,6 +83,14 @@ async function askGrok(
   return data?.choices?.[0]?.message?.content ?? ''
 }
 
+export function isAiConfigured() {
+  return !!(
+    process.env.GEMINI_API_KEY ||
+    process.env.GOOGLE_GENERATIVE_AI_API_KEY ||
+    process.env.XAI_API_KEY
+  )
+}
+
 export async function generateChiReply({
   system,
   history,

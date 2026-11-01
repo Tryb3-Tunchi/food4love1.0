@@ -4,7 +4,6 @@ import { Avatar } from '@/components/ui/Avatar'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { AppPage } from '@/components/ui/AppPage'
 import { PageHeader } from '@/components/ui/PageHeader'
-import { ChefChiCard } from '@/components/chat/ChefChiCard'
 import Link from 'next/link'
 import { formatDistanceToNow } from 'date-fns'
 import { Heart, Clock, ChevronRight, Sparkles } from 'lucide-react'
@@ -38,8 +37,6 @@ export default function MatchesPage() {
         iconBg="var(--accent-soft)"
         badge={matches?.length ? `${matches.length} active` : undefined}
       />
-
-      <ChefChiCard className="mb-3" />
 
       {/* Loading skeletons */}
       {isLoading && (
