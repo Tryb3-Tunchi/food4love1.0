@@ -2,25 +2,11 @@
 
 import Link from 'next/link'
 import { useQuery } from '@tanstack/react-query'
-import { ChefHat, ChevronRight, Sparkles } from 'lucide-react'
+import { ChevronRight } from 'lucide-react'
 import { useAuthStore } from '@/stores/useAuthStore'
 import { getChiMessages } from '@/services/chefChi'
 import { CHI_NAME } from '@/lib/chefChi'
-
-export function ChefChiAvatar({ size = 'lg' }: { size?: 'md' | 'lg' }) {
-  return (
-    <div
-      className={`relative flex shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-ember to-pepper text-white ${
-        size === 'lg' ? 'h-14 w-14' : 'h-10 w-10'
-      }`}
-    >
-      <ChefHat className={size === 'lg' ? 'h-7 w-7' : 'h-5 w-5'} />
-      <span className="absolute -bottom-0.5 -right-0.5 flex h-5 w-5 items-center justify-center rounded-full border-2 border-[var(--bg)] bg-[var(--accent)]">
-        <Sparkles className="h-2.5 w-2.5" />
-      </span>
-    </div>
-  )
-}
+import { ChefChiAvatar } from './ChefChiAvatar'
 
 // Pinned conversation with Chef Chi. Every account gets one, so the chat and
 // matches screens are never empty.
@@ -42,7 +28,10 @@ export function ChefChiCard({
 
   const body = (
     <>
-      <ChefChiAvatar />
+      <span className="relative shrink-0">
+        <ChefChiAvatar size={56} />
+        <span className="absolute bottom-0.5 right-0.5 h-3.5 w-3.5 rounded-full border-2 border-[var(--card)] bg-[var(--success)]" />
+      </span>
       <div className="min-w-0 flex-1">
         <div className="mb-0.5 flex items-center gap-2">
           <span

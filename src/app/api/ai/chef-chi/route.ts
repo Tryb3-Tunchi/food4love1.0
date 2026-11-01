@@ -66,11 +66,18 @@ export async function POST(request: NextRequest) {
   const { error: saveError } = await session
     .from('ai_chat_messages')
     .insert({ user_id: user.id, role: 'user', content: message })
-  if (saveError)
+  if (saveError) {
+    // The chat table has not been created in Supabase yet.
+    const notSetUp = ['PGRST205', '42P01'].includes(saveError.code)
     return NextResponse.json(
-      { error: 'Could not send your message' },
-      { status: 500 },
+      {
+        error: notSetUp
+          ? 'Chef Chi is not switched on yet. The team still needs to finish setting her up.'
+          : 'Could not send your message',
+      },
+      { status: notSetUp ? 503 : 500 },
     )
+  }
 
   const history = [...(recent ?? [])].reverse() as {
     role: 'user' | 'assistant'

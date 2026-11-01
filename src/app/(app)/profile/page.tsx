@@ -35,6 +35,8 @@ import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import toast from 'react-hot-toast'
 import { useProfile } from '@/hooks/useProfile'
+import { useActiveStories } from '@/hooks/useActiveStories'
+import { StoryRing } from '@/components/stories/StoryRing'
 import { AvailabilityText } from '@/components/cook/AvailabilityText'
 import { updateProfile as updateProfileRecord } from '@/services/profiles'
 import { TOUR_SEGMENT_KEY } from '@/components/tour/AppTour'
@@ -100,6 +102,8 @@ export default function ProfilePage() {
       queryFn: () => getReviewStats(profile!.id),
       enabled: !!profile?.id,
     })
+
+  const { data: myStories = [] } = useActiveStories(profile?.id, isCook)
 
   const handleLogout = async () => {
     await createClient().auth.signOut()
@@ -169,23 +173,32 @@ export default function ProfilePage() {
         <div className="px-4 pb-0">
           <div className="-mt-10 mb-3 flex items-end justify-between">
             <div className="relative">
-              <div
-                className="flex h-20 w-20 items-center justify-center rounded-2xl border-4 text-4xl shadow-lift"
-                style={{
-                  background: 'var(--card)',
-                  borderColor: 'var(--card)',
+              <StoryRing
+                stories={myStories}
+                author={{
+                  name: profile.full_name ?? 'You',
+                  avatarUrl: profile.avatar_url,
                 }}
+                shape="rounded"
               >
-                {profile.avatar_url ? (
-                  <img
-                    src={profile.avatar_url}
-                    alt={profile.full_name}
-                    className="h-full w-full rounded-xl object-cover"
-                  />
-                ) : (
-                  <span>{isCook ? '🧑‍🍳' : '🧑'}</span>
-                )}
-              </div>
+                <div
+                  className="flex h-20 w-20 items-center justify-center rounded-2xl border-4 text-4xl shadow-lift"
+                  style={{
+                    background: 'var(--card)',
+                    borderColor: 'var(--card)',
+                  }}
+                >
+                  {profile.avatar_url ? (
+                    <img
+                      src={profile.avatar_url}
+                      alt={profile.full_name}
+                      className="h-full w-full rounded-xl object-cover"
+                    />
+                  ) : (
+                    <span>{isCook ? '🧑‍🍳' : '🧑'}</span>
+                  )}
+                </div>
+              </StoryRing>
               {isVerified && (
                 <div
                   className="absolute -bottom-1 -right-1 flex h-6 w-6 items-center justify-center rounded-full border-2 border-white"

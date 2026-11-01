@@ -4,12 +4,12 @@ import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { AnimatePresence, motion } from 'framer-motion'
-import { format } from 'date-fns'
+import { format, isToday, isYesterday } from 'date-fns'
 import toast from 'react-hot-toast'
 import { ArrowLeft, Send, Trash2 } from 'lucide-react'
 import { useAuthStore } from '@/stores/useAuthStore'
 import { clearChi, getChiMessages, sendToChi } from '@/services/chefChi'
-import { ChefChiAvatar } from '@/components/chat/ChefChiCard'
+import { ChefChiAvatar } from '@/components/chat/ChefChiAvatar'
 import {
   CHI_MAX_MESSAGE,
   CHI_NAME,
@@ -17,6 +17,12 @@ import {
   chiWelcome,
   type ChiMessage,
 } from '@/lib/chefChi'
+
+function dayLabel(date: Date) {
+  if (isToday(date)) return 'Today'
+  if (isYesterday(date)) return 'Yesterday'
+  return format(date, 'MMMM d, yyyy')
+}
 
 export default function ChefChiPage() {
   const profile = useAuthStore((s) => s.profile)
@@ -36,6 +42,7 @@ export default function ChefChiPage() {
     mutationFn: sendToChi,
     onMutate: async (text: string) => {
       await queryClient.cancelQueries({ queryKey })
+      const previous = queryClient.getQueryData<ChiMessage[]>(queryKey)
       queryClient.setQueryData<ChiMessage[]>(queryKey, (old = []) => [
         ...old,
         {
@@ -45,8 +52,11 @@ export default function ChefChiPage() {
           created_at: new Date().toISOString(),
         },
       ])
+      return { previous }
     },
-    onError: (error: Error, text) => {
+    onError: (error: Error, text, context) => {
+      // Take the unsent message back out of the chat and into the input box.
+      queryClient.setQueryData(queryKey, context?.previous ?? [])
       toast.error(error.message)
       setInput((current) => current || text)
     },
@@ -81,23 +91,30 @@ export default function ChefChiPage() {
   const showWelcome = !isLoading && messages.length === 0
 
   return (
-    <div className="flex h-[100dvh] flex-col bg-[var(--bg)] pb-[4.25rem]">
+    <div className="flex h-[100dvh] flex-col bg-[var(--bg)] pb-[5.5rem]">
       {/* Header */}
-      <div className="bg-[var(--bg)]/90 sticky top-0 z-20 flex shrink-0 items-center gap-3 border-b border-[var(--border)] px-4 py-3 backdrop-blur-xl">
+      <div className="bg-[var(--bg)]/90 sticky top-0 z-20 flex shrink-0 items-center gap-3 border-b border-[var(--border)] px-3 py-2.5 backdrop-blur-xl">
         <Link
           href="/chat"
-          className="-ml-2 rounded-full p-2 transition-colors hover:bg-[var(--bg-2)]"
+          aria-label="Back to chats"
+          className="rounded-full p-2 transition-colors hover:bg-[var(--bg-2)]"
         >
-          <ArrowLeft className="h-5 w-5 text-[var(--text)]" />
+          <ArrowLeft className="h-5 w-5" style={{ color: 'var(--text-1)' }} />
         </Link>
-        <ChefChiAvatar size="md" />
+        <span className="relative shrink-0">
+          <ChefChiAvatar size={44} talking={send.isPending} />
+          <span className="absolute bottom-0 right-0 h-3 w-3 rounded-full border-2 border-[var(--bg)] bg-[var(--success)]" />
+        </span>
         <div className="min-w-0 flex-1">
-          <h2 className="flex items-center gap-2 truncate text-sm font-semibold text-[var(--text)]">
+          <h2
+            className="flex items-center gap-2 truncate text-sm font-semibold"
+            style={{ color: 'var(--text-1)' }}
+          >
             {CHI_NAME}
             <span className="f4l-badge f4l-badge-accent">AI</span>
           </h2>
-          <p className="text-xs text-[var(--text-muted)]">
-            Your food buddy, always online
+          <p className="text-xs" style={{ color: 'var(--text-3)' }}>
+            {send.isPending ? 'typing…' : 'online'}
           </p>
         </div>
         {messages.length > 0 && (
@@ -108,7 +125,8 @@ export default function ChefChiPage() {
             }}
             disabled={clear.isPending}
             aria-label="Clear chat"
-            className="rounded-full p-2 text-[var(--text-muted)] transition-colors hover:bg-[var(--bg-2)]"
+            className="rounded-full p-2 transition-colors hover:bg-[var(--bg-2)]"
+            style={{ color: 'var(--text-3)' }}
           >
             <Trash2 className="h-4 w-4" />
           </button>
@@ -116,62 +134,135 @@ export default function ChefChiPage() {
       </div>
 
       {/* Messages */}
-      <div className="min-h-0 flex-1 space-y-3 overflow-y-auto px-4 py-4">
+      <div
+        className="min-h-0 flex-1 space-y-1.5 overflow-y-auto px-3 py-4"
+        style={{
+          backgroundImage:
+            'radial-gradient(color-mix(in srgb, var(--accent) 12%, transparent) 1.2px, transparent 1.2px)',
+          backgroundSize: '22px 22px',
+        }}
+      >
         {isLoading && (
           <div className="h-12 w-2/3 animate-pulse rounded-2xl bg-[var(--bg-2)]" />
         )}
 
         {showWelcome && (
-          <>
-            <div className="flex justify-start">
-              <div className="max-w-[78%] rounded-2xl rounded-bl-md border border-[var(--border)] bg-[var(--bg-2)] px-4 py-2.5 text-sm leading-relaxed text-[var(--text)]">
-                {chiWelcome(firstName, profile?.role)}
-              </div>
+          <motion.div
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="flex flex-col items-center px-4 pb-2 pt-6 text-center"
+          >
+            <motion.div
+              initial={{ scale: 0.6, rotate: -8 }}
+              animate={{ scale: 1, rotate: 0 }}
+              transition={{ type: 'spring', stiffness: 260, damping: 12 }}
+              className="rounded-full shadow-lift"
+            >
+              <ChefChiAvatar size={132} />
+            </motion.div>
+            <h3
+              className="mt-4 font-heading text-2xl font-bold"
+              style={{ color: 'var(--text-1)' }}
+            >
+              {CHI_NAME}
+            </h3>
+            <p className="mt-1 text-xs" style={{ color: 'var(--text-3)' }}>
+              AI kitchen buddy · can make mistakes
+            </p>
+            <div
+              className="relative mt-5 max-w-[19rem] rounded-2xl rounded-tl-md px-4 py-3 text-left text-sm leading-relaxed shadow-sm"
+              style={{
+                background: 'var(--card)',
+                border: '1px solid var(--border)',
+                color: 'var(--text-1)',
+              }}
+            >
+              {chiWelcome(firstName, profile?.role)}
             </div>
-            <div className="flex flex-wrap gap-2 pt-1">
-              {chiSuggestions(profile?.role).map((suggestion) => (
-                <button
+            <div className="mt-4 flex flex-wrap justify-center gap-2">
+              {chiSuggestions(profile?.role).map((suggestion, i) => (
+                <motion.button
                   key={suggestion}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.25 + i * 0.08 }}
+                  whileTap={{ scale: 0.95 }}
                   onClick={() => submit(suggestion)}
-                  className="rounded-full border border-[var(--border)] px-3 py-1.5 text-xs font-medium text-[var(--text)] transition-colors hover:bg-[var(--bg-2)]"
+                  className="rounded-full px-3.5 py-2 text-xs font-semibold transition-colors"
+                  style={{
+                    background: 'var(--accent-soft)',
+                    color: 'var(--accent)',
+                    border:
+                      '1px solid color-mix(in srgb, var(--accent) 22%, transparent)',
+                  }}
                 >
                   {suggestion}
-                </button>
+                </motion.button>
               ))}
             </div>
-          </>
+          </motion.div>
         )}
 
         <AnimatePresence initial={false}>
-          {messages.map((msg) => {
+          {messages.map((msg, idx) => {
             const isMe = msg.role === 'user'
+            const date = new Date(msg.created_at)
+            const showDay =
+              idx === 0 ||
+              format(date, 'yyyy-MM-dd') !==
+                format(new Date(messages[idx - 1].created_at), 'yyyy-MM-dd')
             return (
               <motion.div
                 key={msg.id}
-                initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                initial={{ opacity: 0, y: 12, scale: 0.94 }}
                 animate={{ opacity: 1, y: 0, scale: 1 }}
-                transition={{ duration: 0.2 }}
-                className="space-y-1"
+                transition={{ type: 'spring', stiffness: 420, damping: 28 }}
               >
+                {showDay && (
+                  <div className="my-3 flex justify-center">
+                    <span
+                      className="rounded-full px-3 py-1 text-[11px] font-semibold"
+                      style={{
+                        background: 'var(--card)',
+                        color: 'var(--text-3)',
+                        border: '1px solid var(--border)',
+                      }}
+                    >
+                      {dayLabel(date)}
+                    </span>
+                  </div>
+                )}
                 <div
-                  className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}
+                  className={`flex items-end gap-2 ${isMe ? 'justify-end' : 'justify-start'}`}
                 >
+                  {!isMe && <ChefChiAvatar size={28} animated={false} />}
                   <div
-                    className={`max-w-[78%] whitespace-pre-wrap break-words rounded-2xl px-4 py-2.5 text-sm leading-relaxed ${
-                      isMe
-                        ? 'rounded-br-md bg-[var(--primary)] text-white'
-                        : 'rounded-bl-md border border-[var(--border)] bg-[var(--bg-2)] text-[var(--text)]'
+                    className={`max-w-[78%] whitespace-pre-wrap break-words rounded-2xl px-3.5 py-2 text-sm leading-relaxed shadow-sm ${
+                      isMe ? 'rounded-br-md text-white' : 'rounded-bl-md'
                     }`}
+                    style={
+                      isMe
+                        ? {
+                            background:
+                              'linear-gradient(135deg, #ff9a52, var(--accent))',
+                          }
+                        : {
+                            background: 'var(--card)',
+                            border: '1px solid var(--border)',
+                            color: 'var(--text-1)',
+                          }
+                    }
                   >
                     {msg.content}
+                    <span
+                      className={`ml-2 inline-block translate-y-1 text-[10px] ${
+                        isMe ? 'text-white/70' : ''
+                      }`}
+                      style={isMe ? undefined : { color: 'var(--text-3)' }}
+                    >
+                      {format(date, 'h:mm a')}
+                    </span>
                   </div>
-                </div>
-                <div
-                  className={`flex ${isMe ? 'justify-end' : 'justify-start'} px-1`}
-                >
-                  <span className="text-[10px] text-[var(--text-muted)]">
-                    {format(new Date(msg.created_at), 'h:mm a')}
-                  </span>
                 </div>
               </motion.div>
             )
@@ -179,13 +270,23 @@ export default function ChefChiPage() {
         </AnimatePresence>
 
         {send.isPending && (
-          <div className="flex justify-start">
-            <div className="flex items-center gap-1 rounded-2xl rounded-bl-md border border-[var(--border)] bg-[var(--bg-2)] px-4 py-3">
+          <div className="flex items-end gap-2">
+            <ChefChiAvatar size={28} talking />
+            <div
+              className="flex items-center gap-1 rounded-2xl rounded-bl-md px-4 py-3"
+              style={{
+                background: 'var(--card)',
+                border: '1px solid var(--border)',
+              }}
+            >
               {[0, 1, 2].map((i) => (
                 <span
                   key={i}
-                  className="h-1.5 w-1.5 animate-bounce rounded-full bg-[var(--text-muted)]"
-                  style={{ animationDelay: `${i * 0.15}s` }}
+                  className="h-1.5 w-1.5 animate-bounce rounded-full"
+                  style={{
+                    background: 'var(--text-3)',
+                    animationDelay: `${i * 0.15}s`,
+                  }}
                 />
               ))}
             </div>
@@ -195,29 +296,45 @@ export default function ChefChiPage() {
       </div>
 
       {/* Input */}
-      <div className="shrink-0 border-t border-[var(--border)] bg-[var(--bg)] px-4 pb-2 pt-3">
-        <div className="flex items-end gap-2 rounded-2xl border border-[var(--border)] bg-[var(--bg-2)] px-3 py-2">
-          <textarea
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={handleKeyDown}
-            maxLength={CHI_MAX_MESSAGE}
-            placeholder="Ask Chef Chi anything..."
-            rows={1}
-            className="max-h-32 min-h-[20px] flex-1 resize-none bg-transparent py-1.5 text-sm text-[var(--text)] outline-none placeholder:text-[var(--text-muted)]"
-          />
-          <button
+      <div className="shrink-0 border-t border-[var(--border)] bg-[var(--bg)] px-3 pb-2 pt-2.5">
+        <div className="flex items-end gap-2">
+          <div
+            className="flex flex-1 items-end rounded-3xl px-4 py-2"
+            style={{
+              background: 'var(--card)',
+              border: '1px solid var(--border)',
+            }}
+          >
+            <textarea
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={handleKeyDown}
+              maxLength={CHI_MAX_MESSAGE}
+              placeholder="Message Chef Chi"
+              rows={1}
+              className="max-h-32 min-h-[24px] flex-1 resize-none bg-transparent py-1 text-sm outline-none"
+              style={{ color: 'var(--text-1)' }}
+            />
+          </div>
+          <motion.button
+            whileTap={{ scale: 0.88 }}
             onClick={() => submit(input)}
             disabled={!input.trim() || send.isPending}
             aria-label="Send"
-            className="shrink-0 rounded-xl bg-[var(--primary)] p-2.5 text-white transition-all hover:scale-105 active:scale-95 disabled:cursor-not-allowed disabled:opacity-40"
+            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-white transition-opacity disabled:opacity-40"
+            style={{
+              background: 'linear-gradient(135deg, #ff9a52, var(--accent))',
+              boxShadow: 'var(--shadow-warm)',
+            }}
           >
-            <Send className="h-4 w-4" />
-          </button>
+            <Send className="h-[18px] w-[18px]" />
+          </motion.button>
         </div>
-        <p className="pt-1.5 text-center text-[10px] text-[var(--text-muted)]">
-          Chef Chi is an AI and can make mistakes. Check allergies and prices
-          with your chef.
+        <p
+          className="pt-1.5 text-center text-[10px]"
+          style={{ color: 'var(--text-3)' }}
+        >
+          Chef Chi is an AI. Check allergies and prices with your chef.
         </p>
       </div>
     </div>
