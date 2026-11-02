@@ -38,7 +38,7 @@ export function getQualityChecks({
       label: 'Cover photo',
       hint: 'Use your best food photo. It is the first thing buyers see.',
       done: !!profile.photos?.length,
-      href: '/dashboard',
+      href: '/profile',
     },
     {
       key: 'bio',

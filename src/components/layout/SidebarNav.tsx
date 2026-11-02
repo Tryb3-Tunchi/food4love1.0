@@ -2,8 +2,10 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import {
+  Film,
   Flame,
   Heart,
+  Inbox,
   MessageCircle,
   User,
   Map,
@@ -23,8 +25,9 @@ const buyerNav = [
   { href: '/profile', icon: User, label: 'Profile', id: '' },
 ]
 const cookNav = [
-  { href: '/requests', icon: Flame, label: 'Requests', id: '' },
-  { href: '/matches', icon: Heart, label: 'Matches', id: 'bottom-nav-matches' },
+  { href: '/swipe', icon: Flame, label: 'Discover', id: 'bottom-nav-swipe' },
+  { href: '/requests', icon: Inbox, label: 'Requests', id: '' },
+  { href: '/stories', icon: Film, label: 'Stories', id: '' },
   { href: '/chat', icon: MessageCircle, label: 'Chat', id: 'bottom-nav-chat' },
   { href: '/support', icon: MessageCircle, label: 'Support', id: '' },
   { href: '/profile', icon: User, label: 'Profile', id: '' },

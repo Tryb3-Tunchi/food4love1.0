@@ -112,7 +112,7 @@ export default function NewStoryPage() {
       )
 
       toast.success('Story posted — live for 24 hours')
-      router.push('/requests')
+      router.push('/stories')
     } catch (error) {
       toast.error(
         error instanceof Error ? error.message : 'Could not post your story',
