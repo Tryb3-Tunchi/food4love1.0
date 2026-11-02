@@ -1,14 +1,14 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 
 export function useMessages(matchId: string) {
   const queryClient = useQueryClient()
-  const supabase = createClient()
 
   const messagesQuery = useQuery({
     queryKey: ['messages', matchId],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await createClient()
         .from('messages')
         .select('*')
         .eq('match_id', matchId)
@@ -23,10 +23,10 @@ export function useMessages(matchId: string) {
     mutationFn: async (content: string) => {
       const {
         data: { user },
-      } = await supabase.auth.getUser()
+      } = await createClient().auth.getUser()
       if (!user) throw new Error('Not authenticated')
 
-      const { error } = await supabase.from('messages').insert({
+      const { error } = await createClient().from('messages').insert({
         match_id: matchId,
         sender_id: user.id,
         content,
@@ -40,8 +40,8 @@ export function useMessages(matchId: string) {
     },
   })
 
-  // Realtime subscription
   useEffect(() => {
+    const supabase = createClient()
     const channel = supabase
       .channel(`messages:${matchId}`)
       .on(
@@ -52,19 +52,27 @@ export function useMessages(matchId: string) {
           table: 'messages',
           filter: `match_id=eq.${matchId}`,
         },
-        (payload) => {
-          queryClient.setQueryData(['messages', matchId], (old: any[]) => [
-            ...(old || []),
-            payload.new,
-          ])
+        () => {
+          void queryClient.invalidateQueries({
+            queryKey: ['messages', matchId],
+          })
+          void queryClient.invalidateQueries({ queryKey: ['matches'] })
         },
       )
-      .subscribe()
+      .subscribe((status) => {
+        if (status === 'SUBSCRIBED') {
+          // Close the gap between the initial history fetch and joining realtime.
+          void queryClient.invalidateQueries({
+            queryKey: ['messages', matchId],
+          })
+          void queryClient.invalidateQueries({ queryKey: ['matches'] })
+        }
+      })
 
     return () => {
-      supabase.removeChannel(channel)
+      void supabase.removeChannel(channel)
     }
-  }, [matchId, queryClient, supabase])
+  }, [matchId, queryClient])
 
   return {
     messages: messagesQuery.data || [],
@@ -72,5 +80,3 @@ export function useMessages(matchId: string) {
     sendMessage,
   }
 }
-
-import { useEffect } from 'react'

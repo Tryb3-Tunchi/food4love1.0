@@ -33,6 +33,8 @@ function SignupPageContent() {
   const router = useRouter()
   const params = useSearchParams()
   const role = params.get('role') === 'cook' ? 'cook' : 'buyer'
+  const referralCode =
+    params.get('ref')?.trim().toUpperCase().slice(0, 12) || undefined
   const isCook = role === 'cook'
 
   const {
@@ -47,7 +49,14 @@ function SignupPageContent() {
     const { error } = await sb.auth.signUp({
       email: data.email,
       password: data.password,
-      options: { data: { full_name: data.full_name, phone: data.phone, role } },
+      options: {
+        data: {
+          full_name: data.full_name,
+          phone: data.phone,
+          role,
+          ...(referralCode ? { referral_code: referralCode } : {}),
+        },
+      },
     })
     toast.dismiss(loadingToast)
     if (error) {
@@ -139,6 +148,12 @@ function SignupPageContent() {
             </div>
 
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-3.5">
+              {referralCode && (
+                <p className="border-[var(--accent)]/25 rounded-xl border bg-[var(--accent-soft)] px-3 py-2 text-sm font-medium text-[var(--accent)]">
+                  Referral link applied. Your referrer earns rewards as you join
+                  and use Food4Love.
+                </p>
+              )}
               <Input
                 label="Full name"
                 placeholder="Adaeze Okonkwo"

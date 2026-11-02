@@ -90,6 +90,7 @@ export default function AdminMessagesPage() {
   const [total, setTotal] = useState(0)
   const [content, setContent] = useState('')
   const [reason, setReason] = useState('')
+  const [sendEmail, setSendEmail] = useState(false)
   const [loadingUsers, setLoadingUsers] = useState(true)
   const [loadingMessages, setLoadingMessages] = useState(false)
   const [sending, setSending] = useState(false)
@@ -318,6 +319,7 @@ export default function AdminMessagesPage() {
           user_id: selected.id,
           content: text,
           reason: contactReason,
+          send_email: sendEmail,
         }),
       })
       const result = await response.json()
@@ -331,7 +333,19 @@ export default function AdminMessagesPage() {
       )
       setContent('')
       setReason('')
-      setSentNotice('Reply sent as Food4Love Support.')
+      setSentNotice(
+        [
+          result.email_warning,
+          result.notification_warning,
+          !result.email_warning && result.email_sent
+            ? 'In-app reply sent; email was accepted for delivery.'
+            : !result.email_warning
+              ? 'Reply sent as Food4Love Support.'
+              : undefined,
+        ]
+          .filter(Boolean)
+          .join(' '),
+      )
     } catch (error) {
       setMessagesError(
         error instanceof Error ? error.message : 'Could not send message',
@@ -505,7 +519,7 @@ export default function AdminMessagesPage() {
           {sentNotice && (
             <p
               role="status"
-              className="border-b border-emerald-500/20 bg-emerald-500/10 px-4 py-2 text-sm text-emerald-700 dark:text-emerald-300"
+              className={`border-b px-4 py-2 text-sm ${/failed|could not/i.test(sentNotice) ? 'border-amber-500/20 bg-amber-500/10 text-amber-800 dark:text-amber-300' : 'border-emerald-500/20 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300'}`}
             >
               {sentNotice}
             </p>
@@ -578,6 +592,16 @@ export default function AdminMessagesPage() {
                 className="w-full rounded-lg border border-[var(--border)] bg-[var(--bg)] px-3 py-2 text-xs outline-none placeholder:text-[var(--text-3)] focus:border-[var(--accent)] disabled:opacity-50"
               />
             </label>
+            <label className="flex min-h-10 items-center gap-2 text-xs text-[var(--text-2)]">
+              <input
+                type="checkbox"
+                checked={sendEmail}
+                onChange={(event) => setSendEmail(event.target.checked)}
+                disabled={!selected || sending}
+                className="h-4 w-4 accent-[var(--accent)]"
+              />
+              Also send this message to the account email
+            </label>
             <div className="flex gap-2">
               <textarea
                 value={content}
@@ -605,7 +629,9 @@ export default function AdminMessagesPage() {
             </div>
             <p className="text-[10px] text-[var(--text-3)]">
               Messages are sent as Food4Love Support. A reason of at least five
-              characters is required.
+              characters is required. Email delivery uses the server-side Resend
+              configuration and never exposes recipient addresses to the
+              browser.
             </p>
           </form>
         </section>

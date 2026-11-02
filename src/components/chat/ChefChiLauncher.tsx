@@ -66,8 +66,9 @@ export function ChefChiLauncher() {
                     color: 'var(--text-1)',
                   }}
                 >
-                  Hi {firstName || 'chef'}! Need help with your bio, pricing or
-                  ideas? Ask me.
+                  {profile.role === 'cook'
+                    ? `Hi ${firstName || 'chef'}! Need help with your bio, pricing or ideas? Ask me.`
+                    : `Hi ${firstName || 'food lover'}! Need a meal idea or help finding a chef? Ask me.`}
                 </motion.div>
               )}
             </AnimatePresence>

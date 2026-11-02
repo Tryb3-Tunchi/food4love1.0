@@ -1,6 +1,6 @@
 'use client'
 
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { getDailySpecialsByCook } from '@/services/dailySpecials'
 import { getReviewsForProfile, getReviewStats } from '@/services/reviews'
 import { getPostsByCook } from '@/services/posts'
@@ -19,7 +19,6 @@ import {
   ChevronRight,
   Calendar,
   MessageCircle,
-  Heart,
   Edit3,
   Shield,
   UtensilsCrossed,
@@ -40,6 +39,8 @@ import { useActiveStories } from '@/hooks/useActiveStories'
 import { StoryRing } from '@/components/stories/StoryRing'
 import { BusinessPanel } from '@/components/cook/BusinessPanel'
 import { CoverPhotoButton } from '@/components/cook/CoverPhotoButton'
+import { ProfilePhotoManager } from '@/components/profile/ProfilePhotoManager'
+import { WalletRewardsCard } from '@/components/profile/WalletRewardsCard'
 import { AvailabilityText } from '@/components/cook/AvailabilityText'
 import { updateProfile as updateProfileRecord } from '@/services/profiles'
 import { TOUR_SEGMENT_KEY } from '@/components/tour/AppTour'
@@ -81,11 +82,14 @@ function SkeletonLine({ w = '100%', h = '1rem' }: { w?: string; h?: string }) {
 export default function ProfilePage() {
   const router = useRouter()
   const { data: profile, isLoading: profileLoading } = useProfile()
+  const queryClient = useQueryClient()
   const updateStore = useAuthStore((state) => state.updateProfile)
   const isAdmin = useAuthStore((state) => state.isAdmin)
   const { hungerMode, toggleHungerMode } = useHungerMode()
   const [tab, setTab] = useState<Tab>('Overview')
   const [editing, setEditing] = useState(false)
+  const [displayNameDraft, setDisplayNameDraft] = useState('')
+  const [savingDisplayName, setSavingDisplayName] = useState(false)
 
   const isCook = profile?.role === 'cook'
   const isVerified = profile?.kyc_status === 'verified'
@@ -128,6 +132,26 @@ export default function ProfilePage() {
         `${window.location.origin}/cook/${profile.id}`,
       )
       toast.success('Profile link copied!')
+    }
+  }
+
+  const saveDisplayName = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    const fullName = displayNameDraft.trim()
+    if (!profile || fullName.length < 2 || fullName.length > 80) return
+    setSavingDisplayName(true)
+    try {
+      const updated = await updateProfileRecord(profile.id, {
+        full_name: fullName,
+      })
+      updateStore({ full_name: updated.full_name })
+      queryClient.setQueryData(['profile', profile.id], updated)
+      setEditing(false)
+      toast.success('Your public name was updated')
+    } catch {
+      toast.error('Could not update your public name')
+    } finally {
+      setSavingDisplayName(false)
     }
   }
 
@@ -246,7 +270,10 @@ export default function ProfilePage() {
               </button>
               <button
                 data-tour="profile-edit"
-                onClick={() => setEditing(!editing)}
+                onClick={() => {
+                  setDisplayNameDraft(profile.full_name ?? '')
+                  setEditing(!editing)
+                }}
                 className="flex h-9 w-9 items-center justify-center rounded-xl transition-all active:scale-95"
                 style={{
                   background: 'var(--bg-2)',
@@ -285,6 +312,34 @@ export default function ProfilePage() {
           >
             {isCook ? 'Home Chef' : 'Food Lover'}
           </p>
+
+          {editing && (
+            <form
+              onSubmit={saveDisplayName}
+              className="mb-4 flex flex-col gap-2 rounded-xl border border-[var(--border)] bg-[var(--card)] p-3 sm:flex-row sm:items-end"
+            >
+              <label className="min-w-0 flex-1 text-xs font-semibold text-[var(--text-2)]">
+                Public profile name
+                <input
+                  required
+                  minLength={2}
+                  maxLength={80}
+                  value={displayNameDraft}
+                  onChange={(event) => setDisplayNameDraft(event.target.value)}
+                  className="mt-1 min-h-10 w-full rounded-lg border border-[var(--border)] bg-[var(--bg)] px-3 text-sm text-[var(--text-1)] outline-none focus:border-[var(--accent)]"
+                />
+              </label>
+              <button
+                type="submit"
+                disabled={
+                  savingDisplayName || displayNameDraft.trim().length < 2
+                }
+                className="inline-flex min-h-10 items-center justify-center rounded-lg bg-[var(--accent)] px-4 text-sm font-semibold text-white disabled:opacity-50"
+              >
+                {savingDisplayName ? 'Saving…' : 'Save name'}
+              </button>
+            </form>
+          )}
 
           {isAdmin && (
             <Link
@@ -487,6 +542,8 @@ export default function ProfilePage() {
         </div>
       </div>
 
+      <ProfilePhotoManager profile={profile} />
+
       {/* Sticky Tabs */}
       <div
         className="sticky top-0 z-20 px-4 pb-0 pt-2"
@@ -602,39 +659,8 @@ export default function ProfilePage() {
               )}
 
               <div>
-                <p className="f4l-section-label mb-3">Share & Earn</p>
-                <div className="f4l-card flex items-center gap-3 p-4">
-                  <div
-                    className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl"
-                    style={{ background: 'var(--accent-l)' }}
-                  >
-                    <Heart
-                      className="h-5 w-5"
-                      style={{ color: 'var(--accent)' }}
-                    />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <p
-                      className="text-sm font-bold"
-                      style={{ color: 'var(--text-1)' }}
-                    >
-                      Refer a friend
-                    </p>
-                    <p className="text-xs" style={{ color: 'var(--text-3)' }}>
-                      {isCook
-                        ? 'Invite a food lover — earn when they book'
-                        : 'Invite a friend — earn rewards'}
-                    </p>
-                  </div>
-                  <button
-                    onClick={handleShare}
-                    className="flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-bold text-white transition-all active:scale-95"
-                    style={{ background: 'var(--accent)' }}
-                  >
-                    <Share2 className="h-3.5 w-3.5" />
-                    Share
-                  </button>
-                </div>
+                <p className="f4l-section-label mb-3">Share &amp; Earn</p>
+                <WalletRewardsCard role={profile.role} />
               </div>
 
               <button

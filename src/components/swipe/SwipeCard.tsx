@@ -58,10 +58,11 @@ export function SwipeCard({ chef }: SwipeCardProps) {
   const [imageIndex, setImageIndex] = useState(0)
   const [showDetails, setShowDetails] = useState(false)
 
-  const photos =
-    chef.photos && chef.photos.length > 0
-      ? chef.photos
-      : ([chef.avatar_url].filter(Boolean) as string[])
+  const photos = Array.from(
+    new Set(
+      [chef.avatar_url, ...(chef.photos ?? [])].filter(Boolean) as string[],
+    ),
+  )
 
   const currentPhoto = photos[imageIndex] || null
   const name = chef.full_name || 'Chef'
@@ -222,6 +223,32 @@ export function SwipeCard({ chef }: SwipeCardProps) {
               </span>
             )}
           </div>
+
+          {photos.length > 0 && (
+            <div
+              aria-label="Profile photos"
+              className="scrollbar-none mb-3 flex gap-2 overflow-x-auto pb-1"
+            >
+              {photos.map((photo, index) => (
+                <button
+                  key={photo}
+                  type="button"
+                  onClick={() => setImageIndex(index)}
+                  aria-label={`View profile photo ${index + 1}`}
+                  aria-pressed={imageIndex === index}
+                  className={`relative h-16 w-16 shrink-0 overflow-hidden rounded-xl border-2 ${imageIndex === index ? 'border-[var(--accent)]' : 'border-[var(--border)]'}`}
+                >
+                  <Image
+                    src={photo}
+                    alt=""
+                    fill
+                    sizes="64px"
+                    className="object-cover"
+                  />
+                </button>
+              ))}
+            </div>
+          )}
 
           <div className="mb-3 flex items-center gap-3 text-sm text-[var(--text-3)]">
             <span className="flex items-center gap-1">

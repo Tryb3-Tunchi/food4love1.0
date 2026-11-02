@@ -12,6 +12,7 @@ import Link from 'next/link'
 import Image from 'next/image'
 import { format } from 'date-fns'
 import BookingModal from '@/components/booking/BookingModal'
+import { ChefChiLauncher } from '@/components/chat/ChefChiLauncher'
 
 interface Profile {
   id: string
@@ -264,6 +265,7 @@ export default function ChatDetailPage() {
           matchId={matchId as string}
         />
       )}
+      <ChefChiLauncher />
     </div>
   )
 }
