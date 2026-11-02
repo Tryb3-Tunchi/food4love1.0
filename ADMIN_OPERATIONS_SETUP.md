@@ -13,7 +13,7 @@ Supported permissions:
 - `bookings:manage`: inspect bookings and payment status.
 - `finance:refund`: request Paystack refunds.
 - `listings:manage`: remove or restore meal specials.
-- `messages:manage`: inspect active match conversations and send clearly labeled staff messages.
+- `messages:manage`: inspect match conversations and send clearly labeled staff messages.
 - Support inbox also requires `messages:manage`; it stores user support threads separately from marketplace matches.
 - `reports:manage`: inspect and resolve user-submitted reports.
 - `audit:view`: inspect administrative action and KYC-access records.
@@ -108,3 +108,12 @@ The refund endpoint sends a bounded refund request to Paystack and records the p
 ## Current coverage boundaries
 
 Meal-listing moderation currently covers `daily_specials`; it soft-removes records so evidence and audit history remain. Reports can be submitted from public chef profiles and posts, then reviewed in the scoped staff queue. Report resolution records an outcome but does not automatically remove the reported target; use the listing moderation workflow for meal specials. The admin support inbox can start an independently audited support thread with any buyer or cook; customer replies are available at `/support`. This is separate from match chat and must never impersonate a buyer or cook.
+
+## Admin support email delivery
+
+Admin replies are stored as in-app support messages and create an in-app notification. Optional email delivery uses Resend directly from the server; it does not require SMTP. Configure these server-side environment variables:
+
+- `RESEND_API_KEY`: a newly issued Resend API key, stored only in local `.env.local` for development and in the deployment provider's encrypted environment settings for deployed environments.
+- `RESEND_FROM_EMAIL`: a sender on a domain verified in Resend, for example `Food4Love <contact@food4love.app>` after `food4love.app` is verified.
+
+Restart the local dev server after changing `.env.local`. Add the values to Vercel under Project Settings → Environment Variables for each environment that should send mail, then redeploy. Never use a key pasted into chat or commit it. The admin inbox shows whether both variables are present; successful configuration does not itself prove that Resend has verified the sender domain, so send a single controlled test to an address you own before using customer email.

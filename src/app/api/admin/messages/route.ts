@@ -93,7 +93,15 @@ export async function GET(request: NextRequest) {
         await finishAdminAudit(audit.admin, audit.auditId, 'succeeded')
       }
 
-      return NextResponse.json({ profile, thread, messages })
+      return NextResponse.json({
+        profile,
+        thread,
+        messages,
+        email_configured: Boolean(
+          process.env.RESEND_API_KEY && process.env.RESEND_FROM_EMAIL,
+        ),
+        email_sender: process.env.RESEND_FROM_EMAIL ?? null,
+      })
     }
 
     const search =
@@ -160,6 +168,10 @@ export async function GET(request: NextRequest) {
       page,
       pageSize,
       total: count ?? 0,
+      email_configured: Boolean(
+        process.env.RESEND_API_KEY && process.env.RESEND_FROM_EMAIL,
+      ),
+      email_sender: process.env.RESEND_FROM_EMAIL ?? null,
     })
   } catch {
     return NextResponse.json(

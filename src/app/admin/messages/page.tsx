@@ -100,6 +100,8 @@ export default function AdminMessagesPage() {
   const [refreshKey, setRefreshKey] = useState(0)
   const [threadRealtimeReady, setThreadRealtimeReady] = useState(false)
   const [messageRealtimeReady, setMessageRealtimeReady] = useState(false)
+  const [emailConfigured, setEmailConfigured] = useState<boolean | null>(null)
+  const [emailSender, setEmailSender] = useState<string | null>(null)
   const selected = users.find((user) => user.id === selectedId)
   const selectedThreadId = selected?.thread?.id
   const realtimeReady = Boolean(
@@ -127,6 +129,8 @@ export default function AdminMessagesPage() {
           throw new Error(result.error || 'Could not load accounts')
         setUsers(result.users ?? [])
         setTotal(result.total ?? 0)
+        setEmailConfigured(Boolean(result.email_configured))
+        setEmailSender(result.email_sender ?? null)
         setSelectedId((current) =>
           result.users?.some((user: SupportUser) => user.id === current)
             ? current
@@ -366,6 +370,16 @@ export default function AdminMessagesPage() {
             Contact buyers and cooks as Food4Love Support. Conversation access
             and staff replies are audited.
           </p>
+          <p
+            role="status"
+            className={`mt-3 max-w-2xl rounded-lg border px-3 py-2 text-xs ${emailConfigured ? 'border-emerald-500/25 bg-emerald-500/10 text-emerald-800 dark:text-emerald-200' : 'border-amber-500/25 bg-amber-500/10 text-amber-800 dark:text-amber-200'}`}
+          >
+            {emailConfigured === null
+              ? 'Checking email delivery configuration…'
+              : emailConfigured
+                ? `Email delivery is configured${emailSender ? ` from ${emailSender}` : ''}. Verify this sender domain in Resend before sending production email.`
+                : 'In-app support messages work. Email delivery needs RESEND_API_KEY and RESEND_FROM_EMAIL configured on the server.'}
+          </p>
         </div>
         <button
           type="button"
@@ -597,11 +611,17 @@ export default function AdminMessagesPage() {
                 type="checkbox"
                 checked={sendEmail}
                 onChange={(event) => setSendEmail(event.target.checked)}
-                disabled={!selected || sending}
+                disabled={!selected || sending || !emailConfigured}
                 className="h-4 w-4 accent-[var(--accent)]"
               />
               Also send this message to the account email
             </label>
+            {!emailConfigured && (
+              <p className="text-xs text-amber-800 dark:text-amber-200">
+                Email is not configured yet. Add the Resend key on the server to
+                enable email delivery; in-app replies remain available.
+              </p>
+            )}
             <div className="flex gap-2">
               <textarea
                 value={content}
@@ -622,12 +642,33 @@ export default function AdminMessagesPage() {
                   sending
                 }
                 aria-label="Send support message"
-                className="inline-flex h-10 w-10 shrink-0 items-center justify-center self-end rounded-lg bg-[var(--accent)] text-white disabled:opacity-50"
+                aria-describedby="support-send-guidance"
+                title={
+                  !selected
+                    ? 'Select an account first'
+                    : !content.trim()
+                      ? 'Write a message first'
+                      : reason.trim().length < 5
+                        ? 'Enter a support reason of at least five characters'
+                        : 'Send support reply'
+                }
+                className="inline-flex min-h-10 shrink-0 items-center justify-center gap-2 self-end rounded-lg bg-[var(--accent)] px-4 text-sm font-semibold text-white shadow-sm transition hover:brightness-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:bg-[var(--bg-2)] disabled:text-[var(--text-3)] disabled:shadow-none"
               >
-                <Send className="h-4 w-4" />
+                {sending ? (
+                  <LoaderCircle
+                    aria-hidden="true"
+                    className="h-4 w-4 animate-spin"
+                  />
+                ) : (
+                  <Send aria-hidden="true" className="h-4 w-4" />
+                )}
+                <span>Send</span>
               </button>
             </div>
-            <p className="text-[10px] text-[var(--text-3)]">
+            <p
+              id="support-send-guidance"
+              className="text-[10px] text-[var(--text-3)]"
+            >
               Messages are sent as Food4Love Support. A reason of at least five
               characters is required. Email delivery uses the server-side Resend
               configuration and never exposes recipient addresses to the
