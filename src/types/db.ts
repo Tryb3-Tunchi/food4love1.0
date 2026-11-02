@@ -19,7 +19,7 @@ export interface Profile {
   // legacy/compat fields (optional)
   name?: string
   nickname?: string
-  avatar_url?: string
+  avatar_url?: string | null
   role: Role
   bio?: string
   location?: string
@@ -36,7 +36,8 @@ export interface Profile {
   notification_preferences?: NotificationPreferences | null
   // legacy naming
   onboarding_completed?: boolean
-  photos?: string[]
+  photos?: string[] | null
+  referral_code?: string
   daily_special?: DailySpecial
   created_at?: string
   updated_at?: string

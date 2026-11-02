@@ -5,7 +5,7 @@ import { Avatar } from '@/components/ui/Avatar'
 import { Badge } from '@/components/ui/Badge'
 import { Input } from '@/components/ui/Input'
 import { Button } from '@/components/ui/Button'
-import { Search } from 'lucide-react'
+import { RefreshCw, Search, UserPlus } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { useSearchParams } from 'next/navigation'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
@@ -22,6 +22,70 @@ export default function AdminUsersPage() {
   const [total, setTotal] = useState(0)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [inviteEmail, setInviteEmail] = useState('')
+  const [inviteName, setInviteName] = useState('')
+  const [inviteRole, setInviteRole] = useState<'buyer' | 'cook'>('cook')
+  const [inviting, setInviting] = useState(false)
+  const [resettingUserId, setResettingUserId] = useState<string | null>(null)
+
+  const resetUnmatchedSwipes = async (userId: string, name: string) => {
+    if (
+      !window.confirm(
+        `Reset ${name}’s swipes for unmatched profiles? Existing matches and blocked profiles will be preserved.`,
+      )
+    ) {
+      return
+    }
+    setResettingUserId(userId)
+    try {
+      const response = await fetch(`/api/admin/users/${userId}/swipes`, {
+        method: 'POST',
+      })
+      const result = await response.json().catch(() => ({}))
+      if (!response.ok)
+        throw new Error(result.error || 'Could not reset swipes')
+      toast.success(
+        result.reset_count
+          ? `Reset ${result.reset_count} unmatched swipes for ${name}`
+          : `${name} has no unmatched swipes to reset`,
+      )
+    } catch (cause) {
+      toast.error(
+        cause instanceof Error ? cause.message : 'Could not reset swipes',
+      )
+    } finally {
+      setResettingUserId(null)
+    }
+  }
+
+  const invitePilot = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    setInviting(true)
+    try {
+      const response = await fetch('/api/admin/users', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: inviteEmail,
+          full_name: inviteName,
+          role: inviteRole,
+        }),
+      })
+      const result = await response.json().catch(() => ({}))
+      if (!response.ok)
+        throw new Error(result.error || 'Could not invite account')
+      toast.success(`Invitation sent to ${inviteEmail}`)
+      if (result.audit_warning) toast.error(result.audit_warning)
+      setInviteEmail('')
+      setInviteName('')
+    } catch (cause) {
+      toast.error(
+        cause instanceof Error ? cause.message : 'Could not send invitation',
+      )
+    } finally {
+      setInviting(false)
+    }
+  }
 
   useEffect(() => {
     const requestedRole = searchParams.get('role')
@@ -75,6 +139,60 @@ export default function AdminUsersPage() {
       <p className="mb-6 text-sm text-mist">
         Search marketplace accounts and manage account access.
       </p>
+      <form
+        onSubmit={invitePilot}
+        className="mb-5 grid gap-3 rounded-2xl border border-white/10 bg-smoke p-4 sm:grid-cols-[1fr_1fr_auto_auto] sm:items-end"
+      >
+        <label className="block text-xs font-semibold text-mist">
+          Name
+          <Input
+            required
+            minLength={2}
+            maxLength={100}
+            value={inviteName}
+            onChange={(event) => setInviteName(event.target.value)}
+            placeholder="Tester name"
+            className="mt-1"
+          />
+        </label>
+        <label className="block text-xs font-semibold text-mist">
+          Email
+          <Input
+            required
+            type="email"
+            maxLength={254}
+            value={inviteEmail}
+            onChange={(event) => setInviteEmail(event.target.value)}
+            placeholder="name@example.com"
+            className="mt-1"
+          />
+        </label>
+        <label className="block text-xs font-semibold text-mist">
+          Account type
+          <select
+            value={inviteRole}
+            onChange={(event) =>
+              setInviteRole(event.target.value as 'buyer' | 'cook')
+            }
+            className="mt-1 min-h-11 w-full rounded-lg border border-white/10 bg-char px-3 text-sm text-white outline-none focus:border-[var(--accent)]"
+          >
+            <option value="cook">Home cook</option>
+            <option value="buyer">Food lover</option>
+          </select>
+        </label>
+        <Button
+          type="submit"
+          disabled={inviting}
+          loading={inviting}
+          leftIcon={<UserPlus className="h-4 w-4" />}
+        >
+          Invite tester
+        </Button>
+        <p className="text-xs leading-5 text-mist sm:col-span-4">
+          Sends a Supabase sign-up invitation. The new account receives no admin
+          privileges; use Admin access to grant scoped permissions if needed.
+        </p>
+      </form>
       <div className="mb-4 grid gap-3 sm:grid-cols-[minmax(14rem,1fr)_auto_auto]">
         <Input
           placeholder="Search by name..."
@@ -169,6 +287,22 @@ export default function AdminUsersPage() {
                 {new Date(u.created_at).toLocaleDateString()}
               </p>
             </div>
+            <Button
+              type="button"
+              variant="ghost"
+              size="xs"
+              disabled={resettingUserId === u.id}
+              aria-label={`Reset unmatched swipes for ${u.full_name}`}
+              title="Reset unmatched swipes"
+              className="text-amber-300 hover:bg-amber-900/20"
+              onClick={() =>
+                void resetUnmatchedSwipes(u.id, u.full_name || 'this account')
+              }
+            >
+              <RefreshCw
+                className={`h-4 w-4 ${resettingUserId === u.id ? 'animate-spin' : ''}`}
+              />
+            </Button>
             <Button
               variant="ghost"
               size="xs"

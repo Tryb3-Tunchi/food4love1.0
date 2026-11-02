@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 import { motion } from 'framer-motion'
 import {
   ArrowLeft,
@@ -10,6 +11,7 @@ import {
   CreditCard,
   Loader2,
   CheckCircle,
+  Wallet,
 } from 'lucide-react'
 import { useAuthStore } from '@/stores/useAuthStore'
 import {
@@ -32,12 +34,27 @@ export default function BookingDetailPage({
   const [booking, setBooking] = useState<Booking | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [payLoading, setPayLoading] = useState(false)
+  const [walletBalance, setWalletBalance] = useState(0)
+  const [walletPayLoading, setWalletPayLoading] = useState(false)
 
   useEffect(() => {
     getBookingById(params.id)
       .then(setBooking)
       .finally(() => setIsLoading(false))
   }, [params.id])
+
+  useEffect(() => {
+    if (profile?.role !== 'buyer') return
+    const controller = new AbortController()
+    fetch('/api/wallet', { cache: 'no-store', signal: controller.signal })
+      .then(async (response) => {
+        if (!response.ok) return
+        const result = await response.json()
+        setWalletBalance(Number(result.balance_naira) || 0)
+      })
+      .catch(() => undefined)
+    return () => controller.abort()
+  }, [profile?.role])
 
   const handleAccept = async () => {
     try {
@@ -129,6 +146,36 @@ export default function BookingDetailPage({
     }
   }
 
+  const handleWalletPayment = async () => {
+    if (!booking || walletPayLoading) return
+    setWalletPayLoading(true)
+    try {
+      const response = await fetch('/api/payments/wallet', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ booking_id: booking.id }),
+      })
+      const result = await response.json()
+      if (!response.ok)
+        throw new Error(result.error || 'Could not pay with wallet')
+      setBooking((current) =>
+        current
+          ? { ...current, payment_status: 'paid', status: 'confirmed' }
+          : current,
+      )
+      setWalletBalance((current) =>
+        Math.max(0, current - Number(result.amount_naira || 0)),
+      )
+      toast.success('Booking paid with your Food4Love wallet')
+    } catch (cause) {
+      toast.error(
+        cause instanceof Error ? cause.message : 'Could not pay with wallet',
+      )
+    } finally {
+      setWalletPayLoading(false)
+    }
+  }
+
   if (isLoading) {
     return (
       <div className="flex h-screen items-center justify-center bg-[var(--bg)]">
@@ -148,9 +195,14 @@ export default function BookingDetailPage({
   const isCook = profile?.id === booking.cook_id
   const currentStep = statusSteps.indexOf(booking.status)
   const canPay =
-    ['pending', 'confirmed'].includes(booking.status) &&
-    booking.payment_status === 'unpaid' &&
+    booking.status === 'confirmed' &&
+    ['unpaid', 'pending'].includes(booking.payment_status) &&
     !isCook
+  const canPayWithWallet =
+    canPay &&
+    profile?.role === 'buyer' &&
+    !booking.payment_reference &&
+    walletBalance >= Number(booking.amount ?? booking.price)
   const isPaid = booking.payment_status === 'paid'
   const bookingAmount = Number(booking.amount ?? booking.price)
   const scheduledAt = booking.scheduled_for
@@ -294,6 +346,39 @@ export default function BookingDetailPage({
               )}
             </motion.button>
           )}
+
+          {canPayWithWallet && (
+            <motion.button
+              whileTap={{ scale: 0.98 }}
+              onClick={handleWalletPayment}
+              disabled={walletPayLoading}
+              className="flex w-full items-center justify-center gap-2 rounded-2xl border border-[var(--primary)] bg-[var(--surface)] py-4 font-bold text-[var(--primary)] transition disabled:opacity-50"
+            >
+              {walletPayLoading ? (
+                <Loader2 className="h-5 w-5 animate-spin" />
+              ) : (
+                <Wallet className="h-5 w-5" />
+              )}
+              Pay full amount from wallet · ₦{bookingAmount.toLocaleString()}
+            </motion.button>
+          )}
+
+          {canPay &&
+            profile?.role === 'buyer' &&
+            walletBalance > 0 &&
+            walletBalance < bookingAmount && (
+              <p className="text-center text-xs text-[var(--text-muted)]">
+                Wallet balance ₦{walletBalance.toLocaleString()} does not cover
+                the full booking. You can still pay with Paystack or{' '}
+                <Link
+                  href="/profile"
+                  className="font-semibold text-[var(--primary)] underline"
+                >
+                  add funds
+                </Link>
+                .
+              </p>
+            )}
 
           {isPaid && (
             <div className="bg-[var(--success)]/10 flex items-center justify-center gap-2 rounded-2xl py-4 text-sm font-bold text-[var(--success)]">

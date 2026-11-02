@@ -127,7 +127,7 @@ export function DiscoverGreeting({
         )}
       </p>
       <motion.h1
-        className="bg-clip-text font-heading text-[1.45rem] font-bold leading-tight text-transparent"
+        className="min-w-0 truncate bg-clip-text font-heading text-lg font-bold leading-tight text-transparent sm:text-[1.45rem]"
         style={{
           backgroundImage:
             'linear-gradient(105deg, var(--text-1) 35%, var(--accent) 50%, var(--text-1) 65%)',

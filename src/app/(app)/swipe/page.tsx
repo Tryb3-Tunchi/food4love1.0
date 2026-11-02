@@ -217,7 +217,7 @@ export default function SwipePage() {
       {/* Header */}
       <div
         data-tour="discovery"
-        className="relative z-10 flex shrink-0 items-center justify-between px-4 pb-3 pt-4"
+        className="relative z-10 flex shrink-0 items-center justify-between gap-2 px-4 pb-3 pt-4"
       >
         <DiscoverGreeting
           firstName={firstName}
@@ -225,20 +225,26 @@ export default function SwipePage() {
           title={isCook ? 'Food lovers near you' : 'Chefs near you'}
         />
 
-        <div className="flex items-center gap-2">
+        <div className="flex shrink-0 items-center gap-1 sm:gap-2">
           <Link
             href="/map"
-            className="flex h-10 items-center gap-1.5 rounded-full border border-[var(--border)] bg-[var(--card)] px-3.5 text-xs font-semibold text-[var(--text-1)] shadow-sm backdrop-blur-xl transition active:scale-95"
+            aria-label="Open map"
+            title="Map"
+            className="hover:border-[var(--accent)]/50 group flex h-10 w-10 shrink-0 items-center overflow-hidden rounded-full border border-[var(--border)] bg-[var(--card)] text-[var(--text-1)] shadow-sm backdrop-blur-xl transition-[width,border-color] duration-200 hover:w-[4.75rem] focus-visible:w-[4.75rem] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] active:scale-95"
           >
-            <MapPin className="h-4 w-4 text-[var(--accent)]" />
-            Map
+            <MapPin className="ml-3 h-4 w-4 shrink-0 text-[var(--accent)]" />
+            <span className="ml-1 max-w-0 overflow-hidden text-xs font-semibold opacity-0 transition-[max-width,opacity] duration-200 group-hover:max-w-8 group-hover:opacity-100 group-focus-visible:max-w-8 group-focus-visible:opacity-100">
+              Map
+            </span>
           </Link>
           {activeFilters && (
             <button
               onClick={clearFilters}
-              className="rounded-full bg-[var(--accent-soft)] px-3 py-2 text-xs font-semibold text-[var(--accent)] transition-colors"
+              aria-label="Clear filters"
+              className="shrink-0 rounded-full bg-[var(--accent-soft)] px-2.5 py-2 text-xs font-semibold text-[var(--accent)] transition-colors sm:px-3"
             >
-              Clear
+              <X className="h-4 w-4 sm:hidden" />
+              <span className="hidden sm:inline">Clear</span>
             </button>
           )}
           <NotificationCenter />
@@ -249,7 +255,7 @@ export default function SwipePage() {
               setShowFilter(true)
             }}
             aria-label="Filters"
-            className="relative flex h-10 w-10 items-center justify-center rounded-full border border-[var(--border)] bg-[var(--card)] shadow-sm backdrop-blur-xl transition active:scale-95"
+            className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-[var(--border)] bg-[var(--card)] shadow-sm backdrop-blur-xl transition active:scale-95"
           >
             <SlidersHorizontal className="h-4 w-4 text-[var(--text-2)]" />
             {activeFilters && (

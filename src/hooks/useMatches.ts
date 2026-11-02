@@ -1,8 +1,10 @@
-import { useQuery } from '@tanstack/react-query'
+import { useEffect } from 'react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { createClient } from '@/lib/supabase/client'
 
 export function useMatches() {
-  return useQuery({
+  const queryClient = useQueryClient()
+  const query = useQuery({
     queryKey: ['matches'],
     queryFn: async () => {
       const supabase = createClient()
@@ -36,6 +38,33 @@ export function useMatches() {
         }
       })
     },
-    refetchInterval: 5000,
   })
+
+  useEffect(() => {
+    const supabase = createClient()
+    const refreshMatches = () => {
+      void queryClient.invalidateQueries({ queryKey: ['matches'] })
+    }
+    const channel = supabase
+      .channel('my-matches')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'matches' },
+        refreshMatches,
+      )
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'messages' },
+        refreshMatches,
+      )
+      .subscribe((status) => {
+        if (status === 'SUBSCRIBED') refreshMatches()
+      })
+
+    return () => {
+      void supabase.removeChannel(channel)
+    }
+  }, [queryClient])
+
+  return query
 }

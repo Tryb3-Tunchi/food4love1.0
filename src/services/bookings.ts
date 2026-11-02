@@ -18,6 +18,7 @@ export interface Booking {
   meal_description?: string
   special_requests?: string | null
   payment_reference: string | null
+  wallet_credit_used?: number
   created_at: string
   updated_at: string
   cook?: { full_name: string; avatar_url: string | null }

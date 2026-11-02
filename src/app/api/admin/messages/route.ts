@@ -8,6 +8,7 @@ const sendSchema = z.object({
   user_id: z.string().uuid(),
   content: z.string().trim().min(1).max(4000),
   reason: z.string().trim().min(5).max(1000),
+  send_email: z.boolean().default(false),
 })
 
 const uuidSchema = z.string().uuid()
@@ -172,6 +173,14 @@ export async function POST(request: NextRequest) {
   const actor = await getAdminUser('messages:manage')
   if (!actor) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
+  const origin = request.headers.get('origin')
+  if (origin && origin !== new URL(request.url).origin) {
+    return NextResponse.json(
+      { error: 'Invalid request origin' },
+      { status: 403 },
+    )
+  }
+
   const parsed = sendSchema.safeParse(await request.json().catch(() => null))
   if (!parsed.success) {
     return NextResponse.json(
@@ -184,7 +193,7 @@ export async function POST(request: NextRequest) {
     const admin = createAdminClient()
     const { data: profile, error: profileError } = await admin
       .from('profiles')
-      .select('id, role, suspended')
+      .select('id, full_name, role, suspended')
       .eq('id', parsed.data.user_id)
       .maybeSingle()
     if (profileError) {
@@ -198,6 +207,31 @@ export async function POST(request: NextRequest) {
         { error: 'Account is unavailable' },
         { status: 404 },
       )
+    }
+
+    let recipientEmail: string | undefined
+    if (parsed.data.send_email) {
+      if (!process.env.RESEND_API_KEY || !process.env.RESEND_FROM_EMAIL) {
+        return NextResponse.json(
+          {
+            error:
+              'Email delivery is not configured. The in-app message was not sent.',
+          },
+          { status: 503 },
+        )
+      }
+      const { data: authUser, error: authUserError } =
+        await admin.auth.admin.getUserById(profile.id)
+      if (authUserError || !authUser.user?.email) {
+        return NextResponse.json(
+          {
+            error:
+              'This account has no available email address. The message was not sent.',
+          },
+          { status: 409 },
+        )
+      }
+      recipientEmail = authUser.user.email
     }
 
     const { data: existingThread, error: threadError } = await admin
@@ -248,6 +282,7 @@ export async function POST(request: NextRequest) {
         reason: parsed.data.reason,
         content_length: parsed.data.content.length,
         account_suspended: Boolean(profile.suspended),
+        email_requested: parsed.data.send_email,
       },
     }).catch(() => null)
     if (!audit) {
@@ -284,6 +319,16 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    const { error: notificationError } = await audit.admin
+      .from('notifications')
+      .insert({
+        user_id: profile.id,
+        type: 'message',
+        title: 'New reply from Food4Love Support',
+        body: 'A support agent replied to your conversation.',
+        data: { support_thread_id: thread.id },
+      })
+
     const { data: updatedThread, error: updateError } = await audit.admin
       .from('support_threads')
       .update({ updated_at: new Date().toISOString() })
@@ -303,8 +348,46 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    let emailSent = false
+    let emailWarning: string | undefined
+    if (recipientEmail) {
+      try {
+        const emailResponse = await fetch('https://api.resend.com/emails', {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${process.env.RESEND_API_KEY}`,
+            'Content-Type': 'application/json',
+          },
+          signal: AbortSignal.timeout(10000),
+          body: JSON.stringify({
+            from: process.env.RESEND_FROM_EMAIL,
+            to: [recipientEmail],
+            subject: 'A message from Food4Love Support',
+            text: parsed.data.content,
+            html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:auto;color:#26332d"><h2>Food4Love Support</h2><p>Hello ${escapeHtml(profile.full_name || 'there')},</p><p>${escapeHtml(parsed.data.content).replace(/\n/g, '<br>')}</p><p style="color:#718078;font-size:13px">You can reply in the Food4Love app under Support.</p></div>`,
+          }),
+        })
+        if (emailResponse.ok) emailSent = true
+        else
+          emailWarning =
+            'The in-app message was sent, but email delivery failed.'
+      } catch {
+        emailWarning =
+          'The in-app message was sent, but email delivery could not be confirmed.'
+      }
+    }
+
     return NextResponse.json(
-      { thread: updatedThread, message },
+      {
+        thread: updatedThread,
+        message,
+        email_sent: emailSent,
+        email_warning: emailWarning,
+        notification_sent: !notificationError,
+        notification_warning: notificationError
+          ? 'Message sent, but the in-app notification could not be saved.'
+          : undefined,
+      },
       { status: 201 },
     )
   } catch {
@@ -313,4 +396,17 @@ export async function POST(request: NextRequest) {
       { status: 500 },
     )
   }
+}
+
+function escapeHtml(value: string) {
+  return value.replace(/[&<>"']/g, (character) => {
+    const entities: Record<string, string> = {
+      '&': '&amp;',
+      '<': '&lt;',
+      '>': '&gt;',
+      '"': '&quot;',
+      "'": '&#39;',
+    }
+    return entities[character]
+  })
 }

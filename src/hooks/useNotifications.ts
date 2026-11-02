@@ -56,7 +56,16 @@ export function useNotifications() {
           queryClient.invalidateQueries({ queryKey: ['notifications', userId] })
         },
       )
-      .subscribe()
+      .subscribe((status) => {
+        if (status === 'SUBSCRIBED') {
+          queryClient.invalidateQueries({
+            queryKey: ['notifications-unread', userId],
+          })
+          queryClient.invalidateQueries({
+            queryKey: ['notifications', userId],
+          })
+        }
+      })
 
     return () => {
       void supabase.removeChannel(channel)
