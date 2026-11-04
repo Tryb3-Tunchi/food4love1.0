@@ -28,13 +28,22 @@ export const metadata: Metadata = {
     siteName: 'Food4Love',
   },
   icons: {
-    icon: '/logo4lfood11.png',
+    icon: [
+      { url: '/icons/icon-192.png', sizes: '192x192', type: 'image/png' },
+      { url: '/icons/icon-512.png', sizes: '512x512', type: 'image/png' },
+    ],
+    apple: [{ url: '/icons/icon-180.png', sizes: '180x180' }],
+  },
+  appleWebApp: {
+    capable: true,
+    title: 'Food4Love',
+    statusBarStyle: 'default',
   },
   manifest: '/manifest.json',
 }
 
 export const viewport: Viewport = {
-  themeColor: '#07533F',
+  themeColor: '#4b8b57',
   width: 'device-width',
   initialScale: 1,
   maximumScale: 1,
