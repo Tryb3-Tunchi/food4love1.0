@@ -4,6 +4,7 @@ import { usePathname, useRouter } from 'next/navigation'
 import { useAuthStore } from '@/stores/useAuthStore'
 import { updateProfile } from '@/services/profiles'
 import type { DriveStep, Driver } from 'driver.js'
+import { usePwa } from '@/components/pwa/PwaProvider'
 
 type TourSegment = {
   path: string
@@ -13,7 +14,37 @@ type TourSegment = {
 
 export const TOUR_SEGMENT_KEY = 'food4love-tour-segment'
 
-function getSegments(role: 'cook' | 'buyer'): TourSegment[] {
+function installTourStep(
+  instructions: string,
+  requestInstall: () => Promise<void>,
+): DriveStep {
+  return {
+    popover: {
+      title: 'Take Food4Love Everywhere ❤️',
+      description:
+        'Install Food4Love on your home screen for quicker access and an app-like experience.',
+      doneBtnText: 'Skip install',
+      onPopoverRender: (popover) => {
+        const platformHelp = document.createElement('p')
+        platformHelp.className = 'f4l-tour-install-help'
+        platformHelp.textContent = instructions
+        const installButton = document.createElement('button')
+        installButton.type = 'button'
+        installButton.className = 'f4l-tour-install-button'
+        installButton.textContent = 'Install App'
+        installButton.addEventListener('click', () => {
+          void requestInstall()
+        })
+        popover.description.append(platformHelp, installButton)
+      },
+    },
+  }
+}
+
+function getSegments(
+  role: 'cook' | 'buyer',
+  installStep?: DriveStep,
+): TourSegment[] {
   const discoverySteps: DriveStep[] = [
     {
       element: '[data-tour="discovery"]',
@@ -91,6 +122,7 @@ function getSegments(role: 'cook' | 'buyer'): TourSegment[] {
               side: 'bottom',
             },
           },
+          ...(installStep ? [installStep] : []),
         ],
       },
     ]
@@ -165,6 +197,7 @@ function getSegments(role: 'cook' | 'buyer'): TourSegment[] {
             side: 'bottom',
           },
         },
+        ...(installStep ? [installStep] : []),
       ],
     },
   ]
@@ -177,12 +210,29 @@ export function AppTour() {
   const isLoading = useAuthStore((s) => s.loading)
   const updateStore = useAuthStore((s) => s.updateProfile)
   const transitioning = useRef(false)
+  const pwa = usePwa()
+  const pwaRef = useRef(pwa)
+  pwaRef.current = pwa
 
   useEffect(() => {
-    if (isLoading || !profile || profile.tour_completed || !pathname) return
+    if (
+      !pwa.ready ||
+      isLoading ||
+      !profile ||
+      profile.tour_completed ||
+      !pathname
+    )
+      return
 
     const role = profile.role
-    const segments = getSegments(role)
+    const currentPwa = pwaRef.current
+    const pwaStep = currentPwa.installed
+      ? undefined
+      : installTourStep(
+          currentPwa.installInstructions,
+          currentPwa.requestInstall,
+        )
+    const segments = getSegments(role, pwaStep)
     const storedSegment = window.sessionStorage.getItem(TOUR_SEGMENT_KEY)
     const segmentIndex = storedSegment === null ? 0 : Number(storedSegment)
     const segment = segments[segmentIndex]
@@ -286,6 +336,7 @@ export function AppTour() {
     profile,
     router,
     updateStore,
+    pwa.ready,
   ])
 
   return null
