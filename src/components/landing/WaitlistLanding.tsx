@@ -14,6 +14,9 @@ export function WaitlistLanding() {
   const [status, setStatus] = useState<
     'idle' | 'submitting' | 'success' | 'error'
   >('idle')
+  const [confirmationStatus, setConfirmationStatus] = useState<
+    'sent' | 'already_sent' | 'unavailable'
+  >('unavailable')
 
   const joinWaitlist = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault()
@@ -26,7 +29,9 @@ export function WaitlistLanding() {
         body: JSON.stringify({ email, audience, updatesConsent, website }),
       })
 
+      const result = await response.json()
       if (!response.ok) throw new Error('Waitlist signup failed')
+      setConfirmationStatus(result.confirmation_email_status ?? 'unavailable')
       setStatus('success')
     } catch {
       setStatus('error')
@@ -104,7 +109,11 @@ export function WaitlistLanding() {
                     You are on the list.
                   </h2>
                   <p className="mt-2 text-body text-sm leading-6">
-                    We will be in touch when Food4Love is ready to welcome you.
+                    {confirmationStatus === 'sent'
+                      ? 'Your signup is saved. Check your inbox for a confirmation from Food4Love.'
+                      : confirmationStatus === 'already_sent'
+                        ? 'Your signup is saved. We have already sent a confirmation email to this address.'
+                        : 'Your signup is saved. We could not send the confirmation email right now.'}
                   </p>
                 </div>
               ) : (

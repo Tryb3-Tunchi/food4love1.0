@@ -1,7 +1,8 @@
-import { timingSafeEqual } from 'node:crypto'
 import { NextResponse } from 'next/server'
 import { z } from 'zod'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { getAdminUser } from '@/lib/admin/auth'
+import { beginAdminAudit, finishAdminAudit } from '@/lib/admin/audit'
 
 export const runtime = 'nodejs'
 
@@ -12,21 +13,6 @@ const campaignSchema = z.object({
   message: z.string().trim().min(1).max(5000),
   afterId: z.string().uuid().optional(),
 })
-
-function authorized(request: Request) {
-  const expected = process.env.WAITLIST_ADMIN_API_KEY
-  const supplied = request.headers
-    .get('authorization')
-    ?.replace(/^Bearer\s+/i, '')
-  if (!expected || !supplied) return false
-
-  const expectedBytes = Buffer.from(expected)
-  const suppliedBytes = Buffer.from(supplied)
-  return (
-    expectedBytes.length === suppliedBytes.length &&
-    timingSafeEqual(expectedBytes, suppliedBytes)
-  )
-}
 
 function escapeHtml(value: string) {
   return value.replace(/[&<>"']/g, (character) => {
@@ -41,9 +27,59 @@ function escapeHtml(value: string) {
   })
 }
 
+export async function GET() {
+  const actor = await getAdminUser('messages:manage')
+  if (!actor) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+
+  try {
+    const supabase = createAdminClient()
+    const [{ count, error }, { data: latestCampaign, error: campaignError }] =
+      await Promise.all([
+        supabase
+          .from('waitlist_subscribers')
+          .select('id', { count: 'exact', head: true })
+          .eq('updates_consent', true)
+          .is('unsubscribed_at', null),
+        supabase
+          .from('waitlist_email_campaigns')
+          .select('created_at')
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle(),
+      ])
+    if (error || campaignError) {
+      return NextResponse.json(
+        { error: 'Could not load email campaign status' },
+        { status: 500 },
+      )
+    }
+
+    return NextResponse.json({
+      eligible_count: count ?? 0,
+      email_configured: Boolean(
+        process.env.RESEND_API_KEY && process.env.WAITLIST_FROM_EMAIL,
+      ),
+      email_sender: process.env.WAITLIST_FROM_EMAIL ?? null,
+      latest_campaign_at: latestCampaign?.created_at ?? null,
+    })
+  } catch {
+    return NextResponse.json(
+      { error: 'Could not load email campaign status' },
+      { status: 500 },
+    )
+  }
+}
+
 export async function POST(request: Request) {
-  if (!authorized(request)) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const actor = await getAdminUser('messages:manage')
+  if (!actor) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+
+  const origin = request.headers.get('origin')
+  if (origin && origin !== new URL(request.url).origin) {
+    return NextResponse.json(
+      { error: 'Invalid request origin' },
+      { status: 403 },
+    )
   }
 
   const resendApiKey = process.env.RESEND_API_KEY
@@ -116,6 +152,26 @@ export async function POST(request: Request) {
     )
   }
 
+  let audit: Awaited<ReturnType<typeof beginAdminAudit>>
+  try {
+    audit = await beginAdminAudit({
+      actorId: actor.id,
+      action: 'waitlist.email_campaign_batch',
+      targetType: 'waitlist_email_campaign',
+      targetId: campaign.id,
+      details: {
+        kind: campaignInput.kind,
+        recipient_limit: 25,
+        has_after_id: Boolean(campaignInput.afterId),
+      },
+    })
+  } catch {
+    return NextResponse.json(
+      { error: 'Admin audit logging is unavailable' },
+      { status: 503 },
+    )
+  }
+
   let recipientQuery = supabase
     .from('waitlist_subscribers')
     .select('id, email, unsubscribe_token')
@@ -129,6 +185,12 @@ export async function POST(request: Request) {
 
   const { data: recipients, error: recipientError } = await recipientQuery
   if (recipientError) {
+    await finishAdminAudit(
+      audit.admin,
+      audit.auditId,
+      'failed',
+      'Audience query failed',
+    )
     return NextResponse.json(
       { error: 'Could not load subscribers' },
       { status: 500 },
@@ -188,6 +250,7 @@ export async function POST(request: Request) {
           'Content-Type': 'application/json',
           'Idempotency-Key': `${campaignInput.campaignKey}:${recipient.id}`,
         },
+        signal: AbortSignal.timeout(10000),
         body: JSON.stringify({
           from: fromEmail,
           to: [recipient.email],
@@ -249,6 +312,12 @@ export async function POST(request: Request) {
   }
 
   const hasMore = (recipients?.length ?? 0) === 25
+  await finishAdminAudit(
+    audit.admin,
+    audit.auditId,
+    failed > 0 ? 'failed' : 'succeeded',
+    failed > 0 ? `${failed} recipient delivery attempt(s) failed` : undefined,
+  )
   return NextResponse.json({
     campaignKey: campaignInput.campaignKey,
     attempted: recipients?.length ?? 0,

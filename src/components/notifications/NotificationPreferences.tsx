@@ -40,6 +40,7 @@ export function NotificationPreferences() {
   const updateStore = useAuthStore((state) => state.updateProfile)
   const authLoading = useAuthStore((state) => state.loading)
   const [saving, setSaving] = useState<keyof Preferences | null>(null)
+  const [savingEmail, setSavingEmail] = useState(false)
   const preferences = {
     ...DEFAULT_NOTIFICATION_PREFERENCES,
     ...profile?.notification_preferences,
@@ -63,6 +64,25 @@ export function NotificationPreferences() {
     }
   }
 
+  const updateEmailConsent = async (checked: boolean) => {
+    if (!profile || savingEmail || saving) return
+    setSavingEmail(true)
+    try {
+      const updated = await updateProfile(profile.id, {
+        email_updates_consent: checked,
+        email_updates_consent_at: checked ? new Date().toISOString() : null,
+      })
+      updateStore(updated)
+      toast.success(
+        checked ? 'Email updates enabled' : 'Email updates disabled',
+      )
+    } catch {
+      toast.error('Could not save email preference')
+    } finally {
+      setSavingEmail(false)
+    }
+  }
+
   if (authLoading || !profile) {
     return (
       <p className="px-5 py-6 text-sm text-[var(--text-3)]" role="status">
@@ -78,7 +98,8 @@ export function NotificationPreferences() {
           Choose which updates appear in your Food4Love notification feed.
         </p>
         <p className="text-xs text-[var(--text-3)]">
-          These preferences do not enable push, email, or background delivery.
+          These controls affect the in-app notification feed. Product email
+          updates are managed separately below.
         </p>
       </div>
       {preferenceOptions.map(({ key, title, description }) => (
@@ -103,6 +124,26 @@ export function NotificationPreferences() {
           </Switch.Root>
         </div>
       ))}
+      <div className="flex items-center justify-between gap-4 px-5 py-4">
+        <div className="min-w-0">
+          <p className="text-sm font-semibold text-[var(--text-1)]">
+            Product and launch emails
+          </p>
+          <p className="mt-1 text-xs text-[var(--text-3)]">
+            Occasional Food4Love updates and offers. You can turn these off at
+            any time.
+          </p>
+        </div>
+        <Switch.Root
+          checked={Boolean(profile.email_updates_consent)}
+          onCheckedChange={(checked) => void updateEmailConsent(checked)}
+          disabled={savingEmail || saving !== null}
+          aria-label="Product and launch emails"
+          className="relative h-6 w-11 shrink-0 rounded-full bg-[var(--border)] outline-none transition focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-2 disabled:opacity-60 data-[state=checked]:bg-[var(--accent)]"
+        >
+          <Switch.Thumb className="block h-5 w-5 translate-x-0.5 rounded-full bg-white shadow transition-transform data-[state=checked]:translate-x-[22px]" />
+        </Switch.Root>
+      </div>
     </div>
   )
 }

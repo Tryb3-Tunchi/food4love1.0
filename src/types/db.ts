@@ -34,6 +34,8 @@ export interface Profile {
   tour_completed?: boolean
   onboarding_complete?: boolean
   notification_preferences?: NotificationPreferences | null
+  email_updates_consent?: boolean
+  email_updates_consent_at?: string | null
   // legacy naming
   onboarding_completed?: boolean
   photos?: string[] | null

@@ -1,6 +1,6 @@
 'use client'
 
-import { Suspense } from 'react'
+import { Suspense, useState } from 'react'
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { motion } from 'framer-motion'
@@ -36,6 +36,7 @@ function SignupPageContent() {
   const referralCode =
     params.get('ref')?.trim().toUpperCase().slice(0, 12) || undefined
   const isCook = role === 'cook'
+  const [emailUpdatesConsent, setEmailUpdatesConsent] = useState(false)
 
   const {
     register,
@@ -50,10 +51,12 @@ function SignupPageContent() {
       email: data.email,
       password: data.password,
       options: {
+        emailRedirectTo: `${window.location.origin}/auth/callback?next=%2Fonboarding%2Frole`,
         data: {
           full_name: data.full_name,
           phone: data.phone,
           role,
+          email_updates_consent: emailUpdatesConsent,
           ...(referralCode ? { referral_code: referralCode } : {}),
         },
       },
@@ -186,6 +189,21 @@ function SignupPageContent() {
                 hint="Minimum 6 characters"
                 {...register('password')}
               />
+
+              <label className="bg-[var(--bg)]/70 flex items-start gap-3 rounded-xl border border-[var(--border)] p-3 text-xs leading-5 text-[var(--text-2)]">
+                <input
+                  type="checkbox"
+                  checked={emailUpdatesConsent}
+                  onChange={(event) =>
+                    setEmailUpdatesConsent(event.target.checked)
+                  }
+                  className="mt-1 h-4 w-4 shrink-0 accent-[var(--accent)]"
+                />
+                <span>
+                  Send me occasional Food4Love product updates, launch news, and
+                  offers by email. I can unsubscribe at any time.
+                </span>
+              </label>
 
               <Button
                 type="submit"
