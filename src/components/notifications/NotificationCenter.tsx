@@ -2,6 +2,7 @@
 
 import { useRef, useState } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import toast from 'react-hot-toast'
 import {
   Bell,
@@ -13,7 +14,8 @@ import {
   Star,
 } from 'lucide-react'
 import { useNotifications } from '@/hooks/useNotifications'
-import { markAllAsRead } from '@/services/notifications'
+import type { Notification } from '@/services/notifications'
+import { notificationHref } from '@/lib/notificationRoutes'
 import { useAuthStore } from '@/stores/useAuthStore'
 import { Sheet } from '@/components/ui/Sheet'
 
@@ -45,19 +47,36 @@ function formatTime(date: string) {
 export function NotificationCenter() {
   const [open, setOpen] = useState(false)
   const triggerRef = useRef<HTMLButtonElement>(null)
+  const router = useRouter()
   const profile = useAuthStore((state) => state.profile)
-  const { notifications, unreadCount, isLoading, error, refetch } =
-    useNotifications()
+  const {
+    notifications,
+    unreadCount,
+    isLoading,
+    error,
+    refetch,
+    markRead,
+    markEverythingRead,
+  } = useNotifications()
   const hasUnread = notifications.some((notification) => !notification.read)
 
   const handleMarkAllRead = async () => {
     if (!profile?.id || !hasUnread) return
-    try {
-      await markAllAsRead(profile.id)
-      refetch()
-      toast.success('Notifications marked as read')
-    } catch {
-      toast.error('Could not update notifications')
+    const saved = await markEverythingRead()
+    if (saved) toast.success('Notifications marked as read')
+    else toast.error('Could not update notifications')
+  }
+
+  // Opening a notification marks it read and takes the user to the thing it is
+  // about. A notification with nowhere to go is still marked read.
+  const handleOpen = (notification: Notification) => {
+    const href = notificationHref(notification, profile?.role)
+    void markRead(notification.id).then((saved) => {
+      if (!saved) toast.error('Could not save that this was read')
+    })
+    if (href) {
+      setOpen(false)
+      router.push(href)
     }
   }
 
@@ -151,36 +170,39 @@ export function NotificationCenter() {
                 const Icon = notificationIcons[notification.type] ?? Bell
                 const unread = !notification.read
                 return (
-                  <li
-                    key={notification.id}
-                    className={`flex items-start gap-3 px-5 py-4 ${unread ? 'bg-[var(--accent-soft)]/40' : ''}`}
-                  >
-                    <span
-                      className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${unread ? 'bg-[var(--accent-soft)] text-[var(--accent)]' : 'bg-[var(--bg-2)] text-[var(--text-3)]'}`}
+                  <li key={notification.id}>
+                    <button
+                      type="button"
+                      onClick={() => handleOpen(notification)}
+                      className={`flex w-full items-start gap-3 px-5 py-4 text-left transition hover:bg-[var(--bg-2)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--accent)] ${unread ? 'bg-[var(--accent-soft)]' : ''}`}
                     >
-                      <Icon className="h-4 w-4" aria-hidden="true" />
-                    </span>
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-start justify-between gap-3">
-                        <p className="text-sm font-semibold text-[var(--text-1)]">
-                          {notification.title}
-                        </p>
-                        <time
-                          dateTime={notification.created_at}
-                          className="shrink-0 pt-0.5 text-[10px] text-[var(--text-3)]"
-                        >
-                          {formatTime(notification.created_at)}
-                        </time>
-                      </div>
-                      <p className="mt-1 text-xs leading-5 text-[var(--text-2)]">
-                        {notification.body}
-                      </p>
-                    </div>
-                    {unread && (
-                      <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-[var(--accent)]">
-                        <span className="sr-only">Unread</span>
+                      <span
+                        className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${unread ? 'bg-[var(--accent-soft)] text-[var(--accent)]' : 'bg-[var(--bg-2)] text-[var(--text-3)]'}`}
+                      >
+                        <Icon className="h-4 w-4" aria-hidden="true" />
                       </span>
-                    )}
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-start justify-between gap-3">
+                          <p className="text-sm font-semibold text-[var(--text-1)]">
+                            {notification.title}
+                          </p>
+                          <time
+                            dateTime={notification.created_at}
+                            className="shrink-0 pt-0.5 text-[10px] text-[var(--text-3)]"
+                          >
+                            {formatTime(notification.created_at)}
+                          </time>
+                        </div>
+                        <p className="mt-1 text-xs leading-5 text-[var(--text-2)]">
+                          {notification.body}
+                        </p>
+                      </div>
+                      {unread && (
+                        <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-[var(--accent)]">
+                          <span className="sr-only">Unread</span>
+                        </span>
+                      )}
+                    </button>
                   </li>
                 )
               })}

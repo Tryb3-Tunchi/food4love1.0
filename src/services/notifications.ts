@@ -66,23 +66,35 @@ export async function getNotifications(
   return data ?? []
 }
 
-export async function markAsRead(notificationId: string): Promise<void> {
+// Both writers ask Postgres which rows changed. With row level security a
+// blocked UPDATE is not an error, it just changes zero rows, so without this
+// check the UI would claim success while the notification stayed unread.
+export async function markAsRead(
+  notificationId: string,
+  userId: string,
+): Promise<number> {
   const supabase = createClient()
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from('notifications')
     .update({ read: true })
     .eq('id', notificationId)
+    .eq('user_id', userId)
+    .eq('read', false)
+    .select('id')
 
   if (error) throw error
+  return data?.length ?? 0
 }
 
-export async function markAllAsRead(userId: string): Promise<void> {
+export async function markAllAsRead(userId: string): Promise<number> {
   const supabase = createClient()
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from('notifications')
     .update({ read: true })
     .eq('user_id', userId)
     .eq('read', false)
+    .select('id')
 
   if (error) throw error
+  return data?.length ?? 0
 }
