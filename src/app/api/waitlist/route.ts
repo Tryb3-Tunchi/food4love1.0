@@ -3,8 +3,14 @@ import { randomUUID } from 'node:crypto'
 import { z } from 'zod'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { waitlistSignupEmail } from '@/lib/email/templates'
+import { sendTransactionalEmail } from '@/lib/email/transactional'
+import { clientKey, createLimiter } from '@/lib/rateLimit'
 
 export const runtime = 'nodejs'
+
+// 20 submissions per address per 10 minutes: generous for a shared office or
+// campus network, still stops scripted floods from one source.
+const allowSignup = createLimiter({ limit: 20, windowMs: 10 * 60 * 1000 })
 
 const waitlistSchema = z.object({
   email: z.string().trim().email().max(254),
@@ -14,6 +20,13 @@ const waitlistSchema = z.object({
 })
 
 export async function POST(request: Request) {
+  if (!allowSignup(clientKey(request.headers))) {
+    return NextResponse.json(
+      { error: 'Too many attempts. Please try again in a few minutes.' },
+      { status: 429 },
+    )
+  }
+
   let body: unknown
   try {
     body = await request.json()
@@ -107,60 +120,41 @@ export async function POST(request: Request) {
       })
     }
 
-    const resendApiKey = process.env.RESEND_API_KEY
-    const fromEmail = process.env.WAITLIST_CONFIRMATION_FROM_EMAIL
-    if (!resendApiKey || !fromEmail) {
+    // The signup is already saved. From here on, nothing about the email may
+    // turn a successful signup into an error for the visitor.
+    const result = await sendTransactionalEmail({
+      admin: supabase,
+      kind: 'waitlist_confirmation',
+      recipientKey: subscriberId,
+      to: normalizedEmail,
+      email: waitlistSignupEmail(),
+    })
+
+    if (result !== 'accepted' && result !== 'already_accepted') {
+      // Not sent (provider down, rate limited, or not configured). The row keeps
+      // confirmation_sent_at empty, so the next submission or the retry route
+      // tries again. Idempotency keys make the retry safe.
       return NextResponse.json({
         success: true,
         confirmation_email_status: 'unavailable',
       })
     }
 
-    const email = waitlistSignupEmail(parsed.data.audience)
-    try {
-      const emailResponse = await fetch('https://api.resend.com/emails', {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${resendApiKey}`,
-          'Content-Type': 'application/json',
-          'Idempotency-Key': `waitlist-signup:${subscriberId}`,
-        },
-        signal: AbortSignal.timeout(10000),
-        body: JSON.stringify({
-          from: fromEmail,
-          to: [normalizedEmail],
-          subject: email.subject,
-          html: email.html,
-          text: email.text,
-        }),
-      })
+    // "accepted" means Resend took the message. It does not prove inbox delivery.
+    const { error: confirmationUpdateError } = await supabase
+      .from('waitlist_subscribers')
+      .update({ confirmation_sent_at: new Date().toISOString() })
+      .eq('id', subscriberId)
+      .is('confirmation_sent_at', null)
 
-      if (!emailResponse.ok) {
-        return NextResponse.json({
-          success: true,
-          confirmation_email_status: 'unavailable',
-        })
-      }
-
-      const sentAt = new Date().toISOString()
-      const { error: confirmationUpdateError } = await supabase
-        .from('waitlist_subscribers')
-        .update({ confirmation_sent_at: sentAt })
-        .eq('id', subscriberId)
-        .is('confirmation_sent_at', null)
-
-      return NextResponse.json({
-        success: true,
-        confirmation_email_status: confirmationUpdateError
-          ? 'unavailable'
+    return NextResponse.json({
+      success: true,
+      confirmation_email_status: confirmationUpdateError
+        ? 'unavailable'
+        : result === 'already_accepted'
+          ? 'already_sent'
           : 'sent',
-      })
-    } catch {
-      return NextResponse.json({
-        success: true,
-        confirmation_email_status: 'unavailable',
-      })
-    }
+    })
   } catch {
     return NextResponse.json(
       { error: 'Could not save signup' },

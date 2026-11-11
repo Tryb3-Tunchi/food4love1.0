@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { sendWelcomeEmailAfterVerification } from '@/lib/email/welcome'
 
 export async function GET(request: NextRequest) {
   const requestUrl = new URL(request.url)
@@ -23,6 +24,13 @@ export async function GET(request: NextRequest) {
       new URL('/verify?error=confirmation', request.url),
     )
   }
+
+  // The email address is now confirmed. Sending the welcome email must never
+  // block or break the sign-in, so failures are swallowed inside the helper.
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+  await sendWelcomeEmailAfterVerification(user, requestUrl.origin)
 
   return NextResponse.redirect(new URL(next, request.url))
 }
