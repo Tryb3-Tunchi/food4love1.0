@@ -47,6 +47,9 @@ export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
   maximumScale: 1,
+  // Android Chrome: shrink the page when the keyboard opens, so the message box
+  // stays visible instead of being covered (100dvh then follows the keyboard).
+  interactiveWidget: 'resizes-content',
 }
 
 export default function RootLayout({
