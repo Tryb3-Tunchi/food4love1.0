@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { actionForExistingPair } from '@/lib/matchRules'
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 
@@ -101,33 +102,78 @@ export async function POST(request: NextRequest) {
     }
 
     const pair = [user.id, target.id].sort()
-    const { data: existingMatch, error: existingError } = await admin
+    // Older client-side code could leave more than one row for the same pair, so
+    // take the oldest instead of asking for exactly one (which would error).
+    const { data: existingMatches, error: existingError } = await admin
       .from('matches')
       .select('id')
       .eq('status', 'matched')
       .or(
         `and(user1_id.eq.${user.id},user2_id.eq.${target.id}),and(user1_id.eq.${target.id},user2_id.eq.${user.id})`,
       )
-      .maybeSingle()
+      .order('created_at', { ascending: true })
+      .limit(1)
     if (existingError) {
       return NextResponse.json(
         { error: 'Could not check the existing match' },
         { status: 500 },
       )
     }
-    if (existingMatch) {
-      return NextResponse.json({ match: true, match_id: existingMatch.id })
+    if (existingMatches && existingMatches.length > 0) {
+      return NextResponse.json({
+        match: true,
+        match_id: existingMatches[0].id,
+      })
     }
 
     const matchId = stableMatchId(pair)
+    const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
     const { error: matchError } = await admin.from('matches').insert({
       id: matchId,
       user1_id: pair[0],
       user2_id: pair[1],
       status: 'matched',
-      expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+      expires_at: expiresAt,
     })
-    if (matchError && matchError.code !== '23505') {
+
+    if (matchError && matchError.code === '23505') {
+      // The id for this pair is fixed, so a row already exists but it is not an
+      // active match (the lookup above only finds 'matched' rows). Before this
+      // check the conflict was ignored and both people were told "It's a match!"
+      // while the Matches page, which lists only 'matched' rows, stayed empty.
+      const { data: previous, error: previousError } = await admin
+        .from('matches')
+        .select('id, status')
+        .eq('id', matchId)
+        .maybeSingle()
+      if (previousError || !previous) {
+        return NextResponse.json(
+          { error: 'The mutual match could not be created' },
+          { status: 500 },
+        )
+      }
+      const action = actionForExistingPair(previous.status)
+      // A moderator blocked this pair on purpose: respect it, no false match.
+      if (action === 'blocked') {
+        return NextResponse.json({ match: false })
+      }
+      if (action === 'reopen') {
+        const { error: reopenError } = await admin
+          .from('matches')
+          .update({ status: 'matched', expires_at: expiresAt })
+          .eq('id', matchId)
+          .in('status', ['expired', 'pending'])
+        if (reopenError) {
+          return NextResponse.json(
+            { error: 'The mutual match could not be created' },
+            { status: 500 },
+          )
+        }
+      }
+      return NextResponse.json({ match: true, match_id: matchId })
+    }
+
+    if (matchError) {
       return NextResponse.json(
         { error: 'The mutual match could not be created' },
         { status: 500 },

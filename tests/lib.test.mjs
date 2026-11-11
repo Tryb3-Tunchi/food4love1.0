@@ -3,6 +3,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { notificationHref } from '../src/lib/notificationRoutes.ts'
 import { createLimiter } from '../src/lib/rateLimit.ts'
+import { actionForExistingPair } from '../src/lib/matchRules.ts'
 import { isFreshConfirmation } from '../src/lib/email/freshness.ts'
 import {
   waitlistSignupEmail,
@@ -166,4 +167,17 @@ test('escapeEmailHtml', () => {
     escapeEmailHtml(`<a href="x">&'</a>`),
     '&lt;a href=&quot;x&quot;&gt;&amp;&#39;&lt;/a&gt;',
   )
+})
+
+test('mutual like on a blocked pair never announces a match (regression)', () => {
+  assert.equal(actionForExistingPair('blocked'), 'blocked')
+})
+
+test('mutual like on an expired or pending pair reopens it', () => {
+  assert.equal(actionForExistingPair('expired'), 'reopen')
+  assert.equal(actionForExistingPair('pending'), 'reopen')
+})
+
+test('an already active match stays as it is', () => {
+  assert.equal(actionForExistingPair('matched'), 'already_matched')
 })

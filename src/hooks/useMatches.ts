@@ -50,7 +50,7 @@ export function useMatches() {
           *,
           user1:profiles!matches_user1_id_fkey(${PROFILE_FIELDS}),
           user2:profiles!matches_user2_id_fkey(${PROFILE_FIELDS}),
-          last_message:messages(content, created_at, sender_id, read_at)
+          messages(content, created_at, sender_id, read_at)
         `,
         )
         .or(`user1_id.eq.${user.id},user2_id.eq.${user.id}`)
@@ -105,7 +105,7 @@ export function useMatches() {
             is_verified: null,
           },
           profile_missing: !otherUser,
-          last_message: match.last_message?.[0] ?? null,
+          last_message: match.messages?.[0] ?? null,
           unread_count: unreadByMatch.get(match.id) ?? 0,
         }
       })

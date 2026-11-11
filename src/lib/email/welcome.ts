@@ -14,6 +14,10 @@ export async function sendWelcomeEmailAfterVerification(
   appUrl: string,
 ): Promise<void> {
   try {
+    // Off switch for the team: set WELCOME_EMAIL_ENABLED=false in the server
+    // environment to stop this email without a code change (for example if the
+    // Supabase confirmation email is meant to act as the welcome).
+    if (process.env.WELCOME_EMAIL_ENABLED === 'false') return
     if (!user?.email || !isFreshConfirmation(user.email_confirmed_at)) return
 
     const admin = createAdminClient()

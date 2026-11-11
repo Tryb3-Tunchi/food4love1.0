@@ -116,13 +116,30 @@ revoke all on function public.food4love_guard_notification_update()
   from public, anon, authenticated;
 
 do $$
+declare
+  expected_columns integer;
 begin
-  if to_regclass('public.notifications') is not null then
-    execute 'drop trigger if exists food4love_guard_notification_update on public.notifications';
-    execute 'create trigger food4love_guard_notification_update
-               before update on public.notifications
-               for each row execute function public.food4love_guard_notification_update()';
+  if to_regclass('public.notifications') is null then
+    return;
   end if;
+
+  -- The guard reads these five columns. If the real table names them
+  -- differently, installing the guard would make every user update fail, so it
+  -- is skipped instead and the table keeps working as it does today.
+  select count(*) into expected_columns
+    from information_schema.columns
+   where table_schema = 'public' and table_name = 'notifications'
+     and column_name in ('user_id', 'type', 'title', 'body', 'data');
+
+  if expected_columns <> 5 then
+    raise notice 'notifications columns differ from the app (found % of 5); guard trigger skipped', expected_columns;
+    return;
+  end if;
+
+  execute 'drop trigger if exists food4love_guard_notification_update on public.notifications';
+  execute 'create trigger food4love_guard_notification_update
+             before update on public.notifications
+             for each row execute function public.food4love_guard_notification_update()';
 end;
 $$;
 
@@ -146,6 +163,21 @@ $$;
 commit;
 
 -- READ-ONLY CHECKS (run these first, they change nothing) ----------------------
+-- STOP AND ASK before running this file if either of these is not as expected:
+--
+-- (a) The functions that create notifications must be SECURITY DEFINER
+--     (prosecdef = true). Section 2 turns row level security on for
+--     notifications; a trigger that is not security definer would then be refused
+--     when it tries to insert. Expect true for both rows.
+--   select proname, prosecdef from pg_proc
+--    where pronamespace = 'public'::regnamespace
+--      and proname in ('notify_on_match', 'notify_on_like');
+--
+-- (b) The notifications table must have these columns:
+--     id, user_id, type, title, body, data, read, created_at.
+--   select column_name, data_type from information_schema.columns
+--    where table_schema = 'public' and table_name = 'notifications' order by 1;
+--
 -- Is RLS already on for notifications, and which policies exist?
 --   select relrowsecurity from pg_class where oid = 'public.notifications'::regclass;
 --   select policyname, cmd, roles from pg_policies where tablename = 'notifications';
