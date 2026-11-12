@@ -171,7 +171,15 @@ export async function getEngagement(admin: Admin, range: ResolvedRange) {
   )
 
   // Things nobody records yet. Shown as unavailable, never as zero.
-  for (const key of ['chefProfileViews', 'storyViews', 'storySaves']) {
+  set('chefProfileViews', async () =>
+    flowMetric(
+      await countSeries(admin, 'analytics_events', range, (q) =>
+        q.eq('name', 'cook_profile_view'),
+      ),
+      'Views of public chef pages by visitors who accepted analytics.',
+    ),
+  )
+  for (const key of ['storyViews', 'storySaves']) {
     set(key, async () =>
       unavailable(
         'Not tracked yet. This needs a view event added to that screen, which is a separate piece of work.',
