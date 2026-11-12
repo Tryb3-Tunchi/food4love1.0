@@ -30,6 +30,10 @@ interface ProfileRow {
   created_at: string
 }
 
+// Member-supplied address: only https images are ever returned.
+const safeAvatar = (url: string | null) =>
+  url && url.startsWith('https://') ? url : null
+
 const roleLabel = (role: string | null) =>
   role === 'cook' ? 'Chef' : role === 'buyer' ? 'Food lover' : 'Member'
 
@@ -48,6 +52,7 @@ export async function getLive(admin: Admin, canSeePeople: boolean) {
       {
         from: new Date(todayStart).toISOString(),
         column: 'last_seen_at',
+        tieBreaker: 'user_id',
         cap: 500,
       },
     )
@@ -98,7 +103,7 @@ export async function getLive(admin: Admin, canSeePeople: boolean) {
           {
             id: profile.id,
             name: profile.full_name || 'Food4Love member',
-            avatarUrl: profile.avatar_url,
+            avatarUrl: safeAvatar(profile.avatar_url),
             accountType: roleLabel(profile.role),
             registeredAt: profile.created_at,
             lastSeenAt: row.last_seen_at,
@@ -111,7 +116,7 @@ export async function getLive(admin: Admin, canSeePeople: boolean) {
       recentlyRegistered = recent.rows.map((p) => ({
         id: p.id,
         name: p.full_name || 'Food4Love member',
-        avatarUrl: p.avatar_url,
+        avatarUrl: safeAvatar(p.avatar_url),
         accountType: roleLabel(p.role),
         registeredAt: p.created_at,
       }))

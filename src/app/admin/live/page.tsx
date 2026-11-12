@@ -58,6 +58,8 @@ function Avatar({ url, name }: { url: string | null; name: string }) {
     <img
       src={url}
       alt=""
+      referrerPolicy="no-referrer"
+      loading="lazy"
       className="h-9 w-9 shrink-0 rounded-full object-cover"
     />
   ) : (

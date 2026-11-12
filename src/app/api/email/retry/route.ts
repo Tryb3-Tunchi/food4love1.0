@@ -1,11 +1,16 @@
 import { NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { createLimiter } from '@/lib/rateLimit'
 import { getAdminUser } from '@/lib/admin/auth'
 import { beginAdminAudit, finishAdminAudit } from '@/lib/admin/audit'
 import { welcomeEmail, waitlistSignupEmail } from '@/lib/email/templates'
 import { MAX_ATTEMPTS, sendTransactionalEmail } from '@/lib/email/transactional'
 
 export const runtime = 'nodejs'
+
+// A brake on repeated clicks. Sends are idempotent, so this is not what prevents
+// duplicates; it just stops an accidental flood. Per server instance.
+const allow = createLimiter({ limit: 6, windowMs: 10 * 60 * 1000 })
 
 // Retries transactional emails that Resend did not accept (provider outage, rate
 // limit, timeout). Admin only. Safe to call repeatedly: every send carries an
@@ -15,6 +20,12 @@ export async function POST(request: Request) {
     (await getAdminUser('email:manage')) ??
     (await getAdminUser('messages:manage'))
   if (!actor) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  if (!allow(actor.id)) {
+    return NextResponse.json(
+      { error: 'Too many retries. Please wait a few minutes.' },
+      { status: 429 },
+    )
+  }
 
   // Sending email is a sensitive action: record it before doing anything.
   const audit = await beginAdminAudit({

@@ -108,7 +108,15 @@ export default function WaitlistPage() {
       a.download = `food4love-waitlist-${new Date().toISOString().slice(0, 10)}.csv`
       a.click()
       URL.revokeObjectURL(url)
-      toast.success('Export downloaded and recorded in the audit log')
+      if (response.headers.get('x-export-truncated') === 'true') {
+        toast(
+          'Only the first 20,000 people were exported. Narrow the filters and export again to get the rest.',
+          { icon: '⚠️', duration: 9000 },
+        )
+      }
+      toast.success(
+        `Exported ${response.headers.get('x-export-rows') ?? ''} people. Recorded in the audit log.`,
+      )
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'Export failed')
     } finally {

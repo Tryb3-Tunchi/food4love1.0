@@ -52,7 +52,33 @@ export function cleanPath(value: unknown): string | null {
   const path = value.split(/[?#]/)[0].slice(0, 200)
   // "//host" is a protocol-relative URL (another website), not a path.
   if (path.startsWith('//')) return null
-  return /^\/[A-Za-z0-9\-._~/%]*$/.test(path) ? path : null
+  if (!/^\/[A-Za-z0-9\-._~/%]*$/.test(path)) return null
+  return normalizePath(path)
+}
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
+// A URL segment that is really an identifier or a secret, not a page name.
+function looksLikeId(segment: string): boolean {
+  if (UUID.test(segment)) return true
+  if (/^\d{5,}$/.test(segment)) return true // long numbers
+  if (/^[0-9a-f]{16,}$/i.test(segment)) return true // hex tokens
+  if (segment.includes('%')) return true // encoded text such as an email
+  // long mixed tokens (reset links, share codes); page names are short words
+  return (
+    segment.length >= 20 &&
+    /^[A-Za-z0-9_-]+$/.test(segment) &&
+    /[0-9]/.test(segment)
+  )
+}
+
+// /chat/<match id> -> /chat/:id. Without this the dashboard would list who chats,
+// who is booked and which chef pages are viewed, by member id. Page NAMES stay.
+export function normalizePath(path: string): string {
+  return path
+    .split('/')
+    .map((segment) => (segment && looksLikeId(segment) ? ':id' : segment))
+    .join('/')
 }
 
 // True when the request says it came from this site's own pages. Browsers always

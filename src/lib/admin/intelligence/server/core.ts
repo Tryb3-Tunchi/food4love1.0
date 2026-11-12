@@ -8,6 +8,7 @@ import {
   type Point,
 } from '../series'
 import type { ResolvedRange } from '../dateRange'
+import { collectPages } from '../paging'
 
 export type Admin = ReturnType<typeof createAdminClient>
 // Supabase's query builder is generic over the schema, which this project does
@@ -71,18 +72,28 @@ export async function fetchRows<T>(
     to?: string
     column?: string
     cap?: number
+    // Second sort key so rows are never skipped or repeated between pages when
+    // timestamps tie. Every table read this way has an "id" except user_presence.
+    tieBreaker?: string | null
   } = {},
 ): Promise<{ rows: T[]; truncated: boolean }> {
   const column = options.column ?? 'created_at'
   const cap = options.cap ?? ROW_CAP
-  let q: AnyQuery = admin.from(table).select(columns)
-  if (options.from) q = q.gte(column, options.from)
-  if (options.to) q = q.lt(column, options.to)
-  if (options.apply) q = options.apply(q)
-  const { data, error } = await q.order(column, { ascending: false }).limit(cap)
-  if (error) fail(error)
-  const rows = (data ?? []) as T[]
-  return { rows, truncated: rows.length >= cap }
+  const tie = options.tieBreaker === undefined ? 'id' : options.tieBreaker
+  // Read in pages: the API returns at most 1,000 rows per request, however large
+  // a limit is requested (see paging.ts). A query builder can only be sent once,
+  // so each page builds its own.
+  return collectPages<T>(async (rangeFrom, rangeTo) => {
+    let q: AnyQuery = admin.from(table).select(columns)
+    if (options.from) q = q.gte(column, options.from)
+    if (options.to) q = q.lt(column, options.to)
+    if (options.apply) q = options.apply(q)
+    q = q.order(column, { ascending: false })
+    if (tie && tie !== column) q = q.order(tie, { ascending: false })
+    const { data, error } = await q.range(rangeFrom, rangeTo)
+    if (error) fail(error)
+    return (data ?? []) as T[]
+  }, cap)
 }
 
 // Count + comparison + trend for any table with a created_at column.

@@ -29,6 +29,7 @@ import {
   csvCell,
   cleanTag,
   cleanPath,
+  normalizePath,
   isSameOrigin,
 } from '../src/lib/admin/intelligence/privacy.ts'
 import { classifyChannel } from '../src/lib/admin/intelligence/attribution.ts'
@@ -37,6 +38,7 @@ import {
   presenceBand,
   summarisePresence,
 } from '../src/lib/admin/intelligence/presence.ts'
+import { collectPages } from '../src/lib/admin/intelligence/paging.ts'
 import { computeRetention } from '../src/lib/admin/intelligence/retention.ts'
 import { verifySvixSignature } from '../src/lib/admin/intelligence/webhookSignature.ts'
 
@@ -450,4 +452,89 @@ test('analytics only accepts posts from the site itself', () => {
   assert.equal(isSameOrigin(null, host), false)
   assert.equal(isSameOrigin('https://www.food4love.app', null), false)
   assert.equal(isSameOrigin('not a url', host), false)
+})
+
+test('page paths never carry member ids, booking ids or secret tokens (privacy regression)', () => {
+  const id = '123e4567-e89b-12d3-a456-426614174000'
+  assert.equal(cleanPath('/chat/' + id), '/chat/:id')
+  assert.equal(cleanPath('/bookings/' + id), '/bookings/:id')
+  assert.equal(cleanPath('/cook/' + id + '?ref=x#y'), '/cook/:id')
+  assert.equal(
+    cleanPath('/cook/4F1C2E8A-AAAA-BBBB-CCCC-123456789012'),
+    '/cook/:id',
+  )
+  assert.equal(cleanPath('/orders/12345678'), '/orders/:id')
+  assert.equal(cleanPath('/reset/abcDEF1234567890secrettoken99'), '/reset/:id')
+  assert.equal(cleanPath('/u/john%40example.com'), '/u/:id')
+  assert.equal(cleanPath('/x/' + 'a1'.repeat(10)), '/x/:id')
+  // normal page names are untouched
+  for (const p of [
+    '/',
+    '/waitlist',
+    '/swipe',
+    '/matches',
+    '/stories/new',
+    '/cook/availability',
+    '/bookings/new',
+    '/onboarding/role',
+  ]) {
+    assert.equal(cleanPath(p), p)
+  }
+  assert.equal(normalizePath('/chat/' + id + '/info'), '/chat/:id/info')
+})
+
+// A stand-in for Supabase's API: however many rows are asked for, it never
+// returns more than 1,000 in one request.
+function fakeApi(total, maxRows = 1000) {
+  const calls = []
+  const fetchPage = async (from, to) => {
+    calls.push([from, to])
+    const end = Math.min(to, from + maxRows - 1, total - 1)
+    return from > end
+      ? []
+      : Array.from({ length: end - from + 1 }, (_, i) => from + i)
+  }
+  return { fetchPage, calls }
+}
+
+test('paged reads return EVERYTHING even though the server caps each request (undercount regression)', async () => {
+  const api = fakeApi(2500)
+  const { rows, truncated } = await collectPages(api.fetchPage, 20000)
+  assert.equal(rows.length, 2500, 'all 2,500 rows, not just the first 1,000')
+  assert.equal(truncated, false)
+  assert.equal(new Set(rows).size, 2500, 'no row repeated')
+  assert.deepEqual(api.calls, [
+    [0, 999],
+    [1000, 1999],
+    [2000, 2999],
+  ])
+})
+
+test('the cap is honoured and reported as truncated, never silently', async () => {
+  const api = fakeApi(5000)
+  const { rows, truncated } = await collectPages(api.fetchPage, 1500)
+  assert.equal(rows.length, 1500)
+  assert.equal(truncated, true)
+  assert.deepEqual(api.calls, [
+    [0, 999],
+    [1000, 1499],
+  ])
+})
+
+test('small and exact-size results do not loop forever or flag false truncation', async () => {
+  let r = await collectPages(fakeApi(0).fetchPage, 20000)
+  assert.deepEqual([r.rows.length, r.truncated], [0, false])
+  r = await collectPages(fakeApi(7).fetchPage, 20000)
+  assert.deepEqual([r.rows.length, r.truncated], [7, false])
+  const exact = fakeApi(1000)
+  r = await collectPages(exact.fetchPage, 20000)
+  assert.deepEqual([r.rows.length, r.truncated], [1000, false])
+  assert.equal(exact.calls.length, 2, 'one extra empty page confirms the end')
+})
+
+test('the old single-request approach really would have undercounted', async () => {
+  // Documents WHY paging exists: one request of 20,000 returns only 1,000.
+  const api = fakeApi(2500)
+  const single = await api.fetchPage(0, 19999)
+  assert.equal(single.length, 1000)
 })
