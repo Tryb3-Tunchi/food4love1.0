@@ -100,7 +100,8 @@ export function BottomNav() {
     !pathname ||
     pathname.startsWith('/login') ||
     pathname.startsWith('/signup') ||
-    pathname.startsWith('/onboarding')
+    pathname.startsWith('/onboarding') ||
+    pathname.startsWith('/chat/')
   ) {
     return null
   }
