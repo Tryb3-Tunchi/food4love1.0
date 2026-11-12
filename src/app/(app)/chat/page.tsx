@@ -10,7 +10,7 @@ import Image from 'next/image'
 import { formatDistanceToNow } from 'date-fns'
 
 export default function ChatIndexPage() {
-  const { data: matches, isLoading } = useMatches()
+  const { data: matches, isLoading, error, refetch } = useMatches()
 
   if (isLoading) {
     return (
@@ -18,6 +18,26 @@ export default function ChatIndexPage() {
         {[1, 2, 3].map((i) => (
           <Skeleton key={i} className="h-20 w-full rounded-xl" />
         ))}
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div
+        role="alert"
+        className="flex min-h-screen flex-col items-center justify-center gap-3 bg-[var(--bg)] px-6 text-center"
+      >
+        <p className="text-base font-semibold text-[var(--text-1)]">
+          Your conversations could not load
+        </p>
+        <button
+          type="button"
+          onClick={() => void refetch()}
+          className="inline-flex min-h-11 items-center rounded-full bg-[var(--bubble-own)] px-6 text-sm font-bold text-[var(--bubble-own-text)]"
+        >
+          Try again
+        </button>
       </div>
     )
   }
@@ -43,7 +63,7 @@ export default function ChatIndexPage() {
     <div className="min-h-screen bg-[var(--bg)]">
       <div className="bg-[var(--bg)]/80 sticky top-0 z-10 border-b border-[var(--border)] px-4 py-4 backdrop-blur-xl">
         <h1 className="text-2xl font-bold">Messages</h1>
-        <p className="text-sm text-[var(--text-muted)]">
+        <p className="text-sm text-[var(--text-2)]">
           {matches.length} active {matches.length === 1 ? 'match' : 'matches'}
         </p>
       </div>
@@ -72,11 +92,11 @@ export default function ChatIndexPage() {
 
             <div className="min-w-0 flex-1">
               <div className="mb-0.5 flex items-center justify-between">
-                <h3 className="truncate font-semibold text-[var(--text)]">
+                <h3 className="truncate font-semibold text-[var(--text-1)]">
                   {match.other_user?.full_name || 'User'}
                 </h3>
                 {match.last_message && (
-                  <span className="flex-shrink-0 text-xs text-[var(--text-muted)]">
+                  <span className="flex-shrink-0 text-xs text-[var(--text-2)]">
                     {formatDistanceToNow(
                       new Date(match.last_message.created_at),
                       { addSuffix: false },
@@ -84,13 +104,13 @@ export default function ChatIndexPage() {
                   </span>
                 )}
               </div>
-              <p className="truncate text-sm text-[var(--text-muted)] transition-colors group-hover:text-[var(--text)]">
+              <p className="truncate text-sm text-[var(--text-2)] transition-colors group-hover:text-[var(--text-1)]">
                 {match.last_message ? (
                   <span
                     className={
                       match.last_message.read_at
                         ? ''
-                        : 'font-medium text-[var(--text)]'
+                        : 'font-medium text-[var(--text-1)]'
                     }
                   >
                     {match.last_message.content}
@@ -101,7 +121,7 @@ export default function ChatIndexPage() {
               </p>
             </div>
 
-            <ChevronRight className="h-5 w-5 flex-shrink-0 text-[var(--text-muted)]" />
+            <ChevronRight className="h-5 w-5 flex-shrink-0 text-[var(--text-2)]" />
           </Link>
         ))}
       </div>

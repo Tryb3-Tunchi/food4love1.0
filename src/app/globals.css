@@ -23,6 +23,17 @@
     --accent: #e85a2a;
     --accent-strong: #d9482a;
     --accent-soft: rgba(232, 90, 42, 0.1);
+    /* Sent chat bubbles: white text on this is about 5:1 (WCAG AA). White on
+       --accent is only about 3.7:1, too low for small message text. */
+    --bubble-own: #c4431a;
+    --bubble-own-text: #ffffff;
+    /* Older components (bookings, likes, match celebration) used these three
+       names, which were never defined, so their colours silently failed and
+       text or buttons rendered invisible. They now follow the real theme in
+       both light and dark mode. */
+    --primary: var(--accent);
+    --text: var(--text-1);
+    --text-muted: var(--text-2);
     --accent-alt: #f3b33d;
     --accent-l: #ffe2d3;
     --success: #3f865b;
@@ -99,6 +110,8 @@
     --accent: #ff7a43;
     --accent-strong: #ff9352;
     --accent-soft: rgba(255, 122, 67, 0.12);
+    --bubble-own: #c4431a;
+    --bubble-own-text: #ffffff;
     --accent-alt: #f3b33d;
     --accent-l: rgba(255, 122, 67, 0.16);
     --success: #5cb57f;

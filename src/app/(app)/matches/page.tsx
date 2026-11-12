@@ -26,7 +26,7 @@ function MatchSkeleton() {
 }
 
 export default function MatchesPage() {
-  const { data: matches, isLoading } = useMatches()
+  const { data: matches, isLoading, error, refetch } = useMatches()
 
   return (
     <AppPage ambient="pepper" ambientIntensity="low" className="px-4 pb-6 pt-6">
@@ -47,8 +47,31 @@ export default function MatchesPage() {
         </div>
       )}
 
+      {/* Load failure: say so instead of pretending there are no matches */}
+      {!isLoading && error && (
+        <div role="alert" className="px-4 py-16 text-center">
+          <p
+            className="text-base font-semibold"
+            style={{ color: 'var(--text-1)' }}
+          >
+            Your matches could not load
+          </p>
+          <p className="mt-1 text-sm" style={{ color: 'var(--text-2)' }}>
+            Check your connection and try again.
+          </p>
+          <button
+            type="button"
+            onClick={() => void refetch()}
+            className="mt-4 inline-flex min-h-11 items-center rounded-full px-6 text-sm font-bold text-white"
+            style={{ background: 'var(--bubble-own)' }}
+          >
+            Try again
+          </button>
+        </div>
+      )}
+
       {/* Empty state */}
-      {!isLoading && !matches?.length && (
+      {!isLoading && !error && !matches?.length && (
         <motion.div
           data-tour="matches-content"
           initial={{ opacity: 0, scale: 0.95 }}
@@ -121,11 +144,11 @@ export default function MatchesPage() {
       )}
 
       {/* Match list */}
-      {!isLoading && matches && matches.length > 0 && (
+      {!isLoading && !error && matches && matches.length > 0 && (
         <div data-tour="matches-content" className="space-y-2">
           {matches.map((match, i) => {
             const chef = match.other_user
-            if (!chef) return null
+            const displayName = chef.full_name || 'Food4Love member'
             const expiresAt = new Date(match.expires_at)
             const isExpiringSoon =
               expiresAt.getTime() - Date.now() < 3 * 60 * 60 * 1000
@@ -138,18 +161,30 @@ export default function MatchesPage() {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: i * 0.06 }}
               >
-                <Link
-                  href={`/chat/${match.id}`}
-                  className="app-card group flex items-center gap-3 rounded-2xl p-4 transition-all duration-150 active:scale-[0.99]"
-                >
-                  {/* Avatar */}
+                <div className="app-card group flex items-center gap-3 rounded-2xl p-4 transition-all duration-150">
+                  {/* Avatar: opens the chef's profile when the match is a chef */}
                   <div className="relative shrink-0">
-                    <Avatar
-                      src={chef.avatar_url}
-                      name={chef.full_name}
-                      size="lg"
-                      verified={chef.is_verified}
-                    />
+                    {chef.role === 'cook' && !match.profile_missing ? (
+                      <Link
+                        href={`/cook/${chef.id}`}
+                        aria-label={`View ${displayName}'s profile`}
+                        className="block rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]"
+                      >
+                        <Avatar
+                          src={chef.avatar_url}
+                          name={displayName}
+                          size="lg"
+                          verified={!!chef.is_verified}
+                        />
+                      </Link>
+                    ) : (
+                      <Avatar
+                        src={chef.avatar_url}
+                        name={displayName}
+                        size="lg"
+                        verified={!!chef.is_verified}
+                      />
+                    )}
                     {!match.last_message && (
                       <span
                         className="absolute -right-0.5 -top-0.5 h-3.5 w-3.5 rounded-full border-2"
@@ -166,19 +201,23 @@ export default function MatchesPage() {
                     )}
                   </div>
 
-                  {/* Info */}
-                  <div className="min-w-0 flex-1">
+                  {/* Info: opens the conversation */}
+                  <Link
+                    href={`/chat/${match.id}`}
+                    aria-label={`Open conversation with ${displayName}`}
+                    className="min-w-0 flex-1 rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]"
+                  >
                     <div className="mb-0.5 flex items-center justify-between">
                       <span
                         className="truncate text-sm font-bold"
                         style={{ color: 'var(--text-1)' }}
                       >
-                        {chef.full_name}
+                        {displayName}
                       </span>
                       {match.unread_count ? (
                         <span
                           className="ml-2 flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px] font-bold text-white"
-                          style={{ background: 'var(--accent)' }}
+                          style={{ background: 'var(--bubble-own)' }}
                         >
                           {match.unread_count > 9 ? '9+' : match.unread_count}
                         </span>
@@ -187,7 +226,7 @@ export default function MatchesPage() {
 
                     <p
                       className="mb-1.5 truncate text-sm"
-                      style={{ color: 'var(--text-3)' }}
+                      style={{ color: 'var(--text-2)' }}
                     >
                       {match.last_message?.content ?? (
                         <span style={{ color: 'var(--accent)' }}>
@@ -231,13 +270,14 @@ export default function MatchesPage() {
                         </span>
                       )}
                     </div>
-                  </div>
+                  </Link>
 
                   <ChevronRight
+                    aria-hidden="true"
                     className="h-4 w-4 shrink-0 transition-opacity group-hover:opacity-50"
                     style={{ color: 'var(--text-3)', opacity: 0.3 }}
                   />
-                </Link>
+                </div>
               </motion.div>
             )
           })}

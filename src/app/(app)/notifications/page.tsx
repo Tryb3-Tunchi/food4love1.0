@@ -1,7 +1,10 @@
 'use client'
 
+import { useRouter } from 'next/navigation'
+import toast from 'react-hot-toast'
 import { useNotifications } from '@/hooks/useNotifications'
-import { markAllAsRead } from '@/services/notifications'
+import { notificationHref } from '@/lib/notificationRoutes'
+import type { Notification } from '@/services/notifications'
 import { useAuthStore } from '@/stores/useAuthStore'
 import { Bell, Heart, MessageCircle, Calendar, Star, Check } from 'lucide-react'
 
@@ -31,19 +34,40 @@ function timeAgo(dateStr: string): string {
 }
 
 export default function NotificationsPage() {
+  const router = useRouter()
   const profile = useAuthStore((s) => s.profile)
-  const { notifications, isLoading, refetch } = useNotifications()
+  const {
+    notifications,
+    isLoading,
+    error,
+    refetch,
+    markRead,
+    markEverythingRead,
+  } = useNotifications()
 
   const handleMarkAllRead = async () => {
     if (!profile?.id) return
-    await markAllAsRead(profile.id)
-    refetch()
+    const saved = await markEverythingRead()
+    if (!saved) toast.error('Could not update notifications')
+  }
+
+  const handleOpen = (notification: Notification) => {
+    const href = notificationHref(notification, profile?.role)
+    void markRead(notification.id).then((saved) => {
+      if (!saved) toast.error('Could not save that this was read')
+    })
+    if (href) router.push(href)
   }
 
   if (isLoading) {
     return (
       <div className="flex h-screen items-center justify-center bg-[var(--bg)]">
-        <div className="h-8 w-8 animate-spin rounded-full border-2 border-[var(--primary)] border-t-transparent" />
+        <div
+          className="h-8 w-8 animate-spin rounded-full border-2 border-[var(--accent)] border-t-transparent"
+          role="status"
+        >
+          <span className="sr-only">Loading notifications</span>
+        </div>
       </div>
     )
   }
@@ -53,13 +77,14 @@ export default function NotificationsPage() {
   return (
     <div className="min-h-screen bg-[var(--bg)] pb-24 pt-4">
       <div className="mx-auto max-w-lg px-4">
-        {/* Header */}
         <div className="mb-6 flex items-center justify-between">
-          {/* <h1 className="text-2xl font-bold text-[var(--text)]">Notifications</h1> */}
+          <h1 className="text-xl font-bold text-[var(--text-1)]">
+            Notifications
+          </h1>
           {hasUnread && (
             <button
               onClick={handleMarkAllRead}
-              className="flex items-center gap-1.5 rounded-full bg-[var(--surface)] px-3 py-1.5 text-sm text-[var(--text-muted)] transition-colors hover:bg-[var(--border)] hover:text-[var(--text)]"
+              className="flex min-h-10 items-center gap-1.5 rounded-full border border-[var(--border)] bg-[var(--card)] px-3 py-1.5 text-sm font-medium text-[var(--text-2)] transition-colors hover:bg-[var(--bg-2)] hover:text-[var(--text-1)]"
             >
               <Check className="h-3.5 w-3.5" />
               Mark all read
@@ -67,73 +92,90 @@ export default function NotificationsPage() {
           )}
         </div>
 
-        {/* Empty State */}
-        {notifications.length === 0 ? (
+        {error ? (
+          <div className="py-16 text-center">
+            <p className="text-sm font-semibold text-[var(--text-1)]">
+              Notifications could not load
+            </p>
+            <button
+              type="button"
+              onClick={refetch}
+              className="mt-3 rounded-lg px-3 py-2 text-sm font-semibold text-[var(--accent)] hover:bg-[var(--accent-soft)]"
+            >
+              Try again
+            </button>
+          </div>
+        ) : notifications.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-20 text-center">
-            <Bell className="mb-4 h-12 w-12 text-[var(--text-muted)] opacity-40" />
-            <p className="text-lg font-medium text-[var(--text-muted)]">
+            <Bell className="mb-4 h-12 w-12 text-[var(--text-3)] opacity-60" />
+            <p className="text-lg font-medium text-[var(--text-1)]">
               No notifications yet
             </p>
-            <p className="mt-1 text-sm text-[var(--text-muted)] opacity-60">
+            <p className="mt-1 text-sm text-[var(--text-2)]">
               When someone likes, matches, or books you, it shows here
             </p>
           </div>
         ) : (
-          /* Notification List */
-          <div className="space-y-2">
+          <ul className="space-y-2">
             {notifications.map((notification) => {
               const Icon = typeIcons[notification.type] ?? Bell
               const isUnread = !notification.read
 
               return (
-                <div
-                  key={notification.id}
-                  className={`flex items-start gap-3 rounded-2xl p-4 transition-colors ${
-                    isUnread ? 'bg-[var(--primary)]/10' : 'bg-[var(--surface)]'
-                  }`}
-                >
-                  {/* Icon */}
-                  <div
-                    className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full ${
-                      isUnread ? 'bg-[var(--primary)]/20' : 'bg-[var(--border)]'
+                <li key={notification.id}>
+                  <button
+                    type="button"
+                    onClick={() => handleOpen(notification)}
+                    className={`flex w-full items-start gap-3 rounded-2xl border p-4 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] ${
+                      isUnread
+                        ? 'border-[var(--accent)]/30 bg-[var(--accent-soft)]'
+                        : 'border-[var(--border)] bg-[var(--card)]'
                     }`}
                   >
-                    <Icon
-                      className={`h-5 w-5 ${
+                    <div
+                      className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full ${
                         isUnread
-                          ? 'text-[var(--primary)]'
-                          : 'text-[var(--text-muted)]'
-                      }`}
-                    />
-                  </div>
-
-                  {/* Content */}
-                  <div className="min-w-0 flex-1">
-                    <p
-                      className={`font-medium ${
-                        isUnread
-                          ? 'text-[var(--text)]'
-                          : 'text-[var(--text-muted)]'
+                          ? 'bg-[var(--accent-soft)]'
+                          : 'bg-[var(--bg-2)]'
                       }`}
                     >
-                      {notification.title}
-                    </p>
-                    <p className="mt-0.5 text-sm text-[var(--text-muted)]">
-                      {notification.body}
-                    </p>
-                    <p className="mt-1.5 text-xs text-[var(--text-muted)] opacity-50">
-                      {timeAgo(notification.created_at)}
-                    </p>
-                  </div>
+                      <Icon
+                        className={`h-5 w-5 ${
+                          isUnread
+                            ? 'text-[var(--accent)]'
+                            : 'text-[var(--text-3)]'
+                        }`}
+                      />
+                    </div>
 
-                  {/* Unread Dot */}
-                  {isUnread && (
-                    <div className="mt-2 h-2 w-2 shrink-0 rounded-full bg-[var(--primary)]" />
-                  )}
-                </div>
+                    <div className="min-w-0 flex-1">
+                      <p
+                        className={`break-words font-semibold ${
+                          isUnread
+                            ? 'text-[var(--text-1)]'
+                            : 'text-[var(--text-2)]'
+                        }`}
+                      >
+                        {notification.title}
+                      </p>
+                      <p className="mt-0.5 break-words text-sm text-[var(--text-2)]">
+                        {notification.body}
+                      </p>
+                      <p className="mt-1.5 text-xs text-[var(--text-2)]">
+                        {timeAgo(notification.created_at)}
+                      </p>
+                    </div>
+
+                    {isUnread && (
+                      <div className="mt-2 h-2 w-2 shrink-0 rounded-full bg-[var(--accent)]">
+                        <span className="sr-only">Unread</span>
+                      </div>
+                    )}
+                  </button>
+                </li>
               )
             })}
-          </div>
+          </ul>
         )}
       </div>
     </div>
