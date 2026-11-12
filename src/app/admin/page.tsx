@@ -1,238 +1,257 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
 import Link from 'next/link'
 import {
-  AlertTriangle,
+  CalendarDays,
   ChefHat,
+  Eye,
   Heart,
-  RefreshCw,
-  ShieldCheck,
-  ShoppingBag,
+  ListChecks,
+  MessageCircle,
+  MessagesSquare,
+  Radio,
+  Sparkles,
+  UserPlus,
   Users,
-  type LucideIcon,
+  UsersRound,
 } from 'lucide-react'
-import { getAdminStats } from '@/services/admin'
+import type { Metric } from '@/lib/admin/intelligence/series'
+import type { ResolvedRange } from '@/lib/admin/intelligence/dateRange'
+import {
+  AreaChart,
+  CardGridSkeleton,
+  ErrorPanel,
+  MetricCard,
+  Page,
+  Panel,
+  RangeBar,
+  RefreshButton,
+  fmtAgo,
+  useAdminData,
+  useRangeState,
+} from '@/components/admin/intelligence/kit'
 
-interface Stats {
-  totalUsers: number | null
-  totalChefs: number | null
-  totalMatches: number | null
-  totalBookings: number | null
-  openDisputes: number | null
-  pendingKyc: number | null
-  suspendedUsers: number | null
-  dataCheckFailures: string[]
-  restrictedMetrics: string[]
+interface Overview {
+  range: ResolvedRange
+  metrics: Record<string, Metric>
+  generatedAt: string
 }
 
-export default function AdminDashboard() {
-  const [stats, setStats] = useState<Stats | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState('')
-
-  const refresh = useCallback(async () => {
-    setLoading(true)
-    setError('')
-    try {
-      setStats(await getAdminStats())
-    } catch (cause) {
-      setError(
-        cause instanceof Error
-          ? cause.message
-          : 'Could not load the operations overview',
-      )
-    } finally {
-      setLoading(false)
-    }
-  }, [])
-
-  useEffect(() => {
-    void refresh()
-  }, [refresh])
-
-  const metrics: {
-    key: string
-    label: string
-    value: number | null
-    href: string
-    icon: LucideIcon
-  }[] = stats
-    ? [
-        {
-          key: 'totalUsers',
-          label: 'Members',
-          value: stats.totalUsers,
-          href: '/admin/users',
-          icon: Users,
-        },
-        {
-          key: 'totalChefs',
-          label: 'Home cooks',
-          value: stats.totalChefs,
-          href: '/admin/users?role=cook',
-          icon: ChefHat,
-        },
-        {
-          key: 'totalMatches',
-          label: 'Active matches',
-          value: stats.totalMatches,
-          href: '/admin/matches',
-          icon: Heart,
-        },
-        {
-          key: 'totalBookings',
-          label: 'Bookings',
-          value: stats.totalBookings,
-          href: '/admin/bookings',
-          icon: ShoppingBag,
-        },
-        {
-          key: 'openDisputes',
-          label: 'Open disputes',
-          value: stats.openDisputes,
-          href: '/admin/disputes',
-          icon: AlertTriangle,
-        },
-        {
-          key: 'pendingKyc',
-          label: 'Chef verifications',
-          value: stats.pendingKyc,
-          href: '/admin/kyc',
-          icon: ShieldCheck,
-        },
-        {
-          key: 'suspendedUsers',
-          label: 'Suspended accounts',
-          value: stats.suspendedUsers,
-          href: '/admin/users?status=suspended',
-          icon: Users,
-        },
-      ].filter((metric) => !stats.restrictedMetrics.includes(metric.key))
-    : []
-
-  const failedMetrics = new Set(stats?.dataCheckFailures ?? [])
+export default function ExecutiveDashboard() {
+  const { value, setValue, params } = useRangeState('30d')
+  const { data, error, loading, reload } = useAdminData<Overview>(
+    'intelligence/overview',
+    params,
+  )
+  const m = data?.metrics
+  const visitsOff = m?.visits?.status === 'unavailable'
 
   return (
-    <section className="mx-auto min-h-[calc(100dvh-4rem)] max-w-7xl px-4 py-7 text-[var(--admin-text)] sm:px-6 sm:py-9 lg:px-8">
-      <header className="mb-8 flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <p className="text-xs font-bold uppercase tracking-[0.16em] text-[var(--admin-accent)]">
-            Food4Love operations
+    <Page
+      title="Executive dashboard"
+      description="How many people visit, join and use Food4Love, and how that is changing. Every figure comes from the database; anything not being collected says so."
+      actions={
+        <>
+          <RangeBar value={value} onChange={setValue} />
+          <RefreshButton onClick={reload} loading={loading} />
+        </>
+      }
+    >
+      {error === 'Forbidden' ? (
+        <Panel title="Your staff access does not include analytics">
+          <p className="text-sm text-[var(--admin-muted)]">
+            You can still use the sections your role allows from the menu. The{' '}
+            <Link
+              href="/admin/operations"
+              className="font-semibold underline underline-offset-2"
+            >
+              Needs attention
+            </Link>{' '}
+            page shows the counts your access covers. A Super Admin can add
+            analytics access in Staff access.
           </p>
-          <h1 className="mt-2 font-display text-3xl font-bold tracking-tight sm:text-4xl">
-            Dashboard
-          </h1>
-          <p className="mt-2 max-w-2xl text-sm text-[var(--admin-muted)]">
-            A live view of the marketplace areas your staff access allows you to
-            manage.
-          </p>
-        </div>
-        <button
-          type="button"
-          onClick={() => void refresh()}
-          disabled={loading}
-          className="inline-flex min-h-10 items-center gap-2 rounded-lg border border-[var(--admin-border)] bg-[var(--admin-surface)] px-3 text-sm font-semibold text-[var(--admin-text)] transition hover:bg-[var(--admin-hover)] disabled:cursor-wait disabled:opacity-60"
-        >
-          <RefreshCw
-            aria-hidden="true"
-            className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`}
-          />
-          Refresh
-        </button>
-      </header>
-
-      {error && (
-        <div
-          role="alert"
-          className="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-800 dark:text-red-200"
-        >
-          <span>{error}</span>
-          <button
-            type="button"
-            onClick={() => void refresh()}
-            className="font-semibold underline underline-offset-2"
-          >
-            Try again
-          </button>
-        </div>
-      )}
-
-      {!!stats?.dataCheckFailures.length && (
-        <div
-          role="status"
-          className="mb-6 rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 text-sm text-amber-900 dark:text-amber-100"
-        >
-          Some counts could not be loaded. A dash marks unavailable data; it is
-          not a zero count.
-        </div>
-      )}
-
-      {loading && !stats ? (
-        <div
-          aria-label="Loading operations overview"
-          className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3"
-        >
-          {Array.from({ length: 6 }, (_, index) => (
-            <div
-              key={index}
-              className="h-36 animate-pulse rounded-2xl border border-[var(--admin-border)] bg-[var(--admin-surface)]"
-            />
-          ))}
-        </div>
-      ) : error && !stats ? (
-        <div className="rounded-2xl border border-[var(--admin-border)] bg-[var(--admin-surface)] p-8 text-center">
-          <p className="font-semibold text-[var(--admin-text)]">
-            The dashboard could not load its counts.
-          </p>
-          <p className="mt-2 text-sm text-[var(--admin-muted)]">
-            Retry the request or use the sections in the admin navigation.
-          </p>
-        </div>
-      ) : metrics.length ? (
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
-          {metrics.map((metric) => {
-            const Icon = metric.icon
-            const hasError = failedMetrics.has(metric.key)
-            return (
-              <Link
-                key={metric.key}
-                href={metric.href}
-                className="hover:border-[var(--admin-accent)]/50 group rounded-2xl border border-[var(--admin-border)] bg-[var(--admin-surface)] p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--admin-accent)]"
-              >
-                <div className="flex items-start justify-between gap-4">
-                  <div>
-                    <p className="text-sm font-medium text-[var(--admin-muted)]">
-                      {metric.label}
-                    </p>
-                    <p className="mt-3 font-display text-3xl font-bold tabular-nums text-[var(--admin-text)]">
-                      {metric.value === null || hasError
-                        ? '—'
-                        : metric.value.toLocaleString()}
-                    </p>
-                  </div>
-                  <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-[var(--admin-accent-soft)] text-[var(--admin-accent)]">
-                    <Icon aria-hidden="true" className="h-5 w-5" />
-                  </span>
-                </div>
-                <p className="mt-5 text-xs font-semibold text-[var(--admin-accent)] opacity-0 transition group-hover:opacity-100 group-focus-visible:opacity-100">
-                  Open {metric.label.toLowerCase()} →
-                </p>
-              </Link>
-            )
-          })}
-        </div>
+        </Panel>
       ) : (
-        <div className="rounded-2xl border border-[var(--admin-border)] bg-[var(--admin-surface)] p-8 text-center">
-          <p className="font-semibold text-[var(--admin-text)]">
-            No overview counts are available for your current access.
-          </p>
-          <p className="mt-2 text-sm text-[var(--admin-muted)]">
-            Ask an administrator to grant the specific operational permissions
-            you need.
-          </p>
-        </div>
+        error && <ErrorPanel message={error} onRetry={reload} />
       )}
+      {loading && !data && <CardGridSkeleton count={12} />}
+
+      {m && (
+        <>
+          {visitsOff && (
+            <div
+              role="status"
+              className="rounded-2xl border border-amber-500/40 bg-amber-500/5 p-4 text-sm"
+            >
+              <p className="font-semibold text-amber-600">
+                Visitor tracking is not switched on yet
+              </p>
+              <p className="mt-1 text-[var(--admin-muted)]">
+                Account, waitlist, match and message figures below are real and
+                complete. Visits, unique visitors and online-now need the
+                analytics database migration to be applied, then they fill in
+                from that day onward. Earlier visits cannot be recovered because
+                they were never recorded.
+              </p>
+            </div>
+          )}
+
+          <Section
+            title="Audience"
+            hint="Who is on Food4Love, from visitors to members"
+          >
+            <MetricCard
+              label="Registered members"
+              metric={m.registered}
+              icon={Users}
+              href="/admin/users"
+              mode="total"
+            />
+            <MetricCard
+              label="Waitlist members"
+              metric={m.waitlist}
+              icon={ListChecks}
+              href="/admin/waitlist"
+              mode="total"
+            />
+            <MetricCard
+              label="Website visits"
+              metric={m.visits}
+              icon={Eye}
+              href="/admin/analytics/visitors"
+              mode="total"
+            />
+            <MetricCard
+              label="Unique visitors"
+              metric={m.uniqueVisitors}
+              icon={UsersRound}
+              href="/admin/analytics/visitors"
+              mode="total"
+            />
+            <MetricCard
+              label="Online now"
+              metric={m.activeNow}
+              icon={Radio}
+              href="/admin/live"
+            />
+          </Section>
+
+          <Section
+            title="New registrations"
+            hint="Compared with the previous equivalent period"
+          >
+            <MetricCard
+              label="Joined today"
+              metric={m.newToday}
+              icon={UserPlus}
+              href="/admin/users"
+            />
+            <MetricCard
+              label="Joined in the last 7 days"
+              metric={m.newWeek}
+              icon={CalendarDays}
+              href="/admin/users"
+            />
+            <MetricCard
+              label="Joined in the last 30 days"
+              metric={m.newMonth}
+              icon={CalendarDays}
+              href="/admin/users"
+            />
+          </Section>
+
+          <Section title="Community" hint="Chefs, matches and conversations">
+            <MetricCard
+              label="Cooks registered"
+              metric={m.cooks}
+              icon={ChefHat}
+              href="/admin/cooks"
+              mode="total"
+            />
+            <MetricCard
+              label="Professional chefs"
+              metric={m.chefs}
+              icon={Sparkles}
+              href="/admin/cooks"
+            />
+            <MetricCard
+              label="Matches created"
+              metric={m.matches}
+              icon={Heart}
+              href="/admin/conversations"
+              mode="total"
+            />
+            <MetricCard
+              label="Conversations"
+              metric={m.conversations}
+              icon={MessageCircle}
+              href="/admin/conversations"
+              mode="total"
+            />
+            <MetricCard
+              label="Messages exchanged"
+              metric={m.messages}
+              icon={MessagesSquare}
+              href="/admin/conversations"
+              mode="total"
+            />
+          </Section>
+
+          <div className="grid gap-4 lg:grid-cols-2">
+            <Panel title="Registrations over time" hint={data.range.label}>
+              {m.registered?.status === 'ok' && (
+                <AreaChart
+                  points={m.registered.series}
+                  label="New registrations"
+                />
+              )}
+            </Panel>
+            <Panel title="Waitlist sign-ups over time" hint={data.range.label}>
+              {m.waitlist?.status === 'ok' && (
+                <AreaChart
+                  points={m.waitlist.series}
+                  label="New waitlist members"
+                />
+              )}
+            </Panel>
+          </div>
+
+          <p className="text-xs text-[var(--admin-muted)]">
+            Updated {fmtAgo(data.generatedAt)}. Figures are cached for 30
+            seconds. Need the older counts for disputes, verifications and
+            suspensions? They are on the{' '}
+            <Link
+              href="/admin/operations"
+              className="font-semibold underline underline-offset-2"
+            >
+              Operations overview
+            </Link>
+            .
+          </p>
+        </>
+      )}
+    </Page>
+  )
+}
+
+function Section({
+  title,
+  hint,
+  children,
+}: {
+  title: string
+  hint: string
+  children: React.ReactNode
+}) {
+  return (
+    <section aria-label={title}>
+      <div className="mb-3">
+        <h2 className="text-sm font-bold uppercase tracking-wider text-[var(--admin-muted)]">
+          {title}
+        </h2>
+        <p className="text-xs text-[var(--admin-muted)]">{hint}</p>
+      </div>
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">{children}</div>
     </section>
   )
 }
