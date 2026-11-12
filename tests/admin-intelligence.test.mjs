@@ -32,9 +32,11 @@ import {
 } from '../src/lib/admin/intelligence/privacy.ts'
 import { classifyChannel } from '../src/lib/admin/intelligence/attribution.ts'
 import {
+  describePath,
   presenceBand,
   summarisePresence,
 } from '../src/lib/admin/intelligence/presence.ts'
+import { computeRetention } from '../src/lib/admin/intelligence/retention.ts'
 import { verifySvixSignature } from '../src/lib/admin/intelligence/webhookSignature.ts'
 
 // 2026-11-12 15:30 UTC = 16:30 in Lagos (UTC+1)
@@ -385,4 +387,51 @@ test('webhook signature: accepts the real signature, rejects tampering and repla
   )
   assert.equal(verifySvixSignature({ ...good, id: null }), false)
   assert.equal(verifySvixSignature({ ...good, secret: '' }), false)
+})
+
+test('activity labels never expose ids from the path', () => {
+  assert.equal(
+    describePath('/chat/123e4567-e89b-12d3-a456-426614174000'),
+    'Chat',
+  )
+  assert.equal(describePath('/cook/abc'), 'Chef profile')
+  assert.equal(describePath('/swipe'), 'Discover')
+  assert.equal(describePath('/'), 'Home')
+  assert.equal(describePath('/something-new/x'), 'Other page')
+  assert.equal(describePath(null), 'Unknown')
+  for (const p of [
+    '/chat/123e4567-e89b-12d3-a456-426614174000',
+    '/cook/secret-id',
+  ]) {
+    assert.ok(!/[0-9a-f]{8}-|secret/.test(describePath(p)))
+  }
+})
+
+test('cohort retention: share of each join-week still active later', () => {
+  const WEEK = 7 * 24 * 3600 * 1000
+  const t0 = Date.parse('2026-10-01T00:00:00Z')
+  const now = t0 + 3 * WEEK + 1000 // 4th window has just begun
+  const rows = computeRetention({
+    members: [
+      { id: 'a', joinedMs: t0 + 1000 }, // cohort 0
+      { id: 'b', joinedMs: t0 + 2000 }, // cohort 0
+      { id: 'c', joinedMs: t0 + WEEK + 5 }, // cohort 1
+    ],
+    activity: [
+      { id: 'a', ms: t0 + WEEK + 10 }, // a active in week 1
+      { id: 'a', ms: t0 + 2 * WEEK + 10 }, // and week 2
+      { id: 'c', ms: t0 + 2 * WEEK + 10 }, // c active in week 2
+    ],
+    firstWindowStartMs: t0,
+    windowMs: WEEK,
+    windowCount: 4,
+    nowMs: now,
+  })
+  assert.equal(rows[0].size, 2)
+  assert.equal(rows[0].retained[1], 50) // only a of {a,b} came back in week 1
+  assert.equal(rows[0].retained[2], 50)
+  assert.equal(rows[1].size, 1)
+  assert.equal(rows[1].retained[1], 100) // c active the next week
+  assert.equal(rows[2].size, 0)
+  assert.equal(rows[2].retained[0], null) // empty cohort: no percentage
 })

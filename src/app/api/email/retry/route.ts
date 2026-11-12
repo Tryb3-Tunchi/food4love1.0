@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { getAdminUser } from '@/lib/admin/auth'
+import { beginAdminAudit, finishAdminAudit } from '@/lib/admin/audit'
 import { welcomeEmail, waitlistSignupEmail } from '@/lib/email/templates'
 import { MAX_ATTEMPTS, sendTransactionalEmail } from '@/lib/email/transactional'
 
@@ -10,8 +11,25 @@ export const runtime = 'nodejs'
 // limit, timeout). Admin only. Safe to call repeatedly: every send carries an
 // idempotency key and rows that were already accepted are skipped.
 export async function POST(request: Request) {
-  const actor = await getAdminUser('messages:manage')
+  const actor =
+    (await getAdminUser('email:manage')) ??
+    (await getAdminUser('messages:manage'))
   if (!actor) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+
+  // Sending email is a sensitive action: record it before doing anything.
+  const audit = await beginAdminAudit({
+    actorId: actor.id,
+    action: 'email.retry_failed',
+    targetType: 'email_delivery_batch',
+    targetId: actor.id,
+    details: { max_batch: 25 },
+  }).catch(() => null)
+  if (!audit) {
+    return NextResponse.json(
+      { error: 'Admin audit logging is unavailable' },
+      { status: 503 },
+    )
+  }
 
   try {
     const admin = createAdminClient()
@@ -29,6 +47,12 @@ export async function POST(request: Request) {
       .limit(25)
 
     if (error) {
+      await finishAdminAudit(
+        audit.admin,
+        audit.auditId,
+        'failed',
+        'Could not read email delivery records',
+      ).catch(() => undefined)
       return NextResponse.json(
         { error: 'Could not read email delivery records' },
         { status: 500 },
@@ -87,12 +111,21 @@ export async function POST(request: Request) {
       }
     }
 
+    await finishAdminAudit(audit.admin, audit.auditId, 'succeeded').catch(
+      () => undefined,
+    )
     return NextResponse.json({
       checked: rows?.length ?? 0,
       accepted_by_provider: accepted,
       still_failing: failed,
     })
   } catch {
+    await finishAdminAudit(
+      audit.admin,
+      audit.auditId,
+      'failed',
+      'Retry failed',
+    ).catch(() => undefined)
     return NextResponse.json({ error: 'Retry failed' }, { status: 500 })
   }
 }

@@ -61,6 +61,39 @@ export function summarisePresence(
   return counts
 }
 
+// Turns a page path into a friendly area name. Deliberately drops everything
+// after the first segment, so an id in /chat/<id> or /cook/<id> never reaches
+// the dashboard.
+const AREA_LABELS: Record<string, string> = {
+  '': 'Home',
+  waitlist: 'Waitlist page',
+  login: 'Signing in',
+  signup: 'Signing up',
+  verify: 'Verifying email',
+  onboarding: 'Setting up profile',
+  swipe: 'Discover',
+  matches: 'Matches',
+  likes: 'Likes',
+  chat: 'Chat',
+  notifications: 'Notifications',
+  profile: 'Own profile',
+  settings: 'Settings',
+  bookings: 'Bookings',
+  requests: 'Requests',
+  stories: 'Stories',
+  map: 'Map',
+  support: 'Support',
+  wallet: 'Wallet',
+  cook: 'Chef profile',
+  dashboard: 'Dashboard',
+}
+
+export function describePath(path: string | null | undefined): string {
+  if (!path) return 'Unknown'
+  const first = path.split('?')[0].split('/').filter(Boolean)[0] ?? ''
+  return AREA_LABELS[first] ?? 'Other page'
+}
+
 // Human wording for the status chip.
 export function presenceLabel(band: PresenceBand): string {
   switch (band) {

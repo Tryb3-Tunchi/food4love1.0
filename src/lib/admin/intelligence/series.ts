@@ -101,6 +101,7 @@ export type Metric =
       previous: number | null
       growth: number | null
       series: Point[]
+      total?: number // all-time figure, when the card shows a running total
       note?: string
     }
   | { status: 'unavailable'; reason: string }
@@ -110,6 +111,7 @@ export function okMetric(
   previous: number | null,
   series: Point[],
   note?: string,
+  total?: number,
 ): Metric {
   return {
     status: 'ok',
@@ -117,6 +119,7 @@ export function okMetric(
     previous,
     growth: previous === null ? null : growthPercent(value, previous),
     series,
+    total,
     note,
   }
 }
