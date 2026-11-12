@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { motion } from 'framer-motion'
 import { ArrowRight, Check, ChefHat, MapPin, Utensils } from 'lucide-react'
 import { Brand } from '@/components/ui/Brand'
+import { track } from '@/lib/analytics/client'
 
 export function WaitlistLanding() {
   const [email, setEmail] = useState('')
@@ -33,6 +34,7 @@ export function WaitlistLanding() {
       if (!response.ok) throw new Error('Waitlist signup failed')
       setConfirmationStatus(result.confirmation_email_status ?? 'unavailable')
       setStatus('success')
+      track('waitlist_signup')
     } catch {
       setStatus('error')
     }

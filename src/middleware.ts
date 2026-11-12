@@ -6,7 +6,11 @@ export async function middleware(request: NextRequest) {
     request.nextUrl.pathname === '/' ||
     request.nextUrl.pathname.startsWith('/signup')
   ) {
-    return NextResponse.redirect(new URL('/waitlist', request.url))
+    // Keep the query string: campaign links such as /?utm_source=instagram or
+    // /signup?ref=CODE would otherwise lose their tracking tags in this redirect.
+    const destination = new URL('/waitlist', request.url)
+    destination.search = request.nextUrl.search
+    return NextResponse.redirect(destination)
   }
 
   let supabaseResponse = NextResponse.next({ request })
