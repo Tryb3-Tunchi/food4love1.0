@@ -1,18 +1,11 @@
 import 'server-only'
 import { createClient } from '@/lib/supabase/server'
+import {
+  holdsPermission,
+  type AdminPermission,
+} from '@/lib/admin/intelligence/permissions'
 
-export type AdminPermission =
-  | 'kyc:review'
-  | 'users:manage'
-  | 'matches:manage'
-  | 'disputes:manage'
-  | 'audit:view'
-  | 'bookings:manage'
-  | 'finance:refund'
-  | 'listings:manage'
-  | 'messages:manage'
-  | 'reports:manage'
-  | 'admin:manage'
+export type { AdminPermission }
 
 export async function getAdminUser(permission?: AdminPermission) {
   const supabase = await createClient()
@@ -21,13 +14,24 @@ export async function getAdminUser(permission?: AdminPermission) {
   } = await supabase.auth.getUser()
 
   if (user?.app_metadata?.role !== 'admin') return null
-  if (
-    permission &&
-    (!Array.isArray(user.app_metadata?.admin_permissions) ||
-      !user.app_metadata.admin_permissions.includes(permission))
-  ) {
-    return null
+  if (permission) {
+    const granted: unknown[] = Array.isArray(
+      user.app_metadata?.admin_permissions,
+    )
+      ? user.app_metadata.admin_permissions
+      : []
+    if (!holdsPermission(granted, permission)) return null
   }
 
   return user
+}
+
+// For pages and routes that show different amounts of detail by permission.
+export function adminPermissionsOf(user: {
+  app_metadata?: Record<string, unknown>
+}): string[] {
+  const raw = user.app_metadata?.admin_permissions
+  return Array.isArray(raw)
+    ? raw.filter((p): p is string => typeof p === 'string')
+    : []
 }
