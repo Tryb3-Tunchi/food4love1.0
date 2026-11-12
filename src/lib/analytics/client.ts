@@ -73,8 +73,29 @@ function uuid(): string {
   return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`
 }
 
+// Collection is OFF until the owner sets NEXT_PUBLIC_ANALYTICS_ENABLED=true
+// (after the privacy and cookie policies exist). While off there is no banner, no
+// stored id and no request of any kind.
+export function analyticsEnabled(): boolean {
+  return process.env.NEXT_PUBLIC_ANALYTICS_ENABLED === 'true'
+}
+
+// Global Privacy Control is the browser telling every site "do not track me".
+// Treat it as a standing "no" without even asking.
+function privacySignalOptOut(): boolean {
+  try {
+    return (
+      (navigator as Navigator & { globalPrivacyControl?: boolean })
+        .globalPrivacyControl === true
+    )
+  } catch {
+    return false
+  }
+}
+
 export function getConsent(): Consent {
   if (typeof window === 'undefined') return null
+  if (!analyticsEnabled() || privacySignalOptOut()) return 'declined'
   const value = read(CONSENT_KEY)
   return value === 'accepted' || value === 'declined' ? value : null
 }

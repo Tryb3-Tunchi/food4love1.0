@@ -206,5 +206,10 @@ export async function getOverview(admin: Admin, range: ResolvedRange) {
   })
 
   await Promise.all(tasks)
-  return { range, metrics, generatedAt: new Date().toISOString() }
+  return {
+    range,
+    metrics,
+    analyticsEnabled: process.env.NEXT_PUBLIC_ANALYTICS_ENABLED === 'true',
+    generatedAt: new Date().toISOString(),
+  }
 }

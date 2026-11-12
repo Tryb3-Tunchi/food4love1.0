@@ -52,7 +52,10 @@ export async function GET(
   { params }: { params: { section: string } },
 ) {
   const section = params.section
-  const needed = REQUIRED[section]
+  // Own keys only, so inherited names such as "constructor" are plain 404s.
+  const needed = Object.prototype.hasOwnProperty.call(REQUIRED, section)
+    ? REQUIRED[section]
+    : undefined
   if (!needed) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
   const actor = await getAdminUser(needed)

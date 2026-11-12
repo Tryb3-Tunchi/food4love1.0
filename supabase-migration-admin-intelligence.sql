@@ -15,6 +15,9 @@
 --
 -- ROLLBACK (everything here is new, so this removes it all):
 --   drop trigger if exists admin_audit_log_guard on public.admin_audit_log;
+--   drop trigger if exists admin_audit_log_no_truncate on public.admin_audit_log;
+--   drop function if exists public.admin_audit_log_no_truncate();
+--   grant delete, truncate on public.admin_audit_log to service_role;
 --   drop function if exists public.admin_audit_log_guard();
 --   drop function if exists public.purge_old_intelligence_data(integer);
 --   drop table if exists public.email_events, public.ops_events,
@@ -200,6 +203,19 @@ begin
     end;
     $body$
   $f$;
+
+  -- The live table grants the service role DELETE and TRUNCATE (checked 2026-11-12).
+  -- The app never uses either, so take them away, and refuse TRUNCATE outright too.
+  execute 'revoke delete, truncate on public.admin_audit_log from service_role';
+  execute $f$
+    create or replace function public.admin_audit_log_no_truncate()
+    returns trigger language plpgsql set search_path = public, pg_temp
+    as $b$ begin raise exception 'Audit records cannot be truncated'; end; $b$
+  $f$;
+  execute 'drop trigger if exists admin_audit_log_no_truncate on public.admin_audit_log';
+  execute 'create trigger admin_audit_log_no_truncate
+             before truncate on public.admin_audit_log
+             for each statement execute function public.admin_audit_log_no_truncate()';
 
   execute 'drop trigger if exists admin_audit_log_guard on public.admin_audit_log';
   execute 'create trigger admin_audit_log_guard

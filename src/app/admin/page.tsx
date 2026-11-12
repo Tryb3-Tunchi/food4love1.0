@@ -1,6 +1,8 @@
 'use client'
 
+import { useEffect } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import {
   CalendarDays,
   ChefHat,
@@ -34,6 +36,7 @@ import {
 interface Overview {
   range: ResolvedRange
   metrics: Record<string, Metric>
+  analyticsEnabled: boolean
   generatedAt: string
 }
 
@@ -43,8 +46,15 @@ export default function ExecutiveDashboard() {
     'intelligence/overview',
     params,
   )
+  const router = useRouter()
+  // Staff without analytics access keep landing where they always have: the
+  // original dashboard (now "Needs attention"). Nothing changes for them.
+  useEffect(() => {
+    if (error === 'Forbidden') router.replace('/admin/operations')
+  }, [error, router])
   const m = data?.metrics
-  const visitsOff = m?.visits?.status === 'unavailable'
+  const visitsOff =
+    m?.visits?.status === 'unavailable' || data?.analyticsEnabled === false
 
   return (
     <Page
@@ -89,9 +99,9 @@ export default function ExecutiveDashboard() {
               <p className="mt-1 text-[var(--admin-muted)]">
                 Account, waitlist, match and message figures below are real and
                 complete. Visits, unique visitors and online-now need the
-                analytics database migration to be applied, then they fill in
-                from that day onward. Earlier visits cannot be recovered because
-                they were never recorded.
+                analytics database migration applied AND the analytics switch
+                turned on, then they fill in from that day onward. Earlier
+                visits cannot be recovered because they were never recorded.
               </p>
             </div>
           )}

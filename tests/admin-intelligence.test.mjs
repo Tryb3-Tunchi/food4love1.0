@@ -29,6 +29,7 @@ import {
   csvCell,
   cleanTag,
   cleanPath,
+  isSameOrigin,
 } from '../src/lib/admin/intelligence/privacy.ts'
 import { classifyChannel } from '../src/lib/admin/intelligence/attribution.ts'
 import {
@@ -434,4 +435,19 @@ test('cohort retention: share of each join-week still active later', () => {
   assert.equal(rows[1].retained[1], 100) // c active the next week
   assert.equal(rows[2].size, 0)
   assert.equal(rows[2].retained[0], null) // empty cohort: no percentage
+})
+
+test('analytics only accepts posts from the site itself', () => {
+  const host = 'www.food4love.app'
+  assert.equal(isSameOrigin('https://www.food4love.app', host), true)
+  assert.equal(isSameOrigin('https://WWW.Food4Love.app', host), true)
+  assert.equal(isSameOrigin('http://localhost:5010', 'localhost:5010'), true)
+  assert.equal(isSameOrigin('https://evil.example', host), false)
+  assert.equal(
+    isSameOrigin('https://www.food4love.app.evil.example', host),
+    false,
+  )
+  assert.equal(isSameOrigin(null, host), false)
+  assert.equal(isSameOrigin('https://www.food4love.app', null), false)
+  assert.equal(isSameOrigin('not a url', host), false)
 })

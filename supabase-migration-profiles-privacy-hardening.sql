@@ -9,7 +9,7 @@
 --     but not rating, review_count, streak or is_demo (a cook could edit their own).
 --
 -- WHAT THIS FILE DOES (two independent parts; run Part 1 first, Part 2 optionally)
---   PART 1  Logged-out visitors (anon) may read only the 15 columns a public chef
+--   PART 1  Logged-out visitors (anon) may read only the 16 columns a public chef
 --           page needs. Signed-in members are unaffected.
 --   PART 2  Adds rating, review_count, streak and is_demo to the protected fields
 --           of the existing guard function.
@@ -36,14 +36,19 @@
 begin;
 
 revoke select on public.profiles from anon;
+-- kyc_status MUST stay readable: the public policy "Customers read verified active
+-- specials" on daily_specials checks profiles.kyc_status = 'verified' while running
+-- as the visitor. Without it the chef page's specials would fail with "permission
+-- denied". (Found by reading pg_policies on the live database, 2026-11-12.)
 grant select (
   id, full_name, avatar_url, role, bio, location, cuisines, photos,
-  price_min, price_max, rating, review_count, is_verified, suspended, created_at
+  price_min, price_max, rating, review_count, is_verified, suspended,
+  kyc_status, created_at
 ) on public.profiles to anon;
 
 commit;
 
--- Verify (read-only): anon should list exactly those columns and no others.
+-- Verify (read-only): anon should list exactly those 16 columns and no others.
 --   select column_name from information_schema.column_privileges
 --    where table_name = 'profiles' and grantee = 'anon' and privilege_type = 'SELECT'
 --    order by 1;

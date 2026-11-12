@@ -273,6 +273,7 @@ export async function getVisitors(admin: Admin, range: ResolvedRange) {
   return {
     range,
     available: true as const,
+    analyticsEnabled: process.env.NEXT_PUBLIC_ANALYTICS_ENABLED === 'true',
     truncated: s.truncated || v.truncated,
     metrics,
     tables,

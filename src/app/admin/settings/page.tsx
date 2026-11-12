@@ -59,8 +59,13 @@ export default function SettingsPage() {
       <Panel title="Privacy of analytics">
         <ul className="list-disc space-y-1.5 pl-5 text-sm text-[var(--admin-muted)]">
           <li>
+            Collection is OFF by default. The owner switches it on with
+            NEXT_PUBLIC_ANALYTICS_ENABLED, after the policies are published.
+          </li>
+          <li>
             Nothing is collected until a visitor presses Accept on the privacy
-            banner.
+            banner. A browser that sends Global Privacy Control is treated as a
+            No.
           </li>
           <li>
             No IP addresses, device details, messages or form contents are

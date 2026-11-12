@@ -22,6 +22,9 @@ export async function POST(request: Request) {
     )
   }
 
+  if (Number(request.headers.get('content-length') ?? '0') > 20_000) {
+    return NextResponse.json({ error: 'Too large' }, { status: 413 })
+  }
   const body = await request.text()
   if (body.length > 20_000) {
     return NextResponse.json({ error: 'Too large' }, { status: 413 })

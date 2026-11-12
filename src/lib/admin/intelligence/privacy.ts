@@ -54,3 +54,19 @@ export function cleanPath(value: unknown): string | null {
   if (path.startsWith('//')) return null
   return /^\/[A-Za-z0-9\-._~/%]*$/.test(path) ? path : null
 }
+
+// True when the request says it came from this site's own pages. Browsers always
+// send an Origin header on a POST; a missing or different one is refused. This
+// stops OTHER websites from using a visitor's browser to post to us. It does not
+// stop a scripted client, which can forge the header.
+export function isSameOrigin(
+  origin: string | null | undefined,
+  host: string | null | undefined,
+): boolean {
+  if (!origin || !host) return false
+  try {
+    return new URL(origin).host.toLowerCase() === host.toLowerCase()
+  } catch {
+    return false
+  }
+}

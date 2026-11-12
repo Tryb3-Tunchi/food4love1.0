@@ -79,6 +79,11 @@ export function filtersFromParams(search: URLSearchParams): WaitlistFilters {
   return filters
 }
 
+// Scanning every email for duplicates is the costly part of this page, and the
+// answer barely changes, so it is remembered for a minute per server instance.
+let duplicateCache: { at: number; ids: Set<string>; groups: number } | null =
+  null
+
 export async function getWaitlist(
   admin: Admin,
   filters: WaitlistFilters,
@@ -108,7 +113,6 @@ export async function getWaitlist(
     confirmed,
     unsub,
     cooks,
-    all,
   ] = await Promise.all([
     headCount(admin, 'waitlist_subscribers'),
     headCount(admin, 'waitlist_subscribers', {
@@ -132,28 +136,33 @@ export async function getWaitlist(
     headCount(admin, 'waitlist_subscribers', {
       apply: (q) => q.eq('audience', 'cook'),
     }),
-    fetchRows<{ id: string; email: string; created_at: string }>(
+  ])
+
+  // Duplicates: the same real inbox written differently (dots, +tags, case).
+  if (!duplicateCache || Date.now() - duplicateCache.at > 60_000) {
+    const all = await fetchRows<{ id: string; email: string }>(
       admin,
       'waitlist_subscribers',
       'id, email, created_at',
       { cap: ROW_CAP },
-    ),
-  ])
-
-  // Duplicates: the same real inbox written differently (dots, +tags, case).
-  const groups = new Map<string, string[]>()
-  all.rows.forEach((r) => {
-    const key = normalizeEmailForDuplicates(r.email)
-    groups.set(key, [...(groups.get(key) ?? []), r.id])
-  })
-  const duplicateIds = new Set<string>()
-  let duplicateGroups = 0
-  groups.forEach((ids) => {
-    if (ids.length > 1) {
-      duplicateGroups += 1
-      ids.forEach((id) => duplicateIds.add(id))
-    }
-  })
+    )
+    const groups = new Map<string, string[]>()
+    all.rows.forEach((r) => {
+      const key = normalizeEmailForDuplicates(r.email)
+      groups.set(key, [...(groups.get(key) ?? []), r.id])
+    })
+    const ids = new Set<string>()
+    let count = 0
+    groups.forEach((members) => {
+      if (members.length > 1) {
+        count += 1
+        members.forEach((id) => ids.add(id))
+      }
+    })
+    duplicateCache = { at: Date.now(), ids, groups: count }
+  }
+  const duplicateIds = duplicateCache.ids
+  const duplicateGroups = duplicateCache.groups
 
   // Did the confirmation email actually go out? (Only if tracking exists.)
   let delivery = new Map<string, { status: string; attempts: number }>()

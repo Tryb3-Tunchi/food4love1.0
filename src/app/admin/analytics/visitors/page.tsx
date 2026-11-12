@@ -30,6 +30,7 @@ type Visitors =
   | { available: false; reason: string }
   | {
       available: true
+      analyticsEnabled: boolean
       range: ResolvedRange
       truncated: boolean
       metrics: Record<string, Metric>
@@ -62,6 +63,21 @@ export default function VisitorsPage() {
       {data && !data.available && <Unavailable>{data.reason}</Unavailable>}
       {ok && m && (
         <>
+          {!ok.analyticsEnabled && (
+            <div
+              role="status"
+              className="rounded-2xl border border-amber-500/40 bg-amber-500/5 p-4 text-sm"
+            >
+              <p className="font-semibold text-amber-600">
+                Visitor collection is switched off
+              </p>
+              <p className="mt-1 text-[var(--admin-muted)]">
+                The numbers below are not zero visitors; nothing is being
+                recorded. Turn collection on (NEXT_PUBLIC_ANALYTICS_ENABLED)
+                after the privacy and cookie policies are published.
+              </p>
+            </div>
+          )}
           <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
             <MetricCard
               label="Visits"

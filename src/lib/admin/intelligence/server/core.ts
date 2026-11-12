@@ -33,7 +33,7 @@ function fail(error: { code?: string; message?: string }): never {
 }
 
 export const NOT_COLLECTED =
-  'Not collected yet. Apply the analytics migration and wait for consenting visitors.'
+  'Not collected yet. Needs the analytics migration, the analytics switch turned on (NEXT_PUBLIC_ANALYTICS_ENABLED), and visitors who accept the banner.'
 
 // Members that are real people (demo/seed profiles are excluded everywhere).
 export const realUsers = (q: AnyQuery) =>
