@@ -98,8 +98,7 @@ export function sentLikeState(
   personId: string,
   matchedIds: Iterable<string>,
 ): 'matched' | 'waiting' {
-  for (const id of matchedIds) if (id === personId) return 'matched'
-  return 'waiting'
+  return Array.from(matchedIds).includes(personId) ? 'matched' : 'waiting'
 }
 
 export function dedupeById<T extends { id: string }>(rows: T[]): T[] {

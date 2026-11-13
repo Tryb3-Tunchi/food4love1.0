@@ -21,6 +21,7 @@ import {
   sentLikeState,
   dedupeById,
 } from '../src/lib/matching/activity.ts'
+import { memberAccess } from '../src/lib/matching/access.ts'
 
 const A = '123e4567-e89b-42d3-a456-426614174000'
 const B = '223e4567-e89b-42d3-a456-426614174001'
@@ -266,4 +267,47 @@ test('only a general area is ever shown, never a street or a neighbourhood detai
     assert.equal(generalArea(bad), null, String(bad))
   }
   assert.equal(generalArea('x, ' + 'a'.repeat(90)).length, 40)
+})
+
+test('who may open a food lover profile', () => {
+  const base = {
+    viewerId: A,
+    targetId: B,
+    targetRole: 'buyer',
+    targetSuspended: false,
+    targetOnboarded: true,
+    matched: false,
+    likeRelationship: false,
+    discoverable: false,
+  }
+  assert.deepEqual(memberAccess(base), {
+    allowed: false,
+    reason: 'no_relationship',
+  })
+  assert.equal(memberAccess({ ...base, matched: true }).reason, 'match')
+  assert.equal(memberAccess({ ...base, likeRelationship: true }).reason, 'like')
+  assert.equal(memberAccess({ ...base, discoverable: true }).reason, 'map')
+  assert.equal(memberAccess({ ...base, targetId: A }).reason, 'self')
+  assert.equal(
+    memberAccess({ ...base, viewerId: null, matched: true }).allowed,
+    false,
+  )
+  // a relationship never overrides suspension or an unfinished profile
+  assert.equal(
+    memberAccess({ ...base, matched: true, targetSuspended: true }).reason,
+    'unavailable',
+  )
+  assert.equal(
+    memberAccess({ ...base, matched: true, targetOnboarded: false }).reason,
+    'unavailable',
+  )
+  // chefs have their own page; this one is for food lovers only
+  assert.equal(
+    memberAccess({ ...base, targetRole: 'cook', matched: true }).reason,
+    'wrong_role',
+  )
+  assert.equal(
+    memberAccess({ ...base, targetRole: undefined, matched: true }).allowed,
+    false,
+  )
 })

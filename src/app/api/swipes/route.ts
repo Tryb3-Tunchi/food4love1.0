@@ -141,11 +141,17 @@ export async function POST(request: NextRequest) {
       // active match (the lookup above only finds 'matched' rows). Before this
       // check the conflict was ignored and both people were told "It's a match!"
       // while the Matches page, which lists only 'matched' rows, stayed empty.
-      const { data: previous, error: previousError } = await admin
+      // Look the earlier row up by the PAIR, not by id: a legacy row for this pair
+      // may carry a different id, and the database now allows only one per pair.
+      const { data: previousRows, error: previousError } = await admin
         .from('matches')
         .select('id, status')
-        .eq('id', matchId)
-        .maybeSingle()
+        .or(
+          `and(user1_id.eq.${user.id},user2_id.eq.${target.id}),and(user1_id.eq.${target.id},user2_id.eq.${user.id})`,
+        )
+        .order('created_at', { ascending: true })
+        .limit(1)
+      const previous = previousRows?.[0]
       if (previousError || !previous) {
         return NextResponse.json(
           { error: 'The mutual match could not be created' },
@@ -161,7 +167,7 @@ export async function POST(request: NextRequest) {
         const { error: reopenError } = await admin
           .from('matches')
           .update({ status: 'matched', expires_at: expiresAt })
-          .eq('id', matchId)
+          .eq('id', previous.id)
           .in('status', ['expired', 'pending'])
         if (reopenError) {
           return NextResponse.json(
@@ -170,7 +176,7 @@ export async function POST(request: NextRequest) {
           )
         }
       }
-      return NextResponse.json({ match: true, match_id: matchId })
+      return NextResponse.json({ match: true, match_id: previous.id })
     }
 
     if (matchError) {

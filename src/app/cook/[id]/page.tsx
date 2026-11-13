@@ -18,6 +18,9 @@ import { StoryRow } from '@/components/cook/StoryRow'
 import { StoryRing } from '@/components/stories/StoryRing'
 import { ReportButton } from '@/components/reports/ReportButton'
 import { TrackEvent } from '@/components/analytics/TrackEvent'
+import { BackLink } from '@/components/matching/BackLink'
+import { generalArea } from '@/lib/discovery/geo'
+import { safeReturnPath } from '@/lib/profileLinks'
 
 export async function generateMetadata({
   params,
@@ -42,10 +45,15 @@ export async function generateMetadata({
 
 export default async function CookPublicPage({
   params,
+  searchParams,
 }: {
   params: { id: string }
+  searchParams: { from?: string | string[] }
 }) {
   const sb = await createClient()
+  const {
+    data: { user: viewer },
+  } = await sb.auth.getUser()
   const { data: chef } = await sb
     .from('profiles')
     // Explicit columns, not '*': this page is public, so it must only ever ask
@@ -60,6 +68,26 @@ export default async function CookPublicPage({
     .eq('daily_special.moderation_status', 'active')
     .single()
   if (!chef) notFound()
+
+  // A signed-in member who is matched with this chef gets a Message button
+  // instead of the sign-up prompt shown to visitors.
+  let matchId: string | null = null
+  if (viewer && viewer.id !== chef.id) {
+    const { data: matchRows } = await sb
+      .from('matches')
+      .select('id')
+      .eq('status', 'matched')
+      .or(
+        `and(user1_id.eq.${viewer.id},user2_id.eq.${chef.id}),and(user1_id.eq.${chef.id},user2_id.eq.${viewer.id})`,
+      )
+      .order('created_at', { ascending: true })
+      .limit(1)
+    matchId = matchRows?.[0]?.id ?? null
+  }
+  const rawFrom = Array.isArray(searchParams.from)
+    ? searchParams.from[0]
+    : searchParams.from
+  const showBack = !!safeReturnPath(rawFrom)
 
   const { data: postsData, error: postsError } = await sb
     .from('posts')
@@ -86,6 +114,11 @@ export default async function CookPublicPage({
   return (
     <div className="pb-10" style={{ background: 'var(--bg)' }}>
       <TrackEvent name="cook_profile_view" />
+      {showBack && (
+        <div className="px-4 pt-3">
+          <BackLink from={rawFrom} />
+        </div>
+      )}
       {/* Hero */}
       <div className="relative">
         <div
@@ -175,14 +208,14 @@ export default async function CookPublicPage({
             )}
           </div>
 
-          {chef.location && (
+          {generalArea(chef.location) && (
             <div className="mb-3 flex items-center gap-1.5">
               <MapPin
                 className="h-3.5 w-3.5 shrink-0"
                 style={{ color: 'var(--text-3)' }}
               />
               <span className="text-sm" style={{ color: 'var(--text-3)' }}>
-                {chef.location}
+                {generalArea(chef.location) ?? 'Location on request'}
               </span>
             </div>
           )}
@@ -241,23 +274,37 @@ export default async function CookPublicPage({
 
           {availability && <AvailabilityCard availability={availability} />}
 
-          <Link
-            href={`/signup?ref_chef=${params.id}`}
-            className="mb-3 flex w-full items-center justify-center gap-2 rounded-2xl py-3 text-sm font-bold text-white transition-all active:scale-95"
-            style={{
-              background: 'var(--accent)',
-              boxShadow: 'var(--shadow-warm)',
-            }}
-          >
-            <ChefHat className="h-4 w-4" />
-            Match with {chef.full_name.split(' ')[0]} →
-          </Link>
-          <p
-            className="pb-6 text-center text-xs"
-            style={{ color: 'var(--text-3)' }}
-          >
-            Join Food4Love to connect with {chef.full_name.split(' ')[0]}
-          </p>
+          {viewer ? (
+            matchId && (
+              <Link
+                href={`/chat/${matchId}`}
+                className="mb-6 flex w-full items-center justify-center gap-2 rounded-2xl py-3 text-sm font-bold text-white transition-all active:scale-95"
+                style={{ background: 'var(--bubble-own)' }}
+              >
+                Message {chef.full_name.split(' ')[0]}
+              </Link>
+            )
+          ) : (
+            <>
+              <Link
+                href={`/signup?ref_chef=${params.id}`}
+                className="mb-3 flex w-full items-center justify-center gap-2 rounded-2xl py-3 text-sm font-bold text-white transition-all active:scale-95"
+                style={{
+                  background: 'var(--accent)',
+                  boxShadow: 'var(--shadow-warm)',
+                }}
+              >
+                <ChefHat className="h-4 w-4" />
+                Match with {chef.full_name.split(' ')[0]} →
+              </Link>
+              <p
+                className="pb-6 text-center text-xs"
+                style={{ color: 'var(--text-3)' }}
+              >
+                Join Food4Love to connect with {chef.full_name.split(' ')[0]}
+              </p>
+            </>
+          )}
         </div>
       </div>
 

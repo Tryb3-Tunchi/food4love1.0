@@ -116,6 +116,8 @@ export function useMatches() {
     const supabase = createClient()
     const refreshMatches = () => {
       void queryClient.invalidateQueries({ queryKey: ['matches'] })
+      // A new or changed match also changes the likes lists (a pending like becomes a match).
+      void queryClient.invalidateQueries({ queryKey: ['likes'] })
     }
     const channel = supabase
       .channel(`my-matches-${crypto.randomUUID()}`)
