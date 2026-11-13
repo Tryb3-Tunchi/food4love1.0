@@ -3,18 +3,12 @@
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import toast from 'react-hot-toast'
-import {
-  ArrowLeft,
-  ChevronRight,
-  MapPin,
-  Moon,
-  Sun,
-  UserRound,
-} from 'lucide-react'
+import { ArrowLeft, ChevronRight, Moon, Sun, UserRound } from 'lucide-react'
 import { NotificationPreferences } from '@/components/notifications/NotificationPreferences'
 import { useHungerMode } from '@/components/providers/HungerModeProviders'
 import { createClient } from '@/lib/supabase/client'
 import { useAuthStore } from '@/stores/useAuthStore'
+import { DiscoveryCard } from '@/components/settings/DiscoveryCard'
 
 export default function SettingsPage() {
   const router = useRouter()
@@ -105,35 +99,18 @@ export default function SettingsPage() {
           </div>
         </section>
 
-        <section aria-labelledby="discovery-heading" className="mb-7">
+        <section
+          id="discovery"
+          aria-labelledby="discovery-heading"
+          className="mb-7 scroll-mt-20"
+        >
           <h2
             id="discovery-heading"
             className="mb-3 text-base font-semibold text-[var(--text-1)]"
           >
             Discovery and location
           </h2>
-          <div className="rounded-xl border border-[var(--border)] bg-[var(--card)] p-4">
-            <div className="flex items-start gap-3">
-              <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-[var(--accent)]" />
-              <div>
-                <p className="text-sm font-semibold text-[var(--text-1)]">
-                  Map location
-                </p>
-                <p className="mt-1 text-xs leading-5 text-[var(--text-3)]">
-                  Your device location is requested only when you choose “Use my
-                  location” on the map. It is used on this device to center the
-                  map, is not saved to your profile, and can be stopped at any
-                  time.
-                </p>
-                <Link
-                  href="/map"
-                  className="mt-3 inline-flex items-center gap-1 text-xs font-semibold text-[var(--accent)] hover:underline"
-                >
-                  Open map <ChevronRight className="h-3.5 w-3.5" />
-                </Link>
-              </div>
-            </div>
-          </div>
+          <DiscoveryCard />
         </section>
 
         <section aria-labelledby="notifications-heading">
