@@ -6,6 +6,7 @@ import '@fontsource/space-grotesk/600.css'
 import '@fontsource/space-grotesk/700.css'
 import './globals.css'
 import { Providers } from './providers'
+import { AnalyticsProvider } from '@/components/analytics/AnalyticsProvider'
 
 export const metadata: Metadata = {
   title: {
@@ -61,6 +62,7 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning>
       <body className="font-sans antialiased">
         <Providers>{children}</Providers>
+        <AnalyticsProvider />
         <script src="https://js.paystack.co/v1/inline.js" async></script>
       </body>
     </html>

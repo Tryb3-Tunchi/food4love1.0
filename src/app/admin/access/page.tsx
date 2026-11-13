@@ -3,22 +3,16 @@
 import { useEffect, useState } from 'react'
 import { Search, ShieldCheck } from 'lucide-react'
 import toast from 'react-hot-toast'
+import {
+  ADMIN_ROLES,
+  ALL_PERMISSIONS,
+  PERMISSION_LABELS,
+  roleForPermissions,
+  type AdminPermission,
+  type AdminRoleKey,
+} from '@/lib/admin/intelligence/permissions'
 
-const permissionOptions = [
-  ['kyc:review', 'KYC review and document access'],
-  ['users:manage', 'Search, suspend, and reactivate users'],
-  ['matches:manage', 'Manage matches and swipe activity'],
-  ['disputes:manage', 'Review and resolve disputes'],
-  ['bookings:manage', 'View booking and payment status'],
-  ['finance:refund', 'Request and reconcile Paystack refunds'],
-  ['listings:manage', 'Remove and restore meal specials'],
-  ['messages:manage', 'Access support conversations and send staff messages'],
-  ['reports:manage', 'Review and resolve user reports'],
-  ['audit:view', 'View staff action audit log'],
-  ['admin:manage', 'Grant and revoke staff access'],
-] as const
-
-type Permission = (typeof permissionOptions)[number][0]
+type Permission = AdminPermission
 
 interface StaffUser {
   id: string
@@ -195,9 +189,39 @@ export default function AdminAccessPage() {
               {isAdmin && (
                 <div className="space-y-3">
                   <p className="text-xs font-semibold uppercase text-mist">
+                    Start from a role
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    {(Object.keys(ADMIN_ROLES) as AdminRoleKey[]).map((key) => {
+                      const active = roleForPermissions(permissions) === key
+                      return (
+                        <button
+                          key={key}
+                          type="button"
+                          title={ADMIN_ROLES[key].summary}
+                          aria-pressed={active}
+                          onClick={() =>
+                            setPermissions([...ADMIN_ROLES[key].permissions])
+                          }
+                          className={`min-h-10 rounded-lg border px-3 text-xs font-semibold transition ${active ? 'border-[var(--admin-accent)] bg-[var(--admin-accent-soft)] text-[var(--admin-accent)]' : 'border-[var(--admin-border)] text-[var(--admin-text)] hover:bg-[var(--admin-hover)]'}`}
+                        >
+                          {ADMIN_ROLES[key].label}
+                        </button>
+                      )
+                    })}
+                  </div>
+                  <p className="text-xs text-mist">
+                    A role is just a starting set of permissions. You can still
+                    tick or untick individual permissions below before saving.
+                    Changes apply the next time that person signs in.
+                  </p>
+                  <p className="pt-2 text-xs font-semibold uppercase text-mist">
                     Permissions
                   </p>
-                  {permissionOptions.map(([permission, description]) => (
+                  {ALL_PERMISSIONS.map(
+                    (permission) =>
+                      [permission, PERMISSION_LABELS[permission]] as const,
+                  ).map(([permission, description]) => (
                     <label
                       key={permission}
                       className="flex items-start gap-3 text-sm text-white/80"

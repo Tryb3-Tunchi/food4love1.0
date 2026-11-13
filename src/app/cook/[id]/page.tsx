@@ -17,6 +17,7 @@ import { AvailabilityCard } from '@/components/cook/AvailabilityCard'
 import { StoryRow } from '@/components/cook/StoryRow'
 import { StoryRing } from '@/components/stories/StoryRing'
 import { ReportButton } from '@/components/reports/ReportButton'
+import { TrackEvent } from '@/components/analytics/TrackEvent'
 
 export async function generateMetadata({
   params,
@@ -47,7 +48,12 @@ export default async function CookPublicPage({
   const sb = await createClient()
   const { data: chef } = await sb
     .from('profiles')
-    .select('*, daily_special:daily_specials(*)')
+    // Explicit columns, not '*': this page is public, so it must only ever ask
+    // for what it shows. (Lets the database later hide the other columns from
+    // logged-out visitors without breaking this page.)
+    .select(
+      'id, full_name, avatar_url, role, bio, location, cuisines, photos, price_min, price_max, rating, review_count, is_verified, suspended, daily_special:daily_specials(*)',
+    )
     .eq('id', params.id)
     .eq('role', 'cook')
     .eq('suspended', false)
@@ -79,6 +85,7 @@ export default async function CookPublicPage({
 
   return (
     <div className="pb-10" style={{ background: 'var(--bg)' }}>
+      <TrackEvent name="cook_profile_view" />
       {/* Hero */}
       <div className="relative">
         <div

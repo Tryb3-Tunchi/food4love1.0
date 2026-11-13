@@ -1,17 +1,46 @@
 import { NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { createLimiter } from '@/lib/rateLimit'
 import { getAdminUser } from '@/lib/admin/auth'
+import { beginAdminAudit, finishAdminAudit } from '@/lib/admin/audit'
 import { welcomeEmail, waitlistSignupEmail } from '@/lib/email/templates'
 import { MAX_ATTEMPTS, sendTransactionalEmail } from '@/lib/email/transactional'
 
 export const runtime = 'nodejs'
 
+// A brake on repeated clicks. Sends are idempotent, so this is not what prevents
+// duplicates; it just stops an accidental flood. Per server instance.
+const allow = createLimiter({ limit: 6, windowMs: 10 * 60 * 1000 })
+
 // Retries transactional emails that Resend did not accept (provider outage, rate
 // limit, timeout). Admin only. Safe to call repeatedly: every send carries an
 // idempotency key and rows that were already accepted are skipped.
 export async function POST(request: Request) {
-  const actor = await getAdminUser('messages:manage')
+  const actor =
+    (await getAdminUser('email:manage')) ??
+    (await getAdminUser('messages:manage'))
   if (!actor) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  if (!allow(actor.id)) {
+    return NextResponse.json(
+      { error: 'Too many retries. Please wait a few minutes.' },
+      { status: 429 },
+    )
+  }
+
+  // Sending email is a sensitive action: record it before doing anything.
+  const audit = await beginAdminAudit({
+    actorId: actor.id,
+    action: 'email.retry_failed',
+    targetType: 'email_delivery_batch',
+    targetId: actor.id,
+    details: { max_batch: 25 },
+  }).catch(() => null)
+  if (!audit) {
+    return NextResponse.json(
+      { error: 'Admin audit logging is unavailable' },
+      { status: 503 },
+    )
+  }
 
   try {
     const admin = createAdminClient()
@@ -29,6 +58,12 @@ export async function POST(request: Request) {
       .limit(25)
 
     if (error) {
+      await finishAdminAudit(
+        audit.admin,
+        audit.auditId,
+        'failed',
+        'Could not read email delivery records',
+      ).catch(() => undefined)
       return NextResponse.json(
         { error: 'Could not read email delivery records' },
         { status: 500 },
@@ -87,12 +122,21 @@ export async function POST(request: Request) {
       }
     }
 
+    await finishAdminAudit(audit.admin, audit.auditId, 'succeeded').catch(
+      () => undefined,
+    )
     return NextResponse.json({
       checked: rows?.length ?? 0,
       accepted_by_provider: accepted,
       still_failing: failed,
     })
   } catch {
+    await finishAdminAudit(
+      audit.admin,
+      audit.auditId,
+      'failed',
+      'Retry failed',
+    ).catch(() => undefined)
     return NextResponse.json({ error: 'Retry failed' }, { status: 500 })
   }
 }

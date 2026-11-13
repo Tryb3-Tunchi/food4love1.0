@@ -6,7 +6,11 @@ export async function middleware(request: NextRequest) {
     request.nextUrl.pathname === '/' ||
     request.nextUrl.pathname.startsWith('/signup')
   ) {
-    return NextResponse.redirect(new URL('/waitlist', request.url))
+    // Keep the query string: campaign links such as /?utm_source=instagram or
+    // /signup?ref=CODE would otherwise lose their tracking tags in this redirect.
+    const destination = new URL('/waitlist', request.url)
+    destination.search = request.nextUrl.search
+    return NextResponse.redirect(destination)
   }
 
   let supabaseResponse = NextResponse.next({ request })
@@ -71,6 +75,10 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
-    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
+    // api/analytics/collect and api/webhooks/resend are skipped: this middleware
+    // makes a session check plus a profile query for every request, which the
+    // analytics beacon (a heartbeat every 45 s per signed-in visitor) and the
+    // Resend webhook (authenticated by its own signature) do not need.
+    '/((?!_next/static|_next/image|favicon.ico|api/analytics/collect|api/webhooks/resend|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
   ],
 }

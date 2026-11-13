@@ -18,6 +18,7 @@ import {
 } from 'lucide-react'
 import { signupSchema, SignupInput } from '@/lib/validations'
 import { createClient } from '@/lib/supabase/client'
+import { track } from '@/lib/analytics/client'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { Brand } from '@/components/ui/Brand'
@@ -67,6 +68,7 @@ function SignupPageContent() {
       return
     }
     toast.success('Account created. Check your email.')
+    track('signup_complete')
     router.push('/verify')
   }
 

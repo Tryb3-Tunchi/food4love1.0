@@ -4,32 +4,36 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import {
   Activity,
+  BarChart3,
   BookOpenCheck,
+  ChefHat,
   ClipboardList,
+  Filter,
+  Globe2,
   FileClock,
   Flag,
   Handshake,
+  HeartPulse,
   LayoutDashboard,
-  MailPlus,
+  ListChecks,
   MessageCircle,
+  MessagesSquare,
+  Radio,
+  Settings,
   ShieldCheck,
+  Gauge,
+  Megaphone,
+  Mail,
+  TrendingUp,
   UserRoundCog,
   Users,
   Utensils,
   type LucideIcon,
 } from 'lucide-react'
-
-type AdminPermission =
-  | 'users:manage'
-  | 'matches:manage'
-  | 'bookings:manage'
-  | 'disputes:manage'
-  | 'kyc:review'
-  | 'listings:manage'
-  | 'reports:manage'
-  | 'messages:manage'
-  | 'audit:view'
-  | 'admin:manage'
+import {
+  holdsPermission,
+  type AdminPermission,
+} from '@/lib/admin/intelligence/permissions'
 
 type AdminNavigationItem = {
   href: string
@@ -41,20 +45,52 @@ type AdminNavigationItem = {
 const groups: { label: string; items: AdminNavigationItem[] }[] = [
   {
     label: 'Overview',
-    items: [{ href: '/admin', label: 'Dashboard', icon: LayoutDashboard }],
+    items: [
+      {
+        href: '/admin',
+        label: 'Executive dashboard',
+        icon: LayoutDashboard,
+        permission: 'analytics:view',
+      },
+      {
+        href: '/admin/live',
+        label: 'Live activity',
+        icon: Radio,
+        permission: 'analytics:view',
+      },
+      { href: '/admin/operations', label: 'Needs attention', icon: Gauge },
+    ],
   },
   {
     label: 'Operations',
     items: [
       {
-        href: '/admin/bookings',
-        label: 'Bookings',
-        icon: BookOpenCheck,
-        permission: 'bookings:manage',
+        href: '/admin/users',
+        label: 'Users',
+        icon: Users,
+        permission: 'users:manage',
+      },
+      {
+        href: '/admin/waitlist',
+        label: 'Waitlist',
+        icon: ListChecks,
+        permission: 'waitlist:manage',
+      },
+      {
+        href: '/admin/cooks',
+        label: 'Cooks & chefs',
+        icon: ChefHat,
+        permission: 'analytics:view',
+      },
+      {
+        href: '/admin/conversations',
+        label: 'Matches & conversations',
+        icon: MessagesSquare,
+        permission: 'analytics:view',
       },
       {
         href: '/admin/matches',
-        label: 'Matches',
+        label: 'Match tools',
         icon: Handshake,
         permission: 'matches:manage',
       },
@@ -65,21 +101,22 @@ const groups: { label: string; items: AdminNavigationItem[] }[] = [
         permission: 'matches:manage',
       },
       {
+        href: '/admin/bookings',
+        label: 'Bookings',
+        icon: BookOpenCheck,
+        permission: 'bookings:manage',
+      },
+      {
         href: '/admin/disputes',
         label: 'Disputes',
         icon: ClipboardList,
         permission: 'disputes:manage',
       },
-    ],
-  },
-  {
-    label: 'People & trust',
-    items: [
       {
-        href: '/admin/users',
-        label: 'Users and cooks',
-        icon: Users,
-        permission: 'users:manage',
+        href: '/admin/reports',
+        label: 'Reports & moderation',
+        icon: Flag,
+        permission: 'reports:manage',
       },
       {
         href: '/admin/kyc',
@@ -94,12 +131,6 @@ const groups: { label: string; items: AdminNavigationItem[] }[] = [
         permission: 'listings:manage',
       },
       {
-        href: '/admin/reports',
-        label: 'Reports',
-        icon: Flag,
-        permission: 'reports:manage',
-      },
-      {
         href: '/admin/messages',
         label: 'Support messages',
         icon: MessageCircle,
@@ -107,27 +138,75 @@ const groups: { label: string; items: AdminNavigationItem[] }[] = [
       },
       {
         href: '/admin/messages/campaigns',
-        label: 'Announcements & email',
-        icon: MailPlus,
+        label: 'Announcements',
+        icon: Megaphone,
         permission: 'messages:manage',
       },
     ],
   },
   {
-    label: 'Administration',
+    label: 'Analytics',
     items: [
       {
+        href: '/admin/analytics/visitors',
+        label: 'Visitors',
+        icon: BarChart3,
+        permission: 'analytics:view',
+      },
+      {
+        href: '/admin/analytics/geography',
+        label: 'Geography',
+        icon: Globe2,
+        permission: 'analytics:view',
+      },
+      {
+        href: '/admin/analytics/acquisition',
+        label: 'Acquisition',
+        icon: Filter,
+        permission: 'analytics:view',
+      },
+      {
+        href: '/admin/analytics/engagement',
+        label: 'Engagement',
+        icon: TrendingUp,
+        permission: 'analytics:view',
+      },
+      {
+        href: '/admin/analytics/retention',
+        label: 'Retention',
+        icon: HeartPulse,
+        permission: 'analytics:view',
+      },
+    ],
+  },
+  {
+    label: 'System',
+    items: [
+      {
+        href: '/admin/email',
+        label: 'Email operations',
+        icon: Mail,
+        permission: 'email:manage',
+      },
+      {
+        href: '/admin/health',
+        label: 'System health',
+        icon: Activity,
+        permission: 'system:view',
+      },
+      {
         href: '/admin/audit',
-        label: 'Audit log',
+        label: 'Audit logs',
         icon: FileClock,
         permission: 'audit:view',
       },
       {
         href: '/admin/access',
-        label: 'Staff access',
+        label: 'Admin roles',
         icon: UserRoundCog,
         permission: 'admin:manage',
       },
+      { href: '/admin/settings', label: 'Settings', icon: Settings },
     ],
   },
 ]
@@ -144,7 +223,8 @@ export function AdminNavigation({
     .map((group) => ({
       ...group,
       items: group.items.filter(
-        (item) => !item.permission || permissions.includes(item.permission),
+        (item) =>
+          !item.permission || holdsPermission(permissions, item.permission),
       ),
     }))
     .filter((group) => group.items.length > 0)

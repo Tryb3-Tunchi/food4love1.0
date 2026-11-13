@@ -1,22 +1,11 @@
 import { getAdminUser, type AdminPermission } from '@/lib/admin/auth'
 import { beginAdminAudit, finishAdminAudit } from '@/lib/admin/audit'
+import { ALL_PERMISSIONS } from '@/lib/admin/intelligence/permissions'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 
-const permissions: AdminPermission[] = [
-  'kyc:review',
-  'users:manage',
-  'matches:manage',
-  'disputes:manage',
-  'audit:view',
-  'bookings:manage',
-  'finance:refund',
-  'listings:manage',
-  'messages:manage',
-  'reports:manage',
-  'admin:manage',
-]
+const permissions: AdminPermission[] = ALL_PERMISSIONS
 
 const updateSchema = z.object({
   user_id: z.string().uuid(),
@@ -150,6 +139,13 @@ export async function PATCH(request: NextRequest) {
     targetId: target.id,
     details: {
       email: target.email ?? null,
+      // Previous and new values, so a change can be reviewed later.
+      previous_admin: target.app_metadata?.role === 'admin',
+      previous_permissions: Array.isArray(
+        target.app_metadata?.admin_permissions,
+      )
+        ? target.app_metadata.admin_permissions
+        : [],
       admin_permissions: parsed.data.is_admin
         ? parsed.data.admin_permissions
         : [],
