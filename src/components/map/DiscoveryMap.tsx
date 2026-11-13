@@ -5,6 +5,7 @@ import {
   MapContainer,
   Marker,
   TileLayer,
+  ZoomControl,
   useMap,
   useMapEvents,
 } from 'react-leaflet'
@@ -182,7 +183,7 @@ export default function DiscoveryMap() {
   const [items, setItems] = useState<DiscoveryProfile[]>([])
   const [status, setStatus] = useState<
     'idle' | 'loading' | 'error' | 'unavailable'
-  >('idle')
+  >('loading')
   const [hasMore, setHasMore] = useState(false)
   const [selected, setSelected] = useState<DiscoveryProfile | null>(null)
   const [fly, setFly] = useState<{
@@ -336,7 +337,9 @@ export default function DiscoveryMap() {
         scrollWheelZoom
         className="h-full w-full"
         keyboard
+        zoomControl={false}
       >
+        <ZoomControl position="topright" />
         <TileLayer
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
@@ -357,7 +360,7 @@ export default function DiscoveryMap() {
       </MapContainer>
 
       {/* Filters */}
-      <div className="pointer-events-none absolute inset-x-0 top-0 z-[500] space-y-2 p-3">
+      <div className="pointer-events-none absolute inset-x-0 top-0 z-[500] space-y-2 p-3 pr-16">
         <div
           className="pointer-events-auto flex gap-2 overflow-x-auto pb-1"
           role="group"
