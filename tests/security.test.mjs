@@ -358,3 +358,67 @@ test('post-login redirects stay on this site', () => {
   const route = readFileSync(join(src, 'app/auth/callback/route.ts'), 'utf8')
   assert.match(route, /safeNextPath\(/)
 })
+
+// ------------------------------------------------- migration safety rails
+test('the superseded privacy migration stops immediately and the new one says so', () => {
+  const old = readFileSync(
+    join(root, 'supabase-migration-profiles-privacy-hardening.sql'),
+    'utf8',
+  )
+  const firstStatement = old
+    .split('\n')
+    .filter((l) => !/^\s*--/.test(l) && l.trim())[0]
+  assert.match(
+    firstStatement,
+    /^do \$\$/i,
+    'the first executable statement is the stop',
+  )
+  assert.match(old, /raise exception 'SUPERSEDED/)
+  assert.ok(
+    old.indexOf('raise exception') < old.indexOf('begin;'),
+    'stop comes before any change',
+  )
+  const fresh = readFileSync(
+    join(root, 'supabase-migration-audit-hardening.sql'),
+    'utf8',
+  )
+  assert.match(
+    fresh,
+    /Supersedes supabase-migration-profiles-privacy-hardening\.sql/,
+  )
+  assert.match(fresh, /TRANSITION EFFECTS/)
+})
+
+test('the legacy-trigger migration warns that it must follow disabling sign-ups', () => {
+  const sql = readFileSync(
+    join(root, 'supabase-migration-drop-legacy-signup-trigger.sql'),
+    'utf8',
+  )
+  assert.match(sql, /ORDER WARNING/)
+  assert.match(sql, /Allow new users to sign up/)
+  assert.match(
+    sql,
+    /replacement trigger food4love_create_profile_after_signup is missing/,
+  )
+})
+
+test('both new migrations are single transactions that touch no existing rows', () => {
+  for (const f of [
+    'supabase-migration-audit-hardening.sql',
+    'supabase-migration-drop-legacy-signup-trigger.sql',
+  ]) {
+    const sql = readFileSync(join(root, f), 'utf8')
+    const code = sql
+      .split('\n')
+      .filter((l) => !/^\s*--/.test(l))
+      .join('\n')
+    assert.match(code, /^\s*begin;/m, f)
+    assert.match(code, /^\s*commit;/m, f)
+    assert.ok(
+      !/\b(insert into public\.profiles|update public\.profiles|delete from|drop table|truncate table)\b/i.test(
+        code.replace(/revoke[^;]*;/gi, ''),
+      ),
+      `${f} changes no rows`,
+    )
+  }
+})

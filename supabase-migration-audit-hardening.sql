@@ -26,6 +26,16 @@
 --   [ ] A manual backup exists (the free plan has no automatic backups).
 --   [ ] Read-only check: select count(*) from public.profiles;  -- note the number
 --
+-- TRANSITION EFFECTS (expected, not faults)
+--   * Matching, likes and the map refuse a member until they confirm they are an adult, and
+--     refuse to match WITH anyone who has not confirmed. Demo profiles (is_demo) have no
+--     login, so they cannot confirm: swiping on them returns "not eligible to match" instead
+--     of recording a one-way like. The owner may choose to backfill them after review.
+--   * Existing chats keep working at the database level; the app asks each member to
+--     confirm once, so each member must sign in once to continue.
+--   * Do NOT run supabase-migration-profiles-privacy-hardening.sql before or after this file
+--     (it is superseded and now stops immediately).
+--
 -- WHAT CHANGES FOR EXISTING MEMBERS
 --   * Every existing member will have age_confirmed_at = NULL and must confirm they are
 --     an adult once (a screen appears). Until then the map, likes and matching refuse them.
