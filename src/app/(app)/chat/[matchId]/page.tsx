@@ -8,6 +8,7 @@ import { useAuthStore } from '@/stores/useAuthStore'
 import { useState, useRef, useEffect } from 'react'
 import { Send, ArrowLeft, Calendar } from 'lucide-react'
 import Link from 'next/link'
+import { profileHref } from '@/lib/profileLinks'
 import Image from 'next/image'
 import { format } from 'date-fns'
 import BookingModal from '@/components/booking/BookingModal'
@@ -150,39 +151,62 @@ export default function ChatDetailPage() {
           <ArrowLeft className="h-5 w-5 text-[var(--text-1)]" />
         </Link>
 
-        <div className="relative h-10 w-10 flex-shrink-0 overflow-hidden rounded-full border-2 border-[var(--border)] bg-[var(--bg-2)]">
-          {otherUser?.avatar_url ? (
-            <Image
-              src={otherUser.avatar_url}
-              alt={otherUser.full_name}
-              fill
-              className="object-cover"
-            />
-          ) : (
-            <div className="flex h-full w-full items-center justify-center text-lg">
-              {isCook ? '👨‍🍳' : '👤'}
-            </div>
-          )}
-          {otherUser?.is_verified && (
-            <div className="absolute -bottom-0.5 -right-0.5 flex h-4 w-4 items-center justify-center rounded-full border-2 border-[var(--bg)] bg-[var(--success)]">
-              <span className="text-[8px] font-bold text-white">✓</span>
-            </div>
-          )}
-        </div>
+        {/* The photo and the name open this person's real profile, with a way back to this chat */}
+        {(() => {
+          const profileLink = otherUser
+            ? profileHref(otherUser, `/chat/${matchId}`)
+            : null
+          const content = (
+            <>
+              <div className="relative h-10 w-10 flex-shrink-0 overflow-hidden rounded-full border-2 border-[var(--border)] bg-[var(--bg-2)]">
+                {otherUser?.avatar_url ? (
+                  <Image
+                    src={otherUser.avatar_url}
+                    alt={otherUser.full_name}
+                    fill
+                    className="object-cover"
+                  />
+                ) : (
+                  <div className="flex h-full w-full items-center justify-center text-lg">
+                    {isCook ? '👨‍🍳' : '👤'}
+                  </div>
+                )}
+                {otherUser?.is_verified && (
+                  <div className="absolute -bottom-0.5 -right-0.5 flex h-4 w-4 items-center justify-center rounded-full border-2 border-[var(--bg)] bg-[var(--success)]">
+                    <span className="text-[8px] font-bold text-white">✓</span>
+                  </div>
+                )}
+              </div>
 
-        <div className="min-w-0 flex-1">
-          <h2 className="truncate text-sm font-semibold text-[var(--text-1)]">
-            {otherUser?.full_name ||
-              (isLoading ? 'Loading…' : 'Food4Love member')}
-          </h2>
-          <p className="truncate text-xs text-[var(--text-2)]">
-            {isCook
-              ? otherUser?.is_verified
-                ? 'Verified home chef'
-                : 'Home chef'
-              : 'Food lover'}
-          </p>
-        </div>
+              <div className="min-w-0 flex-1">
+                <h2 className="truncate text-sm font-semibold text-[var(--text-1)]">
+                  {otherUser?.full_name ||
+                    (isLoading ? 'Loading…' : 'Food4Love member')}
+                </h2>
+                <p className="truncate text-xs text-[var(--text-2)]">
+                  {isCook
+                    ? otherUser?.is_verified
+                      ? 'Verified home chef'
+                      : 'Home chef'
+                    : 'Food lover'}
+                </p>
+              </div>
+            </>
+          )
+          return profileLink ? (
+            <Link
+              href={profileLink}
+              aria-label={`View ${otherUser?.full_name || 'their'} profile`}
+              className="flex min-w-0 flex-1 items-center gap-2 rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] sm:gap-3"
+            >
+              {content}
+            </Link>
+          ) : (
+            <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-3">
+              {content}
+            </div>
+          )
+        })()}
 
         {/* Book Meal Button — opens modal, uses otherUser.id */}
         {isCook && otherUser && (

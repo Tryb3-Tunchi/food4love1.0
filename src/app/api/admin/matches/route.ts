@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto'
 import { getAdminUser } from '@/lib/admin/auth'
 import { beginAdminAudit, finishAdminAudit } from '@/lib/admin/audit'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { adminCreateAction } from '@/lib/matchRules'
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 
@@ -85,6 +86,7 @@ export async function POST(request: NextRequest) {
     )
 
   let resultError: { message: string } | null = null
+  let createdMatchId = matchId
   if (parsed.data.action === 'create') {
     if (parsed.data.user1_id === parsed.data.user2_id) {
       resultError = { message: 'A user cannot be matched with themselves' }
@@ -107,27 +109,39 @@ export async function POST(request: NextRequest) {
           message: 'An active, onboarded buyer and cook are required',
         }
       } else {
-        const { data: existing, error: existingError } = await admin
+        // Any earlier row for this pair, whatever its status: the database allows
+        // only one match per pair, so an old expired or blocked row is reused.
+        const { data: earlier, error: existingError } = await admin
           .from('matches')
-          .select('id')
-          .eq('status', 'matched')
+          .select('id, status')
           .or(
             `and(user1_id.eq.${parsed.data.user1_id},user2_id.eq.${parsed.data.user2_id}),and(user1_id.eq.${parsed.data.user2_id},user2_id.eq.${parsed.data.user1_id})`,
           )
-          .maybeSingle()
-        if (existingError || existing) {
-          resultError = {
-            message: existingError?.message ?? 'An active match already exists',
-          }
+          .order('created_at', { ascending: true })
+          .limit(1)
+        const existing = earlier?.[0] ?? null
+        const plan = adminCreateAction(existing?.status)
+        const expiresAt = new Date(
+          Date.now() + 30 * 24 * 60 * 60 * 1000,
+        ).toISOString()
+        if (existingError) {
+          resultError = { message: existingError.message }
+        } else if (plan === 'already_matched') {
+          resultError = { message: 'An active match already exists' }
+        } else if (plan === 'reopen' && existing) {
+          const { error } = await admin
+            .from('matches')
+            .update({ status: 'matched', expires_at: expiresAt })
+            .eq('id', existing.id)
+          if (error) resultError = { message: error.message }
+          else createdMatchId = existing.id
         } else {
           const { error } = await admin.from('matches').insert({
             id: matchId,
             user1_id: parsed.data.user1_id,
             user2_id: parsed.data.user2_id,
             status: 'matched',
-            expires_at: new Date(
-              Date.now() + 30 * 24 * 60 * 60 * 1000,
-            ).toISOString(),
+            expires_at: expiresAt,
           })
           if (error) resultError = { message: error.message }
         }
@@ -162,5 +176,5 @@ export async function POST(request: NextRequest) {
   if (resultError) {
     return NextResponse.json({ error: resultError.message }, { status: 400 })
   }
-  return NextResponse.json({ success: true, match_id: matchId })
+  return NextResponse.json({ success: true, match_id: createdMatchId })
 }

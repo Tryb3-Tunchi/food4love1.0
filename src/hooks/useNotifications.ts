@@ -52,11 +52,20 @@ export function useNotifications() {
           table: 'notifications',
           filter: `user_id=eq.${userId}`,
         },
-        () => {
+        (payload) => {
           queryClient.invalidateQueries({
             queryKey: ['notifications-unread', userId],
           })
           queryClient.invalidateQueries({ queryKey: ['notifications', userId] })
+          // Live sync: the database already writes a notification when someone
+          // likes you or you match, so that single event also refreshes the
+          // likes, matches and counts without a page reload (no extra channel).
+          const kind = (payload.new as { type?: string } | null)?.type
+          if (kind === 'like' || kind === 'match') {
+            queryClient.invalidateQueries({ queryKey: ['likes'] })
+            queryClient.invalidateQueries({ queryKey: ['matches'] })
+            queryClient.invalidateQueries({ queryKey: ['member-access'] })
+          }
         },
       )
       // Read state changed (this tab, another tab, or another device).

@@ -20,8 +20,9 @@ export interface SwipeCard {
   rating: number | null
   photos: string[] | null
   daily_specials?: { title: string; price: number }[] | null
-  lat: number | null
-  lng: number | null
+  // Exact coordinates are never requested from the database for the deck.
+  lat?: number | null
+  lng?: number | null
 }
 
 export function useSwipeDeck(filters?: {
@@ -68,7 +69,7 @@ export function useSwipeDeck(filters?: {
       let query = supabase
         .from('profiles')
         .select(
-          'id, full_name, bio, avatar_url, role, kyc_status, is_verified, cuisines, price_min, price_max, location, rating, photos, lat, lng',
+          'id, full_name, bio, avatar_url, role, kyc_status, is_verified, cuisines, price_min, price_max, location, rating, photos',
         )
         .eq('role', isBuyer ? 'cook' : 'buyer')
         .eq('onboarding_complete', true)
