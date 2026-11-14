@@ -21,7 +21,7 @@
 --     (row-level security). Other members never query it; they call discovery_profiles(),
 --     which returns only a small set of safe columns.
 --   * Markers are shifted by a fixed per-member offset (< 0.7 km) inside their cell, so
---     members in the same cell do not stack and the grid cannot be reverse-engineered.
+--     members in the same cell do not stack. (The offset is a fixed function of the member id, so it hides nothing from someone who knows the formula; the protection is that only the ~2 km cell is ever stored.)
 --   * The area asked for is capped at ~110 km and 200 rows a call (no bulk export).
 --   * Turning the switch off deletes the stored area immediately.
 --   * The legacy profiles.lat / profiles.lng columns are NOT used by anything here.
@@ -184,6 +184,13 @@ begin
   if auth.uid() is null then
     raise exception 'Not signed in' using errcode = '28000';
   end if;
+  -- a suspended member keeps a valid login but must not browse other members
+  if not exists (
+    select 1 from public.profiles v
+     where v.id = auth.uid() and not coalesce(v.suspended, false)
+  ) then
+    raise exception 'Account not available' using errcode = '42501';
+  end if;
   if p_south is null or p_west is null or p_north is null or p_east is null
      or p_south not between -90 and 90 or p_north not between -90 and 90
      or p_west not between -180 and 180 or p_east not between -180 and 180
@@ -206,8 +213,10 @@ begin
          p.review_count::integer,
          (p.kyc_status = 'verified'),
          -- general area only: the LAST comma-separated part ("Lagos"); a part with a digit
-         -- (street number, postcode, "12 Admiralty Way") is never shown
-         case when loc.seg ~ '[0-9]' then null else nullif(left(loc.seg, 40), '') end::text,
+         -- (street number, postcode) or a street word ("Admiralty Way", "Estate") is never shown
+         case when loc.seg ~ '[0-9]'
+                or loc.seg ~* '\m(street|st|road|rd|avenue|ave|close|crescent|drive|lane|way|estate|junction|plot|house|flat|block|opposite|behind)\M' then null
+              else nullif(left(loc.seg, 40), '') end::text,
          -- fixed offset inside the cell (+/-0.006 deg): stable per member, finer than nothing
          (md.approx_lat + ((((hashtext(p.id::text)::bigint) & 1023) / 1023.0) - 0.5) * 0.012)::double precision,
          (md.approx_lng + ((((hashtext(p.id::text || 'lng')::bigint) & 1023) / 1023.0) - 0.5) * 0.012)::double precision

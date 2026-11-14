@@ -110,12 +110,15 @@ export function clusterProfiles<
 }
 
 // "General location" shown to other members: only the LAST comma-separated part
-// (for example "Lagos"). A part containing a digit (street number, postcode) is
-// never shown. Mirrors the database function exactly.
+// (for example "Lagos"). A part containing a digit (street number, postcode) or a
+// street word ("Admiralty Way", "Estate") is never shown. Mirrors the database function exactly.
+const STREET_WORDS =
+  /\b(street|st|road|rd|avenue|ave|close|crescent|drive|lane|way|estate|junction|plot|house|flat|block|opposite|behind)\b/i
+
 export function generalArea(value: unknown): string | null {
   if (typeof value !== 'string') return null
   const parts = value.split(',')
   const last = (parts[parts.length - 1] ?? '').trim()
-  if (!last || /[0-9]/.test(last)) return null
+  if (!last || /[0-9]/.test(last) || STREET_WORDS.test(last)) return null
   return last.slice(0, 40)
 }

@@ -13,7 +13,8 @@ const querySchema = z.object({
   before: z.string().datetime({ offset: true }).optional(),
 })
 
-const PERSON_FIELDS = 'id, full_name, avatar_url, role, is_verified, bio'
+const PERSON_FIELDS =
+  'id, full_name, avatar_url, role, is_verified, bio, suspended'
 type Person = {
   id: string
   full_name: string | null
@@ -21,6 +22,7 @@ type Person = {
   role: string | null
   is_verified: boolean | null
   bio: string | null
+  suspended: boolean | null
 }
 
 export async function GET(request: NextRequest) {
@@ -71,7 +73,8 @@ export async function GET(request: NextRequest) {
         .from('profiles')
         .select(PERSON_FIELDS)
         .in('id', otherIds)
-        .eq('suspended', false)
+        // suspended is nullable in the database: only an explicit true hides someone
+        .or('suspended.is.null,suspended.eq.false')
         .eq('onboarding_complete', true),
       admin
         .from('matches')
@@ -114,7 +117,7 @@ export async function GET(request: NextRequest) {
     const items = rows.flatMap((row) => {
       const otherId = row[theirs as keyof typeof row] as string
       const person = personById.get(otherId)
-      if (!person) return [] // suspended, unfinished or deleted: never shown
+      if (!person || person.suspended) return [] // suspended, unfinished or deleted: never shown
       const matchId = matchByPerson.get(otherId) ?? null
       const answer = myAnswer.get(otherId)
       const state = matchId
@@ -130,7 +133,15 @@ export async function GET(request: NextRequest) {
           superlike: row.action === 'superlike',
           state,
           match_id: matchId,
-          person,
+          // explicit fields only: nothing else from the profile row is ever returned
+          person: {
+            id: person.id,
+            full_name: person.full_name,
+            avatar_url: person.avatar_url,
+            role: person.role,
+            is_verified: person.is_verified,
+            bio: person.bio,
+          },
         },
       ]
     })

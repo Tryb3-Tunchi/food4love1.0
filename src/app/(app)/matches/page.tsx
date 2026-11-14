@@ -458,7 +458,11 @@ function MatchesTabs() {
     received: received.data
       ? `${pendingCount}${received.hasNextPage ? '+' : ''}`
       : undefined,
-    sent: sent.data ? String(sent.total) : undefined,
+    // Count what is actually listed (the stored total also includes people who
+    // were suspended or deleted since), with a + while more pages exist.
+    sent: sent.data
+      ? `${sent.items.length}${sent.hasNextPage ? '+' : ''}`
+      : undefined,
   }
 
   return (

@@ -22,6 +22,13 @@ import {
   dedupeById,
 } from '../src/lib/matching/activity.ts'
 import { memberAccess } from '../src/lib/matching/access.ts'
+import {
+  adminCreateAction,
+  actionForExistingPair,
+} from '../src/lib/matchRules.ts'
+import { readFileSync, readdirSync, statSync } from 'node:fs'
+import { join } from 'node:path'
+import { fileURLToPath } from 'node:url'
 
 const A = '123e4567-e89b-42d3-a456-426614174000'
 const B = '223e4567-e89b-42d3-a456-426614174001'
@@ -310,4 +317,51 @@ test('who may open a food lover profile', () => {
     memberAccess({ ...base, targetRole: undefined, matched: true }).allowed,
     false,
   )
+})
+
+test('street-style location text is never shown as a general area', () => {
+  for (const bad of [
+    'Admiralty Way',
+    'Lekki, Bode Thomas Street',
+    'Ikeja, GRA Estate',
+    'Plot Close',
+    'Behind the market',
+  ]) {
+    assert.equal(generalArea(bad), null, bad)
+  }
+  // "st" inside a place name is not a street word
+  assert.equal(generalArea('Lekki, Lagos'), 'Lagos')
+  assert.equal(generalArea('Port Harcourt'), 'Port Harcourt')
+  assert.equal(generalArea('Enugu'), 'Enugu')
+  assert.equal(generalArea('Kaduna'), 'Kaduna')
+})
+
+test('admin-created matches reuse an older row for the pair instead of failing', () => {
+  assert.equal(adminCreateAction(null), 'insert')
+  assert.equal(adminCreateAction(undefined), 'insert')
+  assert.equal(adminCreateAction('matched'), 'already_matched')
+  for (const s of ['expired', 'pending', 'blocked'])
+    assert.equal(adminCreateAction(s), 'reopen')
+  // the swipe flow still never overrides a block
+  assert.equal(actionForExistingPair('blocked'), 'blocked')
+  assert.equal(actionForExistingPair('expired'), 'reopen')
+})
+
+test('no browser-side code reads exact profile coordinates any more', () => {
+  const offenders = []
+  const root = fileURLToPath(new URL('../src', import.meta.url))
+  const walk = (dir) => {
+    for (const name of readdirSync(dir)) {
+      const full = join(dir, name)
+      if (statSync(full).isDirectory()) walk(full)
+      else if (/\.(ts|tsx)$/.test(name)) {
+        const text = readFileSync(full, 'utf8')
+        // a select on the profiles table that names the lat column
+        if (/from\('profiles'\)[\s\S]{0,400}?\.select\([^)]*\blat\b/.test(text))
+          offenders.push(full)
+      }
+    }
+  }
+  walk(root)
+  assert.deepEqual(offenders, [])
 })
