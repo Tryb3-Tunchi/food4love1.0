@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { motion } from 'framer-motion'
+import { loadPaystack } from '@/lib/paystackLoader'
 import {
   ArrowLeft,
   Clock,
@@ -99,9 +100,11 @@ export default function BookingDetailPage({
         return
       }
 
-      const paystack = (window as any).PaystackPop
+      const paystack = await loadPaystack()
       if (!paystack) {
-        toast.error('Paystack not loaded. Please refresh.')
+        toast.error(
+          'Payment window could not load. Check your connection and try again.',
+        )
         setPayLoading(false)
         return
       }

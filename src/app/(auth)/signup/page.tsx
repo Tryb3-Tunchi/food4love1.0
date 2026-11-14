@@ -7,6 +7,7 @@ import { motion } from 'framer-motion'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import toast from 'react-hot-toast'
+import { MINIMUM_AGE } from '@/lib/ageGate'
 import {
   ArrowRight,
   Check,
@@ -38,6 +39,7 @@ function SignupPageContent() {
     params.get('ref')?.trim().toUpperCase().slice(0, 12) || undefined
   const isCook = role === 'cook'
   const [emailUpdatesConsent, setEmailUpdatesConsent] = useState(false)
+  const [adultConfirmed, setAdultConfirmed] = useState(false)
 
   const {
     register,
@@ -46,6 +48,10 @@ function SignupPageContent() {
   } = useForm<SignupInput>({ resolver: zodResolver(signupSchema) })
 
   const onSubmit = async (data: SignupInput) => {
+    if (!adultConfirmed) {
+      toast.error(`Please confirm that you are ${MINIMUM_AGE} or older`)
+      return
+    }
     const sb = createClient()
     const loadingToast = toast.loading('Creating your account...')
     const { error } = await sb.auth.signUp({
@@ -58,6 +64,9 @@ function SignupPageContent() {
           phone: data.phone,
           role,
           email_updates_consent: emailUpdatesConsent,
+          // Recorded as the member's own declaration; the server-side confirmation
+          // (age_confirmed_at) is what the application actually enforces.
+          adult_declared: true,
           ...(referralCode ? { referral_code: referralCode } : {}),
         },
       },
@@ -207,6 +216,20 @@ function SignupPageContent() {
                 </span>
               </label>
 
+              <label className="flex items-start gap-3 text-sm text-muted">
+                <input
+                  type="checkbox"
+                  required
+                  checked={adultConfirmed}
+                  onChange={(event) => setAdultConfirmed(event.target.checked)}
+                  className="mt-1 h-4 w-4 shrink-0 accent-[var(--accent)]"
+                />
+                <span>
+                  I confirm that I am {MINIMUM_AGE} or older. Food4Love is for
+                  adults only.
+                </span>
+              </label>
+
               <Button
                 type="submit"
                 size="lg"
@@ -237,11 +260,11 @@ function SignupPageContent() {
 
             <p className="mt-6 text-center text-xs text-muted">
               By creating an account you agree to our{' '}
-              <Link href="#" className="underline hover:text-ink">
+              <Link href="/terms" className="underline hover:text-ink">
                 Terms
               </Link>{' '}
               and{' '}
-              <Link href="#" className="underline hover:text-ink">
+              <Link href="/privacy" className="underline hover:text-ink">
                 Privacy Policy
               </Link>
             </p>

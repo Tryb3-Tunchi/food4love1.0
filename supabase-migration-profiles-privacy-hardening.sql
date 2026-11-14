@@ -1,3 +1,19 @@
+-- ##########################################################################
+-- SUPERSEDED. DO NOT RUN THIS FILE.
+-- Use supabase-migration-audit-hardening.sql instead: it contains everything in this
+-- file (the anon column limits and the stronger owner-edit guard) PLUS the same limits
+-- for signed-in members, the adult-confirmation column, and tighter table privileges.
+-- Running THIS file AFTER that one would replace its guard function with an older
+-- version that no longer protects age_confirmed_at, letting a member mark themselves
+-- as an adult. The statement below stops the script immediately so that cannot happen
+-- by accident. (The original text is kept below for the record only.)
+-- ##########################################################################
+do $$
+begin
+  raise exception 'SUPERSEDED: do not run this file. Use supabase-migration-audit-hardening.sql.';
+end;
+$$;
+
 -- Profile privacy hardening (PREPARED, NOT APPLIED).
 --
 -- PROBLEM CONFIRMED IN THE LIVE DATABASE (read-only checks, 2026-11-12):

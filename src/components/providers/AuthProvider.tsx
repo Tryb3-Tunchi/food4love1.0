@@ -4,6 +4,7 @@ import { useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { useAuthStore } from '@/stores/useAuthStore'
+import { fetchOwnProfile } from '@/services/ownProfile'
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const router = useRouter()
@@ -30,11 +31,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
 
       // Use .maybeSingle() — returns null instead of error when no rows
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', session.user.id)
-        .maybeSingle()
+      const profile = await fetchOwnProfile(supabase, session.user.id)
 
       if (!profile) {
         console.warn('No profile found for user', session.user.id)
@@ -69,11 +66,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
 
       if (session?.user) {
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', session.user.id)
-          .maybeSingle()
+        const profile = await fetchOwnProfile(supabase, session.user.id)
 
         setProfile(profile)
         setIsAdmin(session.user.app_metadata?.role === 'admin')

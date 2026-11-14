@@ -3,6 +3,11 @@ import { z } from 'zod'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { getAdminUser } from '@/lib/admin/auth'
 import { beginAdminAudit, finishAdminAudit } from '@/lib/admin/audit'
+import {
+  marketingFooterHtml,
+  marketingFooterText,
+  marketingSenderIdentity,
+} from '@/lib/email/waitlistRules'
 
 export const runtime = 'nodejs'
 
@@ -104,6 +109,22 @@ export async function POST(request: Request) {
     return NextResponse.json(
       { error: 'Invalid campaign details' },
       { status: 400 },
+    )
+  }
+
+  // Marketing email must identify the sender and give a postal address. The business
+  // details are an owner decision, so refuse to send until they are configured.
+  const sender = marketingSenderIdentity({
+    MARKETING_SENDER_NAME: process.env.MARKETING_SENDER_NAME,
+    MARKETING_SENDER_ADDRESS: process.env.MARKETING_SENDER_ADDRESS,
+  })
+  if (!sender) {
+    return NextResponse.json(
+      {
+        error:
+          'Set MARKETING_SENDER_ADDRESS (and optionally MARKETING_SENDER_NAME) before sending marketing email',
+      },
+      { status: 503 },
     )
   }
 
@@ -239,8 +260,13 @@ export async function POST(request: Request) {
 
     const unsubscribeUrl = `${appUrl}/api/waitlist/unsubscribe?token=${encodeURIComponent(recipient.unsubscribe_token)}`
     const escapedMessage = escapeHtml(campaign.message)
-    const html = `<main style="font-family:Arial,sans-serif;max-width:600px;margin:32px auto;color:#2f211b;line-height:1.65"><h1 style="font-size:24px">${escapeHtml(campaign.subject)}</h1><p style="white-space:pre-line">${escapedMessage}</p><hr style="border:0;border-top:1px solid #e9d6c5;margin:32px 0"><p style="font-size:12px;color:#6e5a52">You receive Food4Love updates because you opted in. <a href="${unsubscribeUrl}">Unsubscribe</a></p></main>`
-    const text = `${campaign.subject}\n\n${campaign.message}\n\nUnsubscribe: ${unsubscribeUrl}`
+    const footerInput = { unsubscribeUrl, sender }
+    const html = `<main style="font-family:Arial,sans-serif;max-width:600px;margin:32px auto;color:#2f211b;line-height:1.65"><h1 style="font-size:24px">${escapeHtml(campaign.subject)}</h1><p style="white-space:pre-line">${escapedMessage}</p><hr style="border:0;border-top:1px solid #e9d6c5;margin:32px 0">${marketingFooterHtml(footerInput)}</main>`
+    const text = `${campaign.subject}
+
+${campaign.message}
+
+${marketingFooterText(footerInput)}`
 
     try {
       const emailResponse = await fetch('https://api.resend.com/emails', {

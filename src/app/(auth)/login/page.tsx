@@ -179,11 +179,11 @@ export default function LoginPage() {
             <div className="mt-6 border-t border-border pt-6">
               <p className="text-center text-xs text-muted">
                 By signing in you agree to our{' '}
-                <Link href="#" className="underline hover:text-ink">
+                <Link href="/terms" className="underline hover:text-ink">
                   Terms
                 </Link>{' '}
                 and{' '}
-                <Link href="#" className="underline hover:text-ink">
+                <Link href="/privacy" className="underline hover:text-ink">
                   Privacy Policy
                 </Link>
               </p>

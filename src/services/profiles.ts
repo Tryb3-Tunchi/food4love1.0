@@ -1,15 +1,28 @@
 import { supabase } from '@/lib/supabase'
 import { Profile } from '@/types/db'
+import {
+  PUBLIC_PROFILE_SELECT,
+  touchesPrivateColumns,
+} from '@/lib/profileColumns'
+import { fetchOwnPrivate } from '@/services/ownProfile'
 
 export async function getProfile(id: string): Promise<Profile> {
   const { data, error } = await supabase
     .from('profiles')
-    .select('*')
+    .select(PUBLIC_PROFILE_SELECT)
     .eq('id', id)
     .single()
 
   if (error) throw error
-  return data as Profile
+  // A member's own profile also carries their private settings.
+  const { data: session } = await supabase.auth.getSession()
+  if (session.session?.user.id === id) {
+    return {
+      ...(data as unknown as Profile),
+      ...(await fetchOwnPrivate(supabase, id)),
+    }
+  }
+  return data as unknown as Profile
 }
 
 export async function updateProfile(
@@ -20,11 +33,16 @@ export async function updateProfile(
     .from('profiles')
     .update(updates)
     .eq('id', id)
-    .select()
+    .select(PUBLIC_PROFILE_SELECT)
     .single()
 
   if (error) throw error
-  return data as Profile
+  // The database can adjust private fields on save (for example the consent
+  // timestamp), so read them back for the owner when they were part of the change.
+  const own = touchesPrivateColumns(updates)
+    ? await fetchOwnPrivate(supabase, id)
+    : {}
+  return { ...(data as unknown as Profile), ...own }
 }
 
 export async function getSwipeDeck(
@@ -33,7 +51,7 @@ export async function getSwipeDeck(
 ) {
   let query = supabase
     .from('profiles')
-    .select('*')
+    .select(PUBLIC_PROFILE_SELECT)
     .eq('role', 'cook') // <-- MUST BE 'cook' NOT 'chef'
     .eq('onboarding_complete', true)
 
