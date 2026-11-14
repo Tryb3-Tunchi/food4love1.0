@@ -5,6 +5,7 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { waitlistSignupEmail } from '@/lib/email/templates'
 import { sendTransactionalEmail } from '@/lib/email/transactional'
 import { clientKey, createLimiter } from '@/lib/rateLimit'
+import { duplicateSignupUpdate } from '@/lib/email/waitlistRules'
 
 export const runtime = 'nodejs'
 
@@ -72,7 +73,7 @@ export async function POST(request: Request) {
     if (error?.code === '23505') {
       const { data: existing, error: lookupError } = await supabase
         .from('waitlist_subscribers')
-        .select('id, confirmation_sent_at')
+        .select('id, confirmation_sent_at, updates_consent, unsubscribed_at')
         .eq('email', normalizedEmail)
         .single()
 
@@ -83,16 +84,23 @@ export async function POST(request: Request) {
         )
       }
 
+      // The form cannot prove who owns this address, so it may never undo an
+      // unsubscribe or grant marketing consent for an address already on file.
+      const update = duplicateSignupUpdate(existing, {
+        audience: parsed.data.audience,
+        updatesConsent: parsed.data.updatesConsent,
+      })
+      if (update === null) {
+        // Unsubscribed earlier: change nothing, send nothing, and answer exactly
+        // like any other signup so the form cannot be used to probe the list.
+        return NextResponse.json({
+          success: true,
+          confirmation_email_status: 'sent',
+        })
+      }
       const { error: updateError } = await supabase
         .from('waitlist_subscribers')
-        .update({
-          audience: parsed.data.audience,
-          updates_consent: parsed.data.updatesConsent,
-          consent_at: parsed.data.updatesConsent
-            ? new Date().toISOString()
-            : null,
-          unsubscribed_at: null,
-        })
+        .update(update)
         .eq('id', existing.id)
 
       if (updateError) {
@@ -116,7 +124,8 @@ export async function POST(request: Request) {
     if (confirmationSentAt) {
       return NextResponse.json({
         success: true,
-        confirmation_email_status: 'already_sent',
+        // Same answer as a first signup: the form must not reveal who is on the list.
+        confirmation_email_status: 'sent',
       })
     }
 
@@ -151,9 +160,7 @@ export async function POST(request: Request) {
       success: true,
       confirmation_email_status: confirmationUpdateError
         ? 'unavailable'
-        : result === 'already_accepted'
-          ? 'already_sent'
-          : 'sent',
+        : 'sent',
     })
   } catch {
     return NextResponse.json(

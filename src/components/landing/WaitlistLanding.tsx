@@ -112,10 +112,8 @@ export function WaitlistLanding() {
                   </h2>
                   <p className="mt-2 text-body text-sm leading-6">
                     {confirmationStatus === 'sent'
-                      ? 'Your signup is saved. Check your inbox for a confirmation from Food4Love.'
-                      : confirmationStatus === 'already_sent'
-                        ? 'Your signup is saved. We have already sent a confirmation email to this address.'
-                        : 'Your signup is saved. We could not send the confirmation email right now.'}
+                      ? 'Your signup is saved. Check your inbox for a confirmation from Food4Love. It can take a few minutes.'
+                      : 'Your signup is saved. We could not send the confirmation email right now.'}
                   </p>
                 </div>
               ) : (
