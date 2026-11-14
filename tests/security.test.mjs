@@ -318,3 +318,43 @@ test('every API route that is not a public form or a webhook checks who is calli
   })
   assert.deepEqual(missing, [])
 })
+
+// ------------------------------------------------------------ open redirects
+import { safeNextPath } from '../src/lib/safeRedirect.ts'
+
+test('post-login redirects stay on this site', () => {
+  assert.equal(safeNextPath('/onboarding/role'), '/onboarding/role')
+  assert.equal(safeNextPath('/matches?tab=sent#top'), '/matches?tab=sent#top')
+  assert.equal(safeNextPath(undefined), '/swipe')
+  assert.equal(safeNextPath(null, '/home'), '/home')
+  for (const bad of [
+    '//evil.example',
+    '/\\evil.example',
+    '/\t/evil.example',
+    '/\n/evil.example',
+    'https://evil.example',
+    'http://evil.example/x',
+    'javascript:alert(1)',
+    'evil.example',
+    '',
+    '/' + 'a'.repeat(600),
+    '///evil.example',
+    '/%5Cevil.example/..//evil.example',
+  ]) {
+    const result = safeNextPath(bad)
+    assert.ok(
+      result === '/swipe' ||
+        (result.startsWith('/') && !result.startsWith('//')),
+      `${JSON.stringify(bad)} -> ${result}`,
+    )
+    assert.ok(
+      !/evil\.example/.test(result.split('?')[0].split('/')[1] ?? ''),
+      bad,
+    )
+  }
+  assert.equal(safeNextPath('//evil.example'), '/swipe')
+  assert.equal(safeNextPath('/\\evil.example'), '/swipe')
+  assert.equal(safeNextPath('/\t/evil.example'), '/swipe')
+  const route = readFileSync(join(src, 'app/auth/callback/route.ts'), 'utf8')
+  assert.match(route, /safeNextPath\(/)
+})
