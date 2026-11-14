@@ -87,3 +87,117 @@ test('unused packages stay removed', () => {
     assert.ok(!deps.includes(gone), `${gone} should not be a dependency`)
   }
 })
+
+// ----------------------------------------------------- profile column privacy
+import {
+  PUBLIC_PROFILE_COLUMNS,
+  PRIVATE_PROFILE_COLUMNS,
+  PUBLIC_PROFILE_SELECT,
+  touchesPrivateColumns,
+} from '../src/lib/profileColumns.ts'
+
+function sourceFiles(dir, out = []) {
+  for (const name of readdirSync(dir)) {
+    const full = join(dir, name)
+    if (statSync(full).isDirectory()) sourceFiles(full, out)
+    else if (/\.(ts|tsx)$/.test(name)) out.push(full)
+  }
+  return out
+}
+
+// Pulls every  .from('profiles') ... .select('<columns>')  out of a file.
+function profileSelects(text) {
+  const found = []
+  const re =
+    /\.from\(\s*'profiles'\s*\)([\s\S]{0,300}?)\.select\(\s*(['"`])([\s\S]*?)\2/g
+  let m
+  while ((m = re.exec(text))) found.push(m[3])
+  return found
+}
+
+function columnsOf(list) {
+  // drop relations such as  daily_special:daily_specials(*)  and aliases
+  const flat = list.replace(/[\w:!]+\([^()]*\)/g, '')
+  return flat
+    .split(',')
+    .map((c) => c.trim().split(':').pop().trim())
+    .filter(Boolean)
+}
+
+test('browser and session-side profile queries only name columns the database exposes', () => {
+  const allowed = new Set([...PUBLIC_PROFILE_COLUMNS])
+  const ownerOnly = new Set([...PRIVATE_PROFILE_COLUMNS])
+  const offenders = []
+  for (const file of sourceFiles(src)) {
+    const text = readFileSync(file, 'utf8')
+    // server code that uses the service-role client is not limited by these grants
+    if (/createAdminClient/.test(text)) continue
+    for (const list of profileSelects(text)) {
+      for (const col of columnsOf(list)) {
+        if (col === '*') offenders.push(`${file}: select('*')`)
+        else if (
+          !allowed.has(col) &&
+          !(ownerOnly.has(col) && /ownProfile\.ts$/.test(file))
+        )
+          offenders.push(`${file}: ${col}`)
+      }
+    }
+  }
+  assert.deepEqual(offenders, [])
+})
+
+test('exact coordinates and private settings are never in the public column list', () => {
+  for (const hidden of [
+    'lat',
+    'lng',
+    'referral_code',
+    'notification_preferences',
+    'email_updates_consent',
+    'age_confirmed_at',
+    'is_demo',
+  ]) {
+    assert.ok(!PUBLIC_PROFILE_COLUMNS.includes(hidden), hidden)
+  }
+  assert.ok(!PUBLIC_PROFILE_SELECT.includes('*'))
+  assert.equal(touchesPrivateColumns({ notification_preferences: {} }), true)
+  assert.equal(touchesPrivateColumns({ bio: 'x', photos: [] }), false)
+})
+
+test('the migration grants exactly the columns the application is allowed to read', () => {
+  const sql = readFileSync(
+    join(root, 'supabase-migration-audit-hardening.sql'),
+    'utf8',
+  )
+  const grants = [
+    ...sql.matchAll(
+      /grant select \(([\s\S]*?)\) on public\.profiles to (\w+)/g,
+    ),
+  ]
+  const byRole = Object.fromEntries(
+    grants.map((g) => [
+      g[2],
+      g[1]
+        .split(',')
+        .map((c) => c.trim())
+        .filter(Boolean),
+    ]),
+  )
+  assert.equal(byRole.anon.length, 16)
+  assert.deepEqual(
+    [...byRole.authenticated].sort(),
+    [...PUBLIC_PROFILE_COLUMNS].sort(),
+  )
+  for (const hidden of [
+    'lat',
+    'lng',
+    'referral_code',
+    'notification_preferences',
+    'email_updates_consent',
+    'age_confirmed_at',
+  ]) {
+    assert.ok(
+      !byRole.anon.includes(hidden) && !byRole.authenticated.includes(hidden),
+      hidden,
+    )
+  }
+})

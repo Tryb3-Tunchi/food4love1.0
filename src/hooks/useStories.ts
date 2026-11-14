@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import type { CookStory, Profile } from '../types/db'
 import { saveStoryToPosts } from '../services/posts'
+import { PUBLIC_PROFILE_SELECT } from '@/lib/profileColumns'
 
 export type StoryWithCook = CookStory & { cook: Profile | null }
 export type OwnedStory = CookStory & { savedAsPost: boolean }
@@ -49,7 +50,7 @@ export function useStories(userId: string | null): UseStoriesState {
       const cookIds = Array.from(new Set(rows.map((r) => r.cook_id)))
       const { data: profileRows } = await supabase
         .from('profiles')
-        .select('*')
+        .select(PUBLIC_PROFILE_SELECT)
         .in('id', cookIds)
 
       const profilesById = new Map(
