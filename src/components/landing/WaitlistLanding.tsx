@@ -6,6 +6,7 @@ import { motion } from 'framer-motion'
 import { ArrowRight, Check, ChefHat, MapPin, Utensils } from 'lucide-react'
 import { Brand } from '@/components/ui/Brand'
 import { track } from '@/lib/analytics/client'
+import { LegalFooter } from '@/components/legal/LegalFooter'
 
 export function WaitlistLanding() {
   const [email, setEmail] = useState('')
@@ -230,12 +231,25 @@ export function WaitlistLanding() {
                     <p className="text-center text-xs text-muted">
                       Joining the list does not create an account.
                     </p>
+                    <p className="text-center text-xs text-muted">
+                      We use your email to save your place and send one
+                      confirmation. Read our{' '}
+                      <Link href="/privacy" className="underline">
+                        Privacy Policy
+                      </Link>{' '}
+                      and{' '}
+                      <Link href="/email-consent" className="underline">
+                        how we use email
+                      </Link>
+                      .
+                    </p>
                   </form>
                 </>
               )}
             </div>
           </motion.section>
         </div>
+        <LegalFooter className="mt-10" />
       </div>
     </main>
   )

@@ -9,6 +9,7 @@ import { useHungerMode } from '@/components/providers/HungerModeProviders'
 import { createClient } from '@/lib/supabase/client'
 import { useAuthStore } from '@/stores/useAuthStore'
 import { DiscoveryCard } from '@/components/settings/DiscoveryCard'
+import { LegalFooter } from '@/components/legal/LegalFooter'
 
 export default function SettingsPage() {
   const router = useRouter()
@@ -111,6 +112,18 @@ export default function SettingsPage() {
             Discovery and location
           </h2>
           <DiscoveryCard />
+        </section>
+
+        <section aria-labelledby="legal-heading" className="mb-7">
+          <h2
+            id="legal-heading"
+            className="mb-3 text-base font-semibold text-[var(--text-1)]"
+          >
+            Legal and privacy
+          </h2>
+          <div className="rounded-xl border border-[var(--border)] bg-[var(--card)] p-4">
+            <LegalFooter className="justify-start" />
+          </div>
         </section>
 
         <section aria-labelledby="notifications-heading">

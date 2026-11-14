@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import {
   CONSENT_EVENT,
@@ -69,7 +70,16 @@ export function AnalyticsProvider() {
       <p className="mt-1 text-sm" style={{ color: 'var(--text-2)' }}>
         With your OK, we count visits and see which pages and links bring people
         in, using a random ID stored on this device. We never record your IP
-        address, messages or anything you type, and you can say no.
+        address, messages or anything you type, and you can say no. You can
+        change your mind at any time. See our{' '}
+        <Link href="/privacy" className="underline">
+          Privacy Policy
+        </Link>{' '}
+        and{' '}
+        <Link href="/cookies" className="underline">
+          Cookie Policy
+        </Link>
+        .
       </p>
       <div className="mt-3 flex flex-wrap gap-2">
         <button
