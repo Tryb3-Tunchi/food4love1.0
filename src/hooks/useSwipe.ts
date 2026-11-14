@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import type { LikeStatus, Profile, SwipeDirection } from '../types/db'
+import { PUBLIC_PROFILE_SELECT } from '@/lib/profileColumns'
 
 const demoCooks: Profile[] = [
   {
@@ -422,7 +423,10 @@ export function useSwipe(input: SwipeInput): SwipeState {
         .map((row: { target_id: string | null }) => row.target_id)
         .filter(Boolean)
 
-      let cooksQuery = supabase.from('profiles').select('*').neq('id', buyerId)
+      let cooksQuery = supabase
+        .from('profiles')
+        .select(PUBLIC_PROFILE_SELECT)
+        .neq('id', buyerId)
 
       if (filterRole !== 'all') {
         cooksQuery = cooksQuery.eq('role', filterRole)

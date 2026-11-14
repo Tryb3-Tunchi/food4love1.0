@@ -36,6 +36,9 @@ export interface Profile {
   notification_preferences?: NotificationPreferences | null
   email_updates_consent?: boolean
   email_updates_consent_at?: string | null
+  // Set by the server when the member confirms they are an adult. undefined = this
+  // database does not have the field yet; null = not confirmed.
+  age_confirmed_at?: string | null
   // legacy naming
   onboarding_completed?: boolean
   photos?: string[] | null

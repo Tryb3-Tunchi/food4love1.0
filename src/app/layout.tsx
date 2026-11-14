@@ -63,7 +63,6 @@ export default function RootLayout({
       <body className="font-sans antialiased">
         <Providers>{children}</Providers>
         <AnalyticsProvider />
-        <script src="https://js.paystack.co/v1/inline.js" async></script>
       </body>
     </html>
   )

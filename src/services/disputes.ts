@@ -76,7 +76,7 @@ export async function getDisputes(adminMode = false): Promise<Dispute[]> {
   const q = sb()
     .from('disputes')
     .select(
-      '*, booking:bookings(*, cook:profiles!bookings_cook_id_fkey(*), buyer:profiles!bookings_buyer_id_fkey(*))',
+      '*, booking:bookings(*, cook:profiles!bookings_cook_id_fkey(id, full_name, avatar_url, role), buyer:profiles!bookings_buyer_id_fkey(id, full_name, avatar_url, role))',
     )
     .order('created_at', { ascending: false })
   const { data } = adminMode ? await q : await q.limit(20)

@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { logOpsEvent } from '@/lib/admin/ops'
 import { verifySvixSignature } from '@/lib/admin/intelligence/webhookSignature'
+import { suppressionForEvent } from '@/lib/email/waitlistRules'
 
 export const runtime = 'nodejs'
 
@@ -77,6 +78,38 @@ export async function POST(request: Request) {
         .eq('provider_message_id', messageId)
         // Never move a bounced email back to delivered because of a late event.
         .neq('status', 'bounced')
+    }
+    // A permanent bounce or a spam complaint means this person must not get marketing
+    // again. Find the waitlist subscriber behind the message and suppress them, the
+    // same way an unsubscribe does. Nothing here stores an email address.
+    if (suppressionForEvent(type) && messageId) {
+      let subscriberId: string | null = null
+      const campaign = await admin
+        .from('waitlist_email_deliveries')
+        .select('subscriber_id')
+        .eq('provider_message_id', messageId)
+        .maybeSingle()
+      subscriberId = campaign.data?.subscriber_id ?? null
+      if (!subscriberId) {
+        const confirmation = await admin
+          .from('email_deliveries')
+          .select('recipient_key')
+          .eq('provider_message_id', messageId)
+          .eq('kind', 'waitlist_confirmation')
+          .maybeSingle()
+        subscriberId = confirmation.data?.recipient_key ?? null
+      }
+      if (subscriberId) {
+        await admin
+          .from('waitlist_subscribers')
+          .update({
+            updates_consent: false,
+            consent_at: null,
+            unsubscribed_at: new Date().toISOString(),
+          })
+          .eq('id', subscriberId)
+          .is('unsubscribed_at', null)
+      }
     }
     if (type === 'email.bounced' || type === 'email.complained') {
       await logOpsEvent({

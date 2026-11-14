@@ -6,6 +6,7 @@ import { motion } from 'framer-motion'
 import { ArrowRight, Check, ChefHat, MapPin, Utensils } from 'lucide-react'
 import { Brand } from '@/components/ui/Brand'
 import { track } from '@/lib/analytics/client'
+import { LegalFooter } from '@/components/legal/LegalFooter'
 
 export function WaitlistLanding() {
   const [email, setEmail] = useState('')
@@ -112,10 +113,8 @@ export function WaitlistLanding() {
                   </h2>
                   <p className="mt-2 text-body text-sm leading-6">
                     {confirmationStatus === 'sent'
-                      ? 'Your signup is saved. Check your inbox for a confirmation from Food4Love.'
-                      : confirmationStatus === 'already_sent'
-                        ? 'Your signup is saved. We have already sent a confirmation email to this address.'
-                        : 'Your signup is saved. We could not send the confirmation email right now.'}
+                      ? 'Your signup is saved. Check your inbox for a confirmation from Food4Love. It can take a few minutes.'
+                      : 'Your signup is saved. We could not send the confirmation email right now.'}
                   </p>
                 </div>
               ) : (
@@ -232,12 +231,25 @@ export function WaitlistLanding() {
                     <p className="text-center text-xs text-muted">
                       Joining the list does not create an account.
                     </p>
+                    <p className="text-center text-xs text-muted">
+                      We use your email to save your place and send one
+                      confirmation. Read our{' '}
+                      <Link href="/privacy" className="underline">
+                        Privacy Policy
+                      </Link>{' '}
+                      and{' '}
+                      <Link href="/email-consent" className="underline">
+                        how we use email
+                      </Link>
+                      .
+                    </p>
                   </form>
                 </>
               )}
             </div>
           </motion.section>
         </div>
+        <LegalFooter className="mt-10" />
       </div>
     </main>
   )

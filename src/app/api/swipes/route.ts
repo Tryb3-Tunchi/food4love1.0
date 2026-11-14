@@ -2,6 +2,8 @@ import { createHash } from 'node:crypto'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { actionForExistingPair } from '@/lib/matchRules'
+import { adultStates } from '@/lib/adultCheck'
+import { AGE_REQUIRED_CODE, AGE_REQUIRED_MESSAGE } from '@/lib/ageGate'
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 
@@ -62,6 +64,24 @@ export async function POST(request: NextRequest) {
     ) {
       return NextResponse.json(
         { error: 'These accounts are not eligible to match' },
+        { status: 403 },
+      )
+    }
+
+    // Matching is for confirmed adults only, on both sides.
+    const adults = await adultStates(admin, [user.id, target.id])
+    if (
+      adults.get(user.id) === 'required' ||
+      adults.get(target.id) === 'required'
+    ) {
+      return NextResponse.json(
+        {
+          error:
+            adults.get(user.id) === 'required'
+              ? AGE_REQUIRED_MESSAGE
+              : 'These accounts are not eligible to match',
+          code: AGE_REQUIRED_CODE,
+        },
         { status: 403 },
       )
     }

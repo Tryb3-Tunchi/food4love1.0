@@ -6,6 +6,7 @@ import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { isUuid } from '@/lib/profileLinks'
 import { memberAccess } from '@/lib/matching/access'
+import { adultStates } from '@/lib/adultCheck'
 import { generalArea } from '@/lib/discovery/geo'
 import { BackLink } from '@/components/matching/BackLink'
 import { LikeBackButton } from '@/components/matching/LikeBackButton'
@@ -52,6 +53,10 @@ export default async function MemberPage({
       `/cook/${member.id}${from ? `?from=${encodeURIComponent(from)}` : ''}`,
     )
   }
+
+  // Only confirmed adults may view other members' profiles.
+  const adults = await adultStates(admin, [user.id])
+  if (adults.get(user.id) === 'required') notFound()
 
   const pair = `and(user1_id.eq.${user.id},user2_id.eq.${member.id}),and(user1_id.eq.${member.id},user2_id.eq.${user.id})`
   const [matchResult, swipeResult, discoveryResult] = await Promise.all([
