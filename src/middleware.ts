@@ -75,10 +75,10 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
-    // api/analytics/collect and api/webhooks/resend are skipped: this middleware
+    // api/analytics/collect and the api/webhooks/* routes are skipped: this middleware
     // makes a session check plus a profile query for every request, which the
     // analytics beacon (a heartbeat every 45 s per signed-in visitor) and the
-    // Resend webhook (authenticated by its own signature) do not need.
-    '/((?!_next/static|_next/image|favicon.ico|api/analytics/collect|api/webhooks/resend|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
+    // payment and email webhooks (each authenticated by its own signature) do not need.
+    '/((?!_next/static|_next/image|favicon.ico|api/analytics/collect|api/webhooks/resend|api/webhooks/paystack|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
   ],
 }

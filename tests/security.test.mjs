@@ -273,3 +273,48 @@ test('signup requires the adult checkbox, links the real legal pages, and does n
     if (/href="#"/.test(text)) assert.fail(`${file} has a dead "#" link`)
   })
 })
+
+// ------------------------------------------------------------- AI routes
+test('every AI route requires a signed-in member and is rate limited', () => {
+  for (const name of [
+    'bio',
+    'chat-suggestions',
+    'smart-match',
+    'taste-profile',
+  ]) {
+    const route = readFileSync(join(src, `app/api/ai/${name}/route.ts`), 'utf8')
+    assert.match(route, /guardAiRequest\(req\)/, name)
+  }
+  const guard = readFileSync(join(src, 'lib/ai/auth.ts'), 'utf8')
+  assert.match(guard, /status: 401/)
+  assert.match(guard, /status: 429/)
+  assert.match(guard, /status: 413/)
+})
+
+test('every API route that is not a public form or a webhook checks who is calling', () => {
+  const publicRoutes = new Set([
+    'waitlist',
+    'waitlist/unsubscribe',
+    'email/unsubscribe',
+    'analytics/collect',
+    'webhooks/resend',
+    'webhooks/paystack',
+  ])
+  const missing = []
+  const apiRoot = join(src, 'app/api')
+  walk(apiRoot, (file, text) => {
+    if (!/route\.ts$/.test(file)) return
+    const name = file
+      .slice(apiRoot.length + 1)
+      .replace(/\\/g, '/')
+      .replace(/\/route\.ts$/, '')
+    if (publicRoutes.has(name)) return
+    if (
+      !/getUser\(|getAdminUser|guardAiRequest|hasSignedInAiUser|beginAdminAudit/.test(
+        text,
+      )
+    )
+      missing.push(name)
+  })
+  assert.deepEqual(missing, [])
+})
