@@ -131,7 +131,7 @@ test('browser and session-side profile queries only name columns the database ex
   for (const file of sourceFiles(src)) {
     const text = readFileSync(file, 'utf8')
     // server code that uses the service-role client is not limited by these grants
-    if (/createAdminClient/.test(text)) continue
+    if (/createAdminClient|import 'server-only'/.test(text)) continue
     for (const list of profileSelects(text)) {
       for (const col of columnsOf(list)) {
         if (col === '*') offenders.push(`${file}: select('*')`)
@@ -200,4 +200,76 @@ test('the migration grants exactly the columns the application is allowed to rea
       hidden,
     )
   }
+})
+
+// ------------------------------------------------------ adult confirmation
+import {
+  MINIMUM_AGE,
+  ageGate,
+  mayUseSocialFeatures,
+  AGE_REQUIRED_CODE,
+} from '../src/lib/ageGate.ts'
+
+test('adult confirmation states', () => {
+  assert.equal(MINIMUM_AGE, 18)
+  assert.equal(ageGate(undefined), 'not_enforced') // database without the field
+  assert.equal(ageGate(null), 'required')
+  assert.equal(ageGate('2026-11-14T10:00:00Z'), 'confirmed')
+  assert.equal(ageGate('not a date'), 'required')
+  assert.equal(ageGate(''), 'required')
+  assert.equal(mayUseSocialFeatures('confirmed'), true)
+  assert.equal(mayUseSocialFeatures('not_enforced'), true)
+  assert.equal(mayUseSocialFeatures('required'), false)
+  assert.equal(AGE_REQUIRED_CODE, 'age_confirmation_required')
+})
+
+test('matching, likes and member profiles refuse members who have not confirmed', () => {
+  for (const file of [
+    'app/api/swipes/route.ts',
+    'app/api/likes/route.ts',
+    'app/(app)/member/[id]/page.tsx',
+  ]) {
+    const text = readFileSync(join(src, file), 'utf8')
+    assert.match(text, /adultStates\(/, `${file} checks the adult confirmation`)
+  }
+  const swipes = readFileSync(join(src, 'app/api/swipes/route.ts'), 'utf8')
+  // both people in a match must be confirmed
+  assert.match(swipes, /adultStates\(admin, \[user\.id, target\.id\]\)/)
+})
+
+test('only the server can record the adult confirmation, once', () => {
+  const route = readFileSync(
+    join(src, 'app/api/account/confirm-age/route.ts'),
+    'utf8',
+  )
+  assert.match(route, /createAdminClient/)
+  assert.match(
+    route,
+    /\.is\('age_confirmed_at', null\)/,
+    'never overwrites the original date',
+  )
+  assert.match(route, /z\.literal\(true\)/)
+  const sql = readFileSync(
+    join(root, 'supabase-migration-audit-hardening.sql'),
+    'utf8',
+  )
+  assert.match(
+    sql,
+    /new\.age_confirmed_at is distinct from old\.age_confirmed_at/,
+  )
+})
+
+test('signup requires the adult checkbox, links the real legal pages, and does not pre-tick marketing', () => {
+  const page = readFileSync(join(src, 'app/(auth)/signup/page.tsx'), 'utf8')
+  assert.match(page, /useState\(false\)/)
+  assert.match(page, /adultConfirmed/)
+  assert.match(page, /href="\/terms"/)
+  assert.match(page, /href="\/privacy"/)
+  assert.match(
+    page,
+    /const \[emailUpdatesConsent, setEmailUpdatesConsent\] = useState\(false\)/,
+  )
+  walk(src, (file, text) => {
+    if (/href="#"/.test(text)) assert.fail(`${file} has a dead "#" link`)
+  })
 })

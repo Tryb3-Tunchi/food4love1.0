@@ -2,6 +2,8 @@ import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
+import { adultStates } from '@/lib/adultCheck'
+import { AGE_REQUIRED_CODE, AGE_REQUIRED_MESSAGE } from '@/lib/ageGate'
 
 // Browsers may only read their OWN swipes (row-level security), so "who liked me"
 // can only be answered here, on the server, for the signed-in member and nobody else.
@@ -42,6 +44,12 @@ export async function GET(request: NextRequest) {
 
   try {
     const admin = createAdminClient()
+    if ((await adultStates(admin, [user.id])).get(user.id) === 'required') {
+      return NextResponse.json(
+        { error: AGE_REQUIRED_MESSAGE, code: AGE_REQUIRED_CODE },
+        { status: 403 },
+      )
+    }
     const mine = type === 'received' ? 'swiped_id' : 'swiper_id'
     const theirs = type === 'received' ? 'swiper_id' : 'swiped_id'
 
