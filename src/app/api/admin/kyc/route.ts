@@ -10,6 +10,11 @@ const reviewSchema = z.object({
   reason: z.string().trim().min(5).max(1000),
 })
 
+const revokeSchema = z.object({
+  cook_id: z.string().uuid(),
+  reason: z.string().trim().min(5).max(1000),
+})
+
 function getUserStoragePath(value: string, userId: string) {
   let path = value
   try {
@@ -216,6 +221,86 @@ export async function PATCH(request: NextRequest) {
   } catch {
     return NextResponse.json(
       { error: 'Could not review KYC submission' },
+      { status: 500 },
+    )
+  }
+}
+
+// Take back an approval (for example a cook's circumstances changed, or a document was
+// found to be false). Permission-controlled and audited. The cook returns to
+// "unverified": they can no longer accept bookings (the database refuses it too) and can
+// apply again. Existing records and documents are kept. The cook is notified by the
+// database when their verification changes.
+export async function POST(request: NextRequest) {
+  try {
+    const user = await getAdminUser('kyc:review')
+    if (!user) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    }
+    const parsed = revokeSchema.safeParse(
+      await request.json().catch(() => null),
+    )
+    if (!parsed.success) {
+      return NextResponse.json(
+        { error: 'A reason of at least five characters is required' },
+        { status: 400 },
+      )
+    }
+
+    const admin = createAdminClient()
+    const { data: cook } = await admin
+      .from('profiles')
+      .select('id, role, kyc_status')
+      .eq('id', parsed.data.cook_id)
+      .maybeSingle()
+    if (!cook || cook.role !== 'cook') {
+      return NextResponse.json({ error: 'Cook not found' }, { status: 404 })
+    }
+    if (cook.kyc_status !== 'verified') {
+      return NextResponse.json(
+        { error: 'Only a verified cook can have verification revoked' },
+        { status: 409 },
+      )
+    }
+
+    const audit = await beginAdminAudit({
+      actorId: user.id,
+      action: 'kyc.revoke',
+      targetType: 'profile',
+      targetId: cook.id,
+      details: { reason: parsed.data.reason },
+    }).catch(() => null)
+    if (!audit) {
+      return NextResponse.json(
+        { error: 'KYC audit logging is unavailable' },
+        { status: 503 },
+      )
+    }
+
+    const { data: updated, error } = await admin
+      .from('profiles')
+      .update({ kyc_status: 'unverified', is_verified: false })
+      .eq('id', cook.id)
+      .eq('kyc_status', 'verified') // only if still verified (no double revoke)
+      .select('id')
+      .maybeSingle()
+    if (error || !updated) {
+      await finishAdminAudit(
+        audit.admin,
+        audit.auditId,
+        'failed',
+        error?.message ?? 'Verification changed before it could be revoked',
+      )
+      return NextResponse.json(
+        { error: 'Verification changed before it could be revoked' },
+        { status: 409 },
+      )
+    }
+    await finishAdminAudit(audit.admin, audit.auditId, 'succeeded')
+    return NextResponse.json({ success: true })
+  } catch {
+    return NextResponse.json(
+      { error: 'Could not revoke verification' },
       { status: 500 },
     )
   }

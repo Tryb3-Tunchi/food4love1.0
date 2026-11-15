@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/Button'
 import { Avatar } from '@/components/ui/Avatar'
 import { Badge } from '@/components/ui/Badge'
 import toast from 'react-hot-toast'
+import { VerifiedCooksPanel } from '@/components/admin/VerifiedCooksPanel'
 
 export default function AdminKYCPage() {
   const [submissions, setSubmissions] = useState<KYCSubmission[]>([])
@@ -136,6 +137,7 @@ export default function AdminKYCPage() {
           ))}
         </div>
       )}
+      <VerifiedCooksPanel />
     </div>
   )
 }

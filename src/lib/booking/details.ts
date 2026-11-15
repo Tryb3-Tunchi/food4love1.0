@@ -91,3 +91,18 @@ export function addressFor(
   const trimmed = (address ?? '').trim()
   return trimmed.length >= 8 ? trimmed : null
 }
+
+// Times are shown in Nigeria time, matching how cook schedules are stored.
+export function formatLagos(value: string | Date): string {
+  const date = typeof value === 'string' ? new Date(value) : value
+  if (Number.isNaN(date.getTime())) return 'an unknown time'
+  return new Intl.DateTimeFormat('en-GB', {
+    timeZone: 'Africa/Lagos',
+    weekday: 'short',
+    day: 'numeric',
+    month: 'short',
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true,
+  }).format(date)
+}
