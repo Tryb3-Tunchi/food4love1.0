@@ -11,7 +11,8 @@ import Link from 'next/link'
 import { profileHref } from '@/lib/profileLinks'
 import Image from 'next/image'
 import { format } from 'date-fns'
-import BookingModal from '@/components/booking/BookingModal'
+import { CookBookingPanel } from '@/components/booking/CookBookingPanel'
+import { ChatBookings } from '@/components/booking/ChatBookings'
 import { ChefChiLauncher } from '@/components/chat/ChefChiLauncher'
 
 interface Profile {
@@ -208,10 +209,13 @@ export default function ChatDetailPage() {
           )
         })()}
 
-        {/* Book Meal Button — opens modal, uses otherUser.id */}
+        {/* Book button: shows the cook's verification state and the booking options below */}
         {isCook && otherUser && (
           <button
-            onClick={() => setShowBooking(true)}
+            type="button"
+            aria-expanded={showBooking}
+            aria-controls="chat-booking-panel"
+            onClick={() => setShowBooking((open) => !open)}
             className="flex min-h-11 shrink-0 items-center gap-1.5 rounded-full bg-[var(--bubble-own)] px-3 text-xs font-bold text-[var(--bubble-own-text)] transition hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]"
           >
             <Calendar className="h-3.5 w-3.5" aria-hidden="true" />
@@ -219,6 +223,21 @@ export default function ChatDetailPage() {
           </button>
         )}
       </div>
+
+      {isCook && otherUser && showBooking && (
+        <div
+          id="chat-booking-panel"
+          className="border-b px-3 py-3 sm:px-4"
+          style={{ borderColor: 'var(--border)' }}
+        >
+          <CookBookingPanel
+            cookId={otherUser.id}
+            cookName={otherUser.full_name || 'this cook'}
+            matchId={matchId as string}
+          />
+        </div>
+      )}
+      <ChatBookings matchId={matchId as string} />
 
       {/* Messages */}
       <div
@@ -358,19 +377,6 @@ export default function ChatDetailPage() {
           </button>
         </div>
       </div>
-
-      {/* Booking Modal */}
-      {otherUser && profile?.id && (
-        <BookingModal
-          isOpen={showBooking}
-          onClose={() => setShowBooking(false)}
-          cookId={otherUser.id}
-          cookName={otherUser.full_name}
-          cookAvatar={otherUser.avatar_url}
-          priceMin={otherUser.price_min || 2500}
-          matchId={matchId as string}
-        />
-      )}
       <ChefChiLauncher />
     </div>
   )

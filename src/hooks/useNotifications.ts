@@ -61,6 +61,11 @@ export function useNotifications() {
           // likes you or you match, so that single event also refreshes the
           // likes, matches and counts without a page reload (no extra channel).
           const kind = (payload.new as { type?: string } | null)?.type
+          // Booking updates and verification changes refresh the booking screens too.
+          if (kind === 'booking' || kind === 'system') {
+            queryClient.invalidateQueries({ queryKey: ['bookings'] })
+            queryClient.invalidateQueries({ queryKey: ['booking-status'] })
+          }
           if (kind === 'like' || kind === 'match') {
             queryClient.invalidateQueries({ queryKey: ['likes'] })
             queryClient.invalidateQueries({ queryKey: ['matches'] })

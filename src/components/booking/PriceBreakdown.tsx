@@ -32,10 +32,12 @@ export function PriceBreakdown({
           <span>Subtotal</span>
           <span>₦{subtotal.toLocaleString()}</span>
         </div>
-        <div className="flex justify-between text-[var(--text-muted)]">
-          <span>Delivery Fee</span>
-          <span>₦{deliveryFee.toLocaleString()}</span>
-        </div>
+        {deliveryFee > 0 && (
+          <div className="flex justify-between text-[var(--text-muted)]">
+            <span>Delivery Fee</span>
+            <span>₦{deliveryFee.toLocaleString()}</span>
+          </div>
+        )}
         <div className="flex justify-between text-[var(--text-muted)]">
           <span>Service Fee (5%)</span>
           <span>₦{serviceFee.toLocaleString()}</span>

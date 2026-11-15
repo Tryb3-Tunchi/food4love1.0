@@ -37,7 +37,11 @@ const FILTERS: {
   label: string
   test: (booking: Booking) => boolean
 }[] = [
-  { key: 'waiting', label: 'Waiting', test: (b) => b.status === 'pending' },
+  {
+    key: 'waiting',
+    label: 'Waiting',
+    test: (b) => b.status === 'pending' || b.status === 'alternative_proposed',
+  },
   {
     key: 'active',
     label: 'Active',

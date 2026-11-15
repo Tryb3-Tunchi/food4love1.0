@@ -339,3 +339,296 @@ test('booking times must be sensible', () => {
   assert.equal(validateSchedule(new Date('nope'), now).ok, false)
   assert.equal(validateSchedule(at(-5), now).ok, false)
 })
+
+// ============================================================ booking guarantees
+import { readFileSync, existsSync } from 'node:fs'
+import { join } from 'node:path'
+import { fileURLToPath } from 'node:url'
+import { bookingEmailContent, bookingUrl } from '../src/lib/booking/email.ts'
+import { notificationHref } from '../src/lib/notificationRoutes.ts'
+import { formatLagos } from '../src/lib/booking/details.ts'
+
+const rootDir = fileURLToPath(new URL('..', import.meta.url))
+const read = (p) => readFileSync(join(rootDir, p), 'utf8')
+const code = (p) =>
+  read(p)
+    .split('\n')
+    .filter((line) => !/^\s*(\/\/|\*|\/\*)/.test(line))
+    .join('\n')
+
+test('booking emails carry only what happened and a link, never private details', () => {
+  const content = bookingEmailContent({
+    title: 'Booking accepted',
+    body: 'The cook accepted your request. Open it to pay and secure your booking.',
+    url: 'https://example.test/bookings/123e4567-e89b-42d3-a456-426614174000',
+  })
+  assert.match(content.subject, /^Food4Love: Booking accepted$/)
+  assert.match(content.html, /Open the booking/)
+  assert.match(content.text, /https:\/\/example\.test\/bookings\//)
+  for (const secret of [
+    /address/i,
+    /allerg/i,
+    /dietary/i,
+    /₦|naira|price/i,
+    /phone/i,
+  ]) {
+    assert.ok(!secret.test(content.html + content.text), String(secret))
+  }
+  // hostile text cannot inject markup
+  const evil = bookingEmailContent({
+    title: '<script>x</script>',
+    body: '"><img src=x>',
+    url: 'https://example.test/"onmouseover="x',
+  })
+  assert.ok(!evil.html.includes('<script>') && !evil.html.includes('<img'))
+  assert.ok(!/href="[^"]*"onmouseover/.test(evil.html))
+})
+
+test('booking links only ever point at this site and a real booking id', () => {
+  const id = '123e4567-e89b-42d3-a456-426614174000'
+  assert.equal(
+    bookingUrl('https://food4love.example/', id),
+    `https://food4love.example/bookings/${id}`,
+  )
+  assert.equal(bookingUrl(undefined, id), null)
+  assert.equal(bookingUrl('javascript:alert(1)', id), null)
+  assert.equal(bookingUrl('https://food4love.example', '../admin'), null)
+  assert.equal(bookingUrl('https://food4love.example', 'x'.repeat(36)), null)
+})
+
+test('verification and interest notifications open the right page', () => {
+  assert.equal(
+    notificationHref(
+      { type: 'system', data: { kind: 'verification', status: 'verified' } },
+      'cook',
+    ),
+    '/cook/verification',
+  )
+  assert.equal(
+    notificationHref({ type: 'booking', data: { kind: 'interest' } }, 'cook'),
+    '/cook/verification',
+  )
+  assert.equal(
+    notificationHref(
+      { type: 'system', data: { kind: 'verification' } },
+      'buyer',
+    ),
+    null,
+  )
+  const cookId = '123e4567-e89b-42d3-a456-426614174000'
+  assert.equal(
+    notificationHref(
+      {
+        type: 'booking',
+        data: { kind: 'interest_available', cook_id: cookId },
+      },
+      'buyer',
+    ),
+    `/cook/${cookId}`,
+  )
+  assert.equal(
+    notificationHref(
+      {
+        type: 'booking',
+        data: { kind: 'interest_available', cook_id: '../x' },
+      },
+      'buyer',
+    ),
+    '/swipe',
+  )
+  // existing booking links keep working
+  assert.equal(
+    notificationHref(
+      { type: 'booking', data: { booking_id: cookId } },
+      'buyer',
+    ),
+    `/bookings/${cookId}`,
+  )
+})
+
+test('times are shown in Nigeria time', () => {
+  assert.match(formatLagos('2026-12-05T10:00:00Z'), /11/) // 10:00 UTC is 11:00 in Lagos
+  assert.equal(formatLagos('nope'), 'an unknown time')
+})
+
+test('the booking route enforces verification on the server with the shared rule', () => {
+  const route = code('src/app/api/bookings/route.ts')
+  assert.match(route, /cookBookable\(cook\)/)
+  assert.match(route, /code: 'cook_not_verified'/)
+  // no second, hand-written copy of the rule that could drift
+  assert.ok(!/kyc_status !== 'verified'/.test(route))
+  assert.match(route, /adultStates\(admin, \[user\.id, request\.cook_id\]\)/)
+  assert.match(route, /A current match with this cook is required/)
+  // the server never decides a booking is paid
+  assert.ok(!/payment_status: 'paid'/.test(route))
+  assert.match(route, /payment_status: 'unpaid'/)
+  assert.match(route, /status: 'pending'/)
+})
+
+test('booking actions are limited to the two people in the booking', () => {
+  const route = code('src/app/api/bookings/route.ts')
+  assert.match(route, /booking\.cook_id === user\.id/)
+  assert.match(route, /booking\.buyer_id === user\.id/)
+  assert.match(
+    route,
+    /Booking not found/,
+    'a guessed id looks the same as a missing one',
+  )
+  assert.match(route, /applyAction\(/)
+  assert.match(
+    route,
+    /\.eq\('status', booking\.status\)/,
+    'only if nobody changed it meanwhile',
+  )
+  assert.match(route, /recordBookingEvent\(/)
+})
+
+test('interest requests are their own thing: own rows only, no booking, no payment', () => {
+  const route = code('src/app/api/booking-interests/route.ts')
+  assert.match(route, /\.eq\('customer_id', user\.id\)/)
+  assert.ok(!/from\('bookings'\)/.test(route), 'never touches bookings')
+  assert.ok(!/payment|paystack|payments/i.test(route), 'never touches payments')
+  assert.match(route, /canExpressInterest\(cook\)/)
+  assert.match(
+    route,
+    /notify_when_verified: z\.boolean\(\)/,
+    'consent must be stated, never assumed',
+  )
+  assert.match(route, /createLimiter/)
+  assert.match(route, /adultStates\(/)
+  const panel = read('src/components/booking/CookBookingPanel.tsx')
+  assert.match(panel, /useState\(false\)/)
+  assert.match(panel, /This is not a booking|not a booking/i)
+})
+
+test('the cook is told that someone is interested, never who', () => {
+  const route = code('src/app/api/booking-interests/route.ts')
+  const notice = route.slice(
+    route.indexOf('user_id: cookId'),
+    route.indexOf('user_id: cookId') + 500,
+  )
+  assert.ok(
+    !/customer|user\.id|full_name/.test(notice),
+    'the notification contains no customer detail',
+  )
+  const migration = read('supabase-migration-booking-verification.sql')
+  assert.match(migration, /my_interest_count/)
+  assert.match(migration, /using \(auth\.uid\(\) = customer_id\)/)
+})
+
+test('the status route reveals only what is already public', () => {
+  const route = code('src/app/api/booking-status/route.ts')
+  assert.ok(
+    !/id_number|id_document|face_video|selfie|rejection_reason/.test(route),
+  )
+  assert.match(route, /\.eq\('customer_id', user\.id\)/)
+})
+
+test('the payment-status route reports a yes/no and never a key', () => {
+  const route = code('src/app/api/payments/status/route.ts')
+  assert.match(route, /Boolean\(/)
+  // the only thing returned to the browser is the yes/no, under the name "available"
+  assert.match(route, /NextResponse\.json\(\s*\{ available \}/)
+  // environment variables are read only inside Boolean(...), never returned
+  const outsideBoolean = route.replace(/Boolean\([\s\S]*?\n\s*\)/, '')
+  assert.ok(!/process\.env/.test(outsideBoolean))
+})
+
+test('administrators: revoke is permission-controlled and audited; lists hide private details', () => {
+  const kyc = code('src/app/api/admin/kyc/route.ts')
+  const revoke = kyc.slice(kyc.indexOf('export async function POST'))
+  assert.match(revoke, /getAdminUser\('kyc:review'\)/)
+  assert.match(revoke, /beginAdminAudit\(/)
+  assert.match(revoke, /action: 'kyc\.revoke'/)
+  assert.match(revoke, /\.eq\('kyc_status', 'verified'\)/)
+  const verified = code('src/app/api/admin/kyc/verified/route.ts')
+  assert.match(verified, /getAdminUser\('kyc:review'\)/)
+  assert.ok(!/id_number|id_document|face_video/.test(verified))
+  const bookings = code('src/app/api/admin/bookings/route.ts')
+  const list = bookings.slice(
+    bookings.indexOf('LIST_COLUMNS_FULL'),
+    bookings.indexOf('export async function GET'),
+  )
+  assert.ok(
+    !/service_address|allergies|dietary|special_requests/.test(list),
+    'addresses and allergies stay out of admin lists',
+  )
+  assert.match(bookings, /getAdminUser\('bookings:manage'\)/)
+  // the existing permission system is used as it is: no bypass added
+  assert.ok(!/admin_permissions|holdsPermission/.test(bookings + revoke))
+})
+
+test('the broken in-chat modal is gone and the chat uses the shared panel', () => {
+  assert.ok(
+    !existsSync(join(rootDir, 'src/components/booking/BookingModal.tsx')),
+  )
+  assert.ok(!existsSync(join(rootDir, 'src/components/chat/BookingCTA.tsx')))
+  const chat = read('src/app/(app)/chat/[matchId]/page.tsx')
+  assert.ok(!/BookingModal/.test(chat))
+  assert.match(chat, /CookBookingPanel/)
+  assert.match(chat, /ChatBookings/)
+})
+
+test('the booking form states allergies, shows fees by service type, and tells the truth about payment', () => {
+  const form = read('src/components/booking/BookingForm.tsx')
+  assert.match(form, /allergyIsDeclared\(allergies\)/)
+  assert.match(form, /No allergies or food restrictions/)
+  assert.match(form, /needsAddress\(serviceType\)/)
+  assert.match(form, /deliveryFeeFor\(serviceType\)/)
+  assert.match(form, /Online payment is not available yet/)
+  assert.match(form, /aria-invalid/)
+  assert.match(form, /role="alert"/)
+  // an unverified cook never gets a form
+  assert.match(form, /!status\.data\?\.bookable/)
+  const detail = read('src/app/(app)/bookings/[id]/page.tsx')
+  assert.match(detail, /online payment is not\s+available yet/)
+  assert.match(detail, /canPay && paymentsAvailable/)
+})
+
+test('booking updates refresh live over the existing notification channel (no new channel)', () => {
+  const hook = read('src/hooks/useNotifications.ts')
+  assert.match(hook, /kind === 'booking'/)
+  assert.match(hook, /queryKey: \['bookings'\]/)
+  for (const file of [
+    'src/components/booking/ChatBookings.tsx',
+    'src/components/booking/CookBookingPanel.tsx',
+    'src/components/booking/BookingHistory.tsx',
+  ]) {
+    assert.ok(
+      !/\.channel\(|postgres_changes/.test(read(file)),
+      `${file} opens no extra channel`,
+    )
+  }
+})
+
+test('the migration keeps the booking safety rules in the database itself', () => {
+  const sql = read('supabase-migration-booking-verification.sql')
+  assert.match(sql, /p\.kyc_status = 'verified'/)
+  assert.match(sql, /bookings_one_active_per_slot_idx/)
+  assert.match(sql, /pg_advisory_xact_lock/)
+  assert.match(sql, /A new booking must start as pending and unpaid/)
+  assert.match(sql, /cannot be completed before payment is confirmed/)
+  assert.match(
+    sql,
+    /alter table public\.booking_events enable row level security/,
+  )
+  assert.match(
+    sql,
+    /alter table public\.booking_interests enable row level security/,
+  )
+  // exactly one status was added
+  assert.match(
+    sql,
+    /'pending', 'alternative_proposed', 'confirmed', 'completed', 'cancelled'/,
+  )
+  const runnable = sql
+    .split('\n')
+    .filter((l) => !/^\s*--/.test(l))
+    .join('\n')
+  assert.match(runnable, /^\s*begin;/m)
+  assert.match(runnable, /^\s*commit;/m)
+  assert.ok(
+    !/\b(delete from|truncate table|drop table)\b/i.test(runnable),
+    'removes no data',
+  )
+})

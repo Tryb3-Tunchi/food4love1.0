@@ -15,11 +15,12 @@ import {
   Wallet,
 } from 'lucide-react'
 import { useAuthStore } from '@/stores/useAuthStore'
-import {
-  getBookingById,
-  acceptBooking,
-  type Booking,
-} from '@/services/bookings'
+import { getBookingById, type Booking } from '@/services/bookings'
+import { useQuery } from '@tanstack/react-query'
+import { BookingActions } from '@/components/booking/BookingActions'
+import { BookingHistory } from '@/components/booking/BookingHistory'
+import { statusHint } from '@/lib/booking/lifecycle'
+import { SERVICE_LABELS, formatLagos } from '@/lib/booking/details'
 import { createClient } from '@/lib/supabase/client'
 import toast from 'react-hot-toast'
 
@@ -38,11 +39,33 @@ export default function BookingDetailPage({
   const [walletBalance, setWalletBalance] = useState(0)
   const [walletPayLoading, setWalletPayLoading] = useState(false)
 
+  // The query key starts with 'bookings', so a booking notification (live, over the
+  // existing notifications channel) refreshes this page without a reload.
+  const bookingQuery = useQuery({
+    queryKey: ['bookings', 'detail', params.id],
+    queryFn: () => getBookingById(params.id),
+    staleTime: 5_000,
+  })
   useEffect(() => {
-    getBookingById(params.id)
-      .then(setBooking)
-      .finally(() => setIsLoading(false))
-  }, [params.id])
+    if (bookingQuery.isFetched) {
+      setBooking(bookingQuery.data ?? null)
+      setIsLoading(false)
+    }
+  }, [bookingQuery.isFetched, bookingQuery.data])
+
+  const paymentsQuery = useQuery({
+    queryKey: ['payments-status'],
+    queryFn: async () => {
+      const response = await fetch('/api/payments/status', {
+        cache: 'no-store',
+      })
+      const body = await response.json().catch(() => ({}))
+      return response.ok && body.available === true
+    },
+    staleTime: 60_000,
+  })
+  // Until we know, assume it is available so a working Pay button is never hidden.
+  const paymentsAvailable = paymentsQuery.data !== false
 
   useEffect(() => {
     if (profile?.role !== 'buyer') return
@@ -56,16 +79,6 @@ export default function BookingDetailPage({
       .catch(() => undefined)
     return () => controller.abort()
   }, [profile?.role])
-
-  const handleAccept = async () => {
-    try {
-      await acceptBooking(params.id)
-      toast.success('Booking accepted!')
-      setBooking((prev) => (prev ? { ...prev, status: 'confirmed' } : prev))
-    } catch {
-      toast.error('Failed to update')
-    }
-  }
 
   const handlePayNow = async () => {
     if (!booking) return
@@ -196,7 +209,15 @@ export default function BookingDetailPage({
   }
 
   const isCook = profile?.id === booking.cook_id
-  const currentStep = statusSteps.indexOf(booking.status)
+  const currentStep =
+    booking.status === 'cancelled'
+      ? -1
+      : booking.status === 'completed'
+        ? 2
+        : booking.status === 'confirmed'
+          ? 1
+          : 0
+  const viewer = isCook ? 'cook' : 'buyer'
   const canPay =
     booking.status === 'confirmed' &&
     ['unpaid', 'pending'].includes(booking.payment_status) &&
@@ -256,21 +277,13 @@ export default function BookingDetailPage({
             ))}
           </div>
           <div className="mt-3 text-center text-sm font-medium text-[var(--text)]">
-            {booking.status === 'pending' &&
-              isCook &&
-              'You have a new booking request!'}
-            {booking.status === 'pending' &&
-              !isCook &&
-              'Waiting for chef to confirm...'}
-            {booking.status === 'confirmed' &&
-              !isPaid &&
-              'Your cooking session is confirmed. Complete payment to continue.'}
-            {booking.status === 'confirmed' &&
-              isPaid &&
-              'Payment confirmed! Chef will start preparing.'}
-            {booking.status === 'completed' && 'Cooking session completed.'}
-            {booking.status === 'cancelled' &&
-              'This cooking session was cancelled.'}
+            {statusHint(
+              {
+                status: booking.status,
+                payment_status: booking.payment_status,
+              },
+              viewer,
+            )}
           </div>
         </div>
 
@@ -310,26 +323,70 @@ export default function BookingDetailPage({
             <MapPin className="mt-0.5 h-4 w-4 text-[var(--primary)]" />
             <div>
               <p className="text-[var(--text-muted)]">
-                At-home service address
+                {booking.service_type === 'pickup'
+                  ? 'Collection'
+                  : booking.service_type === 'delivery'
+                    ? 'Delivery address'
+                    : 'Where the cook will come'}
               </p>
-              <p className="font-medium text-[var(--text)]">{serviceAddress}</p>
+              <p className="font-medium text-[var(--text)]">
+                {booking.service_type === 'pickup'
+                  ? 'The cook will tell you where to collect it.'
+                  : serviceAddress}
+              </p>
             </div>
           </div>
         </div>
 
+        {(booking.service_type ||
+          booking.allergies ||
+          (booking.dietary_preferences ?? []).length > 0 ||
+          booking.guest_count) && (
+          <div className="mb-6 space-y-2 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4 text-sm">
+            {booking.service_type && (
+              <p className="text-[var(--text)]">
+                <span className="text-[var(--text-muted)]">Service: </span>
+                {SERVICE_LABELS[booking.service_type]}
+              </p>
+            )}
+            {booking.guest_count ? (
+              <p className="text-[var(--text)]">
+                <span className="text-[var(--text-muted)]">People: </span>
+                {booking.guest_count}
+              </p>
+            ) : null}
+            {booking.allergies && (
+              <p className="text-[var(--text)]">
+                <span className="text-[var(--text-muted)]">Allergies: </span>
+                {booking.allergies}
+              </p>
+            )}
+            {(booking.dietary_preferences ?? []).length > 0 && (
+              <p className="text-[var(--text)]">
+                <span className="text-[var(--text-muted)]">Diet: </span>
+                {(booking.dietary_preferences ?? []).join(', ')}
+              </p>
+            )}
+            {booking.status === 'alternative_proposed' &&
+              booking.scheduled_for && (
+                <p className="text-xs text-[var(--text-muted)]">
+                  Original time: {formatLagos(booking.scheduled_for)}
+                </p>
+              )}
+          </div>
+        )}
+
+        <BookingHistory bookingId={booking.id} />
+
         {/* Actions */}
         <div className="space-y-3">
-          {booking.status === 'pending' && isCook && (
-            <motion.button
-              whileTap={{ scale: 0.98 }}
-              onClick={handleAccept}
-              className="shadow-[var(--primary)]/20 w-full rounded-2xl bg-[var(--primary)] py-4 font-bold text-white shadow-lg"
-            >
-              Accept Booking
-            </motion.button>
-          )}
+          <BookingActions
+            booking={booking}
+            viewer={viewer}
+            onChanged={() => void bookingQuery.refetch()}
+          />
 
-          {canPay && (
+          {canPay && paymentsAvailable && (
             <motion.button
               whileTap={{ scale: 0.98 }}
               onClick={handlePayNow}
@@ -350,7 +407,7 @@ export default function BookingDetailPage({
             </motion.button>
           )}
 
-          {canPayWithWallet && (
+          {canPayWithWallet && paymentsAvailable && (
             <motion.button
               whileTap={{ scale: 0.98 }}
               onClick={handleWalletPayment}
@@ -382,6 +439,17 @@ export default function BookingDetailPage({
                 .
               </p>
             )}
+
+          {canPay && !paymentsAvailable && (
+            <p
+              role="status"
+              className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4 text-center text-sm text-[var(--text-muted)]"
+            >
+              The cook accepted your booking, but online payment is not
+              available yet, so it cannot be paid for right now. Nothing has
+              been charged. You will be told when payment opens.
+            </p>
+          )}
 
           {isPaid && (
             <div className="bg-[var(--success)]/10 flex items-center justify-center gap-2 rounded-2xl py-4 text-sm font-bold text-[var(--success)]">

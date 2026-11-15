@@ -34,7 +34,7 @@ export async function GET(request: NextRequest) {
   const admin = createAdminClient()
   const { data: cook } = await admin
     .from('profiles')
-    .select('role, suspended, onboarding_complete, kyc_status')
+    .select('role, suspended, onboarding_complete, kyc_status, full_name')
     .eq('id', cookId)
     .maybeSingle()
   if (!cook || cook.role !== 'cook') {
@@ -76,6 +76,7 @@ export async function GET(request: NextRequest) {
 
   return NextResponse.json(
     {
+      cook_name: cook.full_name ?? null,
       state,
       label: VERIFICATION_LABELS[state],
       bookable,
