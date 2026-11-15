@@ -18,6 +18,7 @@ import {
   NEW_REQUEST_NOTICE,
   type Actor,
   type BookingAction,
+  type BookingStatus,
 } from '@/lib/booking/lifecycle'
 import {
   DIETARY_OPTIONS,
@@ -35,6 +36,7 @@ import {
   notifyBookingParty,
   recordBookingEvent,
 } from '@/lib/booking/server'
+import { loadBookingForAction } from '@/lib/booking/load'
 
 // ------------------------------------------------------------------ create
 
@@ -495,13 +497,12 @@ export async function PATCH(req: NextRequest) {
     const decision = parsed.data
 
     const admin = createAdminClient()
-    const { data: booking } = await admin
-      .from('bookings')
-      .select(
-        'id, buyer_id, cook_id, match_id, status, payment_status, scheduled_for, proposed_scheduled_for',
-      )
-      .eq('id', decision.booking_id)
-      .maybeSingle()
+    // Works before AND after the booking migration (see loadBookingForAction).
+    const booking = await loadBookingForAction(
+      admin as unknown as Parameters<typeof loadBookingForAction>[0],
+      decision.booking_id,
+      isMissingSchema,
+    )
 
     // Not a participant: indistinguishable from a booking that does not exist, so a
     // guessed booking id reveals nothing.
@@ -521,6 +522,13 @@ export async function PATCH(req: NextRequest) {
       .select('role, suspended, kyc_status, onboarding_complete')
       .eq('id', user.id)
       .maybeSingle()
+    const adults = await adultStates(admin, [user.id])
+    if (adults.get(user.id) === 'required') {
+      return NextResponse.json(
+        { error: AGE_REQUIRED_MESSAGE, code: AGE_REQUIRED_CODE },
+        { status: 403 },
+      )
+    }
     if (!me || me.suspended) {
       return NextResponse.json(
         { error: 'Your account is not eligible for this action' },
@@ -544,7 +552,10 @@ export async function PATCH(req: NextRequest) {
     }
 
     const transition = applyAction(
-      { status: booking.status, payment_status: booking.payment_status },
+      {
+        status: booking.status as BookingStatus,
+        payment_status: booking.payment_status,
+      },
       actor,
       decision.action as BookingAction,
     )

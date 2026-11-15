@@ -60,7 +60,7 @@ export default function BookingDetailPage({
         cache: 'no-store',
       })
       const body = await response.json().catch(() => ({}))
-      return response.ok && body.available === true
+      return response.ok ? body.available === true : true
     },
     staleTime: 60_000,
   })
@@ -407,7 +407,7 @@ export default function BookingDetailPage({
             </motion.button>
           )}
 
-          {canPayWithWallet && paymentsAvailable && (
+          {canPayWithWallet && (
             <motion.button
               whileTap={{ scale: 0.98 }}
               onClick={handleWalletPayment}
@@ -424,6 +424,7 @@ export default function BookingDetailPage({
           )}
 
           {canPay &&
+            paymentsAvailable &&
             profile?.role === 'buyer' &&
             walletBalance > 0 &&
             walletBalance < bookingAmount && (
@@ -440,7 +441,7 @@ export default function BookingDetailPage({
               </p>
             )}
 
-          {canPay && !paymentsAvailable && (
+          {canPay && !paymentsAvailable && !canPayWithWallet && (
             <p
               role="status"
               className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4 text-center text-sm text-[var(--text-muted)]"

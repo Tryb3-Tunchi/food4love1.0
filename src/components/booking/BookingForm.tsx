@@ -100,7 +100,7 @@ export function BookingForm({ cookId, matchId }: BookingFormProps) {
         cache: 'no-store',
       })
       const body = await response.json().catch(() => ({}))
-      return { available: response.ok && body.available === true }
+      return { available: response.ok ? body.available === true : true }
     },
     staleTime: 60_000,
   })

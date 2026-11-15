@@ -632,3 +632,167 @@ test('the migration keeps the booking safety rules in the database itself', () =
     'removes no data',
   )
 })
+
+// ===================================================== pre-PR review corrections
+import { loadBookingForAction } from '../src/lib/booking/load.ts'
+
+// A stand-in database client. `columns` is what the "database" actually has; asking for a
+// column it does not have fails the way PostgREST does before the migration is applied.
+function fakeDb(columns, row) {
+  return {
+    from() {
+      return {
+        select(wanted) {
+          const asked = wanted.split(',').map((c) => c.trim())
+          return {
+            eq() {
+              return {
+                async maybeSingle() {
+                  const missing = asked.find((c) => !columns.includes(c))
+                  if (missing)
+                    return {
+                      data: null,
+                      error: {
+                        code: 'PGRST204',
+                        message: `Could not find the '${missing}' column of 'bookings' in the schema cache`,
+                      },
+                    }
+                  return {
+                    data: Object.fromEntries(
+                      asked.map((c) => [c, row[c] ?? null]),
+                    ),
+                    error: null,
+                  }
+                },
+              }
+            },
+          }
+        },
+      }
+    },
+  }
+}
+const isMissing = (e) =>
+  !!e && (e.code === 'PGRST204' || /could not find/i.test(e.message ?? ''))
+const OLD_COLS = [
+  'id',
+  'buyer_id',
+  'cook_id',
+  'match_id',
+  'status',
+  'payment_status',
+  'scheduled_for',
+]
+const row = {
+  id: 'b1',
+  buyer_id: 'u1',
+  cook_id: 'u2',
+  match_id: 'm1',
+  status: 'pending',
+  payment_status: 'unpaid',
+  scheduled_for: '2026-12-01T10:00:00Z',
+  proposed_scheduled_for: '2026-12-02T10:00:00Z',
+}
+
+test('accepting and declining still work BEFORE the booking migration is applied', async () => {
+  const booking = await loadBookingForAction(
+    fakeDb(OLD_COLS, row),
+    'b1',
+    isMissing,
+  )
+  assert.equal(booking.id, 'b1')
+  assert.equal(booking.status, 'pending')
+  assert.equal(
+    booking.proposed_scheduled_for,
+    null,
+    'the missing column reads as "no suggested time"',
+  )
+  // and the decision rules work on that row exactly as they do after the migration
+  assert.equal(applyAction(booking, 'cook', 'accept').to, 'confirmed')
+  assert.equal(applyAction(booking, 'cook', 'decline').to, 'cancelled')
+})
+
+test('AFTER the migration the suggested time is read too', async () => {
+  const booking = await loadBookingForAction(
+    fakeDb([...OLD_COLS, 'proposed_scheduled_for'], row),
+    'b1',
+    isMissing,
+  )
+  assert.equal(booking.proposed_scheduled_for, '2026-12-02T10:00:00Z')
+})
+
+test('a real database error is not mistaken for "migration not applied"', async () => {
+  const broken = {
+    from: () => ({
+      select: () => ({
+        eq: () => ({
+          maybeSingle: async () => ({
+            data: null,
+            error: { code: '57014', message: 'statement timeout' },
+          }),
+        }),
+      }),
+    }),
+  }
+  assert.equal(await loadBookingForAction(broken, 'b1', isMissing), null)
+  // and a booking that does not exist is simply null in both schemas
+  const none = {
+    from: () => ({
+      select: () => ({
+        eq: () => ({ maybeSingle: async () => ({ data: null, error: null }) }),
+      }),
+    }),
+  }
+  assert.equal(await loadBookingForAction(none, 'zzz', isMissing), null)
+})
+
+test('the action route reads the booking through the fallback and applies the adult rule', () => {
+  const route = code('src/app/api/bookings/route.ts')
+  const patch = route.slice(route.indexOf('export async function PATCH'))
+  assert.match(patch, /loadBookingForAction\(/)
+  assert.ok(
+    !/proposed_scheduled_for',?\s*\)\s*\.eq\('id', decision\.booking_id\)/.test(
+      patch,
+    ),
+    'no direct query for the new column',
+  )
+  assert.match(patch, /adultStates\(admin, \[user\.id\]\)/)
+  assert.match(patch, /AGE_REQUIRED_CODE/)
+})
+
+test('payment screens never hide a working payment option', () => {
+  const detail = read('src/app/(app)/bookings/[id]/page.tsx')
+  // an error answer is treated as "available": only an explicit "not available" hides card payment
+  assert.match(detail, /response\.ok \? body\.available === true : true/)
+  // the wallet does not use Paystack, so it is never hidden by the Paystack check
+  assert.match(detail, /\{canPayWithWallet && \(/)
+  assert.ok(!/canPayWithWallet && paymentsAvailable/.test(detail))
+  // the "unavailable" notice appears only when there is truly no way to pay
+  assert.match(detail, /canPay && !paymentsAvailable && !canPayWithWallet/)
+  const form = read('src/components/booking/BookingForm.tsx')
+  assert.match(form, /response\.ok \? body\.available === true : true/)
+})
+
+test('no payment or webhook code was changed by this branch', () => {
+  // existing payment routes are byte-for-byte the ones from develop; only a new read-only status route exists
+  for (const file of [
+    'src/app/api/payments/initialize/route.ts',
+    'src/app/api/payments/verify/route.ts',
+    'src/app/api/payments/wallet/route.ts',
+    'src/app/api/webhooks/paystack/route.ts',
+    'src/lib/payments/paystackWebhook.ts',
+    'src/lib/paystackLoader.ts',
+  ]) {
+    const text = read(file)
+    assert.ok(
+      !/booking_events|alternative_proposed|booking_interests/.test(text),
+      file,
+    )
+  }
+  const verify = read('src/app/api/payments/verify/route.ts')
+  assert.match(verify, /data\.data\?\.amount !== bookingAmount \* 100/)
+  assert.match(
+    read('src/app/api/webhooks/paystack/route.ts'),
+    /verifyPaystackSignature\(/,
+  )
+})
