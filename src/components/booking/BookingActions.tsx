@@ -306,7 +306,8 @@ export function BookingActions({
         </button>
       )}
 
-      {can('cancel') && mode !== 'cancel' && (
+      {/* A cook answering a pending request uses Decline; Cancel is for everything else */}
+      {can('cancel') && !can('decline') && mode !== 'cancel' && (
         <button
           type="button"
           onClick={() => setMode('cancel')}
