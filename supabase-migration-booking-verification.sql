@@ -176,6 +176,25 @@ begin
       raise exception 'A booking cannot be completed before payment is confirmed' using errcode = '23514';
     end if;
   end if;
+
+  -- Moving a booking to another day (the customer accepting the cook's suggested time)
+  -- needs the same daily-limit check as a new booking, under the SAME lock, so two
+  -- customers accepting at once cannot both take the last place. The booking being
+  -- moved is not counted against itself.
+  if new.scheduled_for is not null and new.status <> 'cancelled'
+     and new.scheduled_for is distinct from old.scheduled_for then
+    select a.max_orders_per_day into max_orders from public.cook_availability a where a.cook_id = new.cook_id;
+    if max_orders is not null then
+      day := (new.scheduled_for at time zone 'Africa/Lagos')::date;
+      perform pg_advisory_xact_lock(hashtextextended(new.cook_id::text || ':' || day::text, 0));
+      select count(*) into booked from public.bookings b
+       where b.cook_id = new.cook_id and b.status <> 'cancelled' and b.id <> new.id
+         and (b.scheduled_for at time zone 'Africa/Lagos')::date = day;
+      if booked >= max_orders then
+        raise exception 'This cook is fully booked on that day' using errcode = '23514';
+      end if;
+    end if;
+  end if;
   return new;
 end;
 $$;

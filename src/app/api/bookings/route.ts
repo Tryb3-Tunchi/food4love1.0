@@ -37,6 +37,7 @@ import {
   recordBookingEvent,
 } from '@/lib/booking/server'
 import { loadBookingForAction } from '@/lib/booking/load'
+import { checkProposedSlot, lagosSlot } from '@/lib/booking/capacity'
 
 // ------------------------------------------------------------------ create
 
@@ -259,11 +260,12 @@ export async function POST(req: NextRequest) {
 
     const requestedAt = new Date(request.scheduled_at)
     // Cook schedules are stored and displayed in Nigeria time (UTC+1).
-    const lagosAt = new Date(requestedAt.getTime() + 60 * 60 * 1000)
-    const serviceDate = lagosAt.toISOString().slice(0, 10)
-    const serviceTime = lagosAt.toISOString().slice(11, 16)
-    const dayStart = new Date(`${serviceDate}T00:00:00+01:00`)
-    const dayEnd = new Date(dayStart.getTime() + 24 * 60 * 60 * 1000)
+    const {
+      date: serviceDate,
+      time: serviceTime,
+      dayStart,
+      dayEnd,
+    } = lagosSlot(requestedAt.toISOString())
 
     const { data: availability, error: availabilityError } = await admin
       .from('cook_availability')
@@ -282,8 +284,8 @@ export async function POST(req: NextRequest) {
         .from('bookings')
         .select('id', { count: 'exact', head: true })
         .eq('cook_id', request.cook_id)
-        .gte('scheduled_for', dayStart.toISOString())
-        .lt('scheduled_for', dayEnd.toISOString())
+        .gte('scheduled_for', dayStart)
+        .lt('scheduled_for', dayEnd)
         .neq('status', 'cancelled')
       if (countError) {
         return NextResponse.json(
@@ -586,6 +588,30 @@ export async function PATCH(req: NextRequest) {
           { status: 409 },
         )
       }
+      // The time was free when the cook suggested it; it may not be now (other
+      // customers may have taken the day in the meantime). Check again, on the server,
+      // with the same rules used when a booking is first made. The database repeats
+      // this check under a lock once the booking migration is applied, so two
+      // customers accepting at once cannot both get the last place.
+      const slot = await checkProposedSlot(
+        admin as unknown as Parameters<typeof checkProposedSlot>[0],
+        {
+          cookId: booking.cook_id,
+          bookingId: booking.id,
+          scheduledAtIso: booking.proposed_scheduled_for,
+        },
+        {
+          checkAvailability: checkAvailability as unknown as Parameters<
+            typeof checkProposedSlot
+          >[2]['checkAvailability'],
+        },
+      )
+      if (!slot.ok) {
+        return NextResponse.json(
+          { error: slot.reason, code: slot.code },
+          { status: slot.status },
+        )
+      }
       update.scheduled_for = booking.proposed_scheduled_for
       update.proposed_scheduled_for = null
       update.proposed_note = null
@@ -642,6 +668,18 @@ export async function PATCH(req: NextRequest) {
             code: 'cook_not_verified',
           },
           { status: 403 },
+        )
+      }
+      // The database's own check caught a race (someone else took the last place
+      // between our check and this update).
+      if (/fully booked/i.test(message)) {
+        return NextResponse.json(
+          {
+            error:
+              'The suggested time is no longer available. This cook is fully booked that day. You can ask the cook for another time, or cancel the booking.',
+            code: 'slot_unavailable',
+          },
+          { status: 409 },
         )
       }
       return NextResponse.json(

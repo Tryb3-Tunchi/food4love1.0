@@ -796,3 +796,224 @@ test('no payment or webhook code was changed by this branch', () => {
     /verifyPaystackSignature\(/,
   )
 })
+
+// ===================================================== accepting a suggested time re-checks capacity
+import { lagosSlot, checkProposedSlot } from '../src/lib/booking/capacity.ts'
+import { checkAvailability } from '../src/lib/availability.ts'
+
+// A stand-in database: a list of bookings and one availability row, filtered the way
+// the real queries filter them.
+function capacityDb({ availability, bookings, failOn }) {
+  return {
+    from(table) {
+      return {
+        select() {
+          const filters = []
+          const query = {
+            eq: (c, v) => (filters.push((r) => r[c] === v), query),
+            neq: (c, v) => (filters.push((r) => r[c] !== v), query),
+            gte: (c, v) => (filters.push((r) => r[c] >= v), query),
+            lt: (c, v) => (filters.push((r) => r[c] < v), query),
+            async maybeSingle() {
+              if (failOn === table)
+                return { data: null, error: { message: 'boom' } }
+              return { data: availability ?? null, error: null }
+            },
+            then(resolve, reject) {
+              const result =
+                failOn === table
+                  ? { count: null, error: { message: 'boom' } }
+                  : {
+                      count: bookings.filter((r) => filters.every((f) => f(r)))
+                        .length,
+                      error: null,
+                    }
+              return Promise.resolve(result).then(resolve, reject)
+            },
+          }
+          return query
+        },
+      }
+    },
+  }
+}
+const deps = { checkAvailability }
+const FAR = '2099-03-10T10:00:00.000Z' // far enough ahead that the notice rule is satisfied
+const slotBooking = (id, scheduled_for, status = 'confirmed') => ({
+  id,
+  cook_id: 'cook1',
+  scheduled_for,
+  status,
+})
+const slotInput = { cookId: 'cook1', bookingId: 'mine', scheduledAtIso: FAR }
+
+test('the Lagos day starts an hour before UTC midnight', () => {
+  assert.equal(lagosSlot('2099-03-10T22:59:00Z').date, '2099-03-10')
+  assert.equal(lagosSlot('2099-03-10T23:00:00Z').date, '2099-03-11')
+  const slot = lagosSlot('2099-03-10T10:00:00Z')
+  assert.equal(slot.time, '11:00')
+  assert.equal(slot.dayStart, '2099-03-09T23:00:00.000Z')
+  assert.equal(slot.dayEnd, '2099-03-10T23:00:00.000Z')
+})
+
+test('a suggested time on a day that is now full is refused with a clear message', async () => {
+  const db = capacityDb({
+    availability: {
+      cook_id: 'cook1',
+      max_orders_per_day: 2,
+      weekly_hours: {},
+      notice_hours: 0,
+    },
+    bookings: [
+      slotBooking('a', FAR),
+      slotBooking('b', '2099-03-10T15:00:00.000Z', 'pending'),
+    ],
+  })
+  const result = await checkProposedSlot(db, slotInput, deps)
+  assert.equal(result.ok, false)
+  assert.equal(result.status, 409)
+  assert.equal(result.code, 'slot_unavailable')
+  assert.match(result.reason, /no longer available/i)
+  assert.match(result.reason, /fully booked/i)
+})
+
+test('a day with room left is accepted, and the booking being moved is not counted against itself', async () => {
+  const availability = {
+    cook_id: 'cook1',
+    max_orders_per_day: 2,
+    weekly_hours: {},
+    notice_hours: 0,
+  }
+  // one other booking that day + my own booking already sitting on that day = still room
+  const db = capacityDb({
+    availability,
+    bookings: [
+      slotBooking('a', FAR),
+      slotBooking('mine', '2099-03-10T12:00:00.000Z', 'alternative_proposed'),
+    ],
+  })
+  assert.deepEqual(await checkProposedSlot(db, slotInput, deps), { ok: true })
+})
+
+test('cancelled bookings, other cooks and other days do not use up the limit', async () => {
+  const availability = {
+    cook_id: 'cook1',
+    max_orders_per_day: 1,
+    weekly_hours: {},
+    notice_hours: 0,
+  }
+  const db = capacityDb({
+    availability,
+    bookings: [
+      slotBooking('a', FAR, 'cancelled'),
+      { ...slotBooking('b', FAR), cook_id: 'cook2' },
+      slotBooking('c', '2099-03-11T10:00:00.000Z'),
+      slotBooking('d', '2099-03-10T23:00:00.000Z'), // 00:00 Lagos on the 11th
+    ],
+  })
+  assert.deepEqual(await checkProposedSlot(db, slotInput, deps), { ok: true })
+})
+
+test("the cook's other rules (paused, opening hours, notice) apply to the suggested time too", async () => {
+  const paused = capacityDb({
+    availability: { cook_id: 'cook1', is_paused: true, weekly_hours: {} },
+    bookings: [],
+  })
+  assert.equal((await checkProposedSlot(paused, slotInput, deps)).ok, false)
+  const closed = capacityDb({
+    availability: {
+      cook_id: 'cook1',
+      weekly_hours: { mon: { open: '09:00', close: '17:00' } },
+    }, // 2099-03-10 is a Tuesday
+    bookings: [],
+  })
+  const closedResult = await checkProposedSlot(closed, slotInput, deps)
+  assert.equal(closedResult.ok, false)
+  assert.equal(closedResult.code, 'slot_unavailable')
+  const soon = capacityDb({
+    availability: { cook_id: 'cook1', notice_hours: 24, weekly_hours: {} },
+    bookings: [],
+  })
+  const nearFuture = new Date(Date.now() + 2 * 3_600_000).toISOString()
+  assert.equal(
+    (
+      await checkProposedSlot(
+        soon,
+        { ...slotInput, scheduledAtIso: nearFuture },
+        deps,
+      )
+    ).ok,
+    false,
+  )
+})
+
+test('a cook with no availability settings has no limit to enforce (same as when booking)', async () => {
+  const db = capacityDb({
+    availability: null,
+    bookings: [slotBooking('a', FAR)],
+  })
+  assert.deepEqual(await checkProposedSlot(db, slotInput, deps), { ok: true })
+})
+
+test('if the database cannot answer, the suggested time is NOT accepted', async () => {
+  const availability = {
+    cook_id: 'cook1',
+    max_orders_per_day: 5,
+    weekly_hours: {},
+    notice_hours: 0,
+  }
+  for (const failOn of ['cook_availability', 'bookings']) {
+    const result = await checkProposedSlot(
+      capacityDb({ availability, bookings: [], failOn }),
+      slotInput,
+      deps,
+    )
+    assert.equal(result.ok, false, failOn)
+    assert.equal(result.status, 503, failOn)
+    assert.equal(result.code, 'check_failed', failOn)
+  }
+})
+
+test('accepting a suggested time is checked on the server and again by the database (atomic, same lock as a new booking)', () => {
+  const route = code('src/app/api/bookings/route.ts')
+  const patch = route.slice(route.indexOf('export async function PATCH'))
+  const accept = patch.slice(
+    patch.indexOf("decision.action === 'accept_alternative'"),
+  )
+  // the capacity check happens BEFORE the time is moved
+  assert.ok(accept.indexOf('checkProposedSlot(') > -1)
+  assert.ok(
+    accept.indexOf('checkProposedSlot(') <
+      accept.indexOf('update.scheduled_for'),
+  )
+  assert.match(accept, /slot\.status/)
+  // a race lost inside the database is answered with the same clear message
+  assert.match(patch, /\/fully booked\/i\.test\(message\)/)
+  assert.match(patch, /code: 'slot_unavailable'/)
+  // creating a booking uses the very same day calculation
+  assert.match(route, /lagosSlot\(requestedAt\.toISOString\(\)\)/)
+
+  const sql = read('supabase-migration-booking-verification.sql')
+  const guardStart = sql.indexOf(
+    'create or replace function public.booking_guard()',
+  )
+  const guard = sql.slice(
+    guardStart,
+    sql.indexOf('drop trigger if exists booking_guard', guardStart),
+  )
+  const lockKey =
+    /pg_advisory_xact_lock\(hashtextextended\(new\.cook_id::text \|\| ':' \|\| day::text, 0\)\)/g
+  assert.equal(
+    (guard.match(lockKey) ?? []).length,
+    2,
+    'insert and time change take the same lock',
+  )
+  assert.match(guard, /new\.scheduled_for is distinct from old\.scheduled_for/)
+  assert.match(guard, /b\.id <> new\.id/)
+  // the status transition rules and the payment rule are untouched
+  assert.match(
+    guard,
+    /old\.status = 'alternative_proposed' and new\.status in \('confirmed', 'cancelled'\)/,
+  )
+  assert.match(guard, /cannot be completed before payment is confirmed/)
+})
