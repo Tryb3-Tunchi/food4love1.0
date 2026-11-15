@@ -16,28 +16,125 @@ const reconcileSchema = z.object({
   verification_reason: z.string().trim().min(10).max(1000),
 })
 
+// The admin list never loads the service address, allergies, dietary needs or notes:
+// those are for the two people in the booking. Staff see who, when, what state and money.
+const LIST_COLUMNS_FULL =
+  'id, buyer_id, cook_id, status, payment_status, payment_reference, amount, price, created_at, scheduled_for, service_type, guest_count, cancelled_by, cancel_reason, completed_at'
+const LIST_COLUMNS_LEGACY =
+  'id, buyer_id, cook_id, status, payment_status, payment_reference, amount, price, created_at, scheduled_for, guest_count'
+const RELATIONS =
+  ', cook:profiles!bookings_cook_id_fkey(id, full_name), buyer:profiles!bookings_buyer_id_fkey(id, full_name), payment_refunds(id, amount_kobo, reason, status, provider_refund_id, created_at)'
+
+async function countRows(
+  admin: ReturnType<typeof createAdminClient>,
+  table: string,
+  filter?: (query: any) => any,
+) {
+  let query = admin.from(table).select('id', { count: 'exact', head: true })
+  if (filter) query = filter(query)
+  const { count, error } = await query
+  return error ? null : (count ?? 0)
+}
+
 export async function GET(request: NextRequest) {
   const actor = await getAdminUser('bookings:manage')
   if (!actor) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
   const admin = createAdminClient()
   const status = request.nextUrl.searchParams.get('status')
-  let query = admin
-    .from('bookings')
-    .select(
-      '*, cook:profiles!bookings_cook_id_fkey(id, full_name), buyer:profiles!bookings_buyer_id_fkey(id, full_name), payment_refunds(id, amount_kobo, reason, status, provider_refund_id, created_at)',
-    )
-    .order('created_at', { ascending: false })
-    .limit(200)
-  if (status) query = query.eq('status', status)
+  const build = (columns: string) => {
+    let query = admin
+      .from('bookings')
+      .select(columns + RELATIONS)
+      .order('created_at', { ascending: false })
+      .limit(200)
+    if (status) query = query.eq('status', status)
+    return query
+  }
 
-  const { data, error } = await query
+  let { data, error } = await build(LIST_COLUMNS_FULL)
+  // The booking migration is not applied yet: use the columns the older table has.
+  if (error) ({ data, error } = await build(LIST_COLUMNS_LEGACY))
   if (error)
     return NextResponse.json(
       { error: 'Could not load bookings' },
       { status: 500 },
     )
-  return NextResponse.json({ bookings: data ?? [] })
+
+  // Counts for the whole table (not just the 200 shown), so the numbers are real.
+  const { data: allStatuses } = await admin
+    .from('bookings')
+    .select('status, payment_status')
+    .limit(10000)
+  const counts: Record<string, number> = {}
+  for (const row of allStatuses ?? [])
+    counts[row.status ?? 'unknown'] = (counts[row.status ?? 'unknown'] ?? 0) + 1
+
+  // Demand waiting on verification: per cook, never per customer.
+  const { data: interestRows, error: interestError } = await admin
+    .from('booking_interests')
+    .select(
+      'cook_id, status, notify_when_verified, cook:profiles!booking_interests_cook_id_fkey(full_name, kyc_status)',
+    )
+    .limit(5000)
+  const demand = new Map<
+    string,
+    {
+      cook_id: string
+      name: string
+      state: string
+      active: number
+      notify: number
+    }
+  >()
+  const interestTotals = { active: 0, fulfilled: 0, withdrawn: 0 }
+  if (!interestError) {
+    for (const row of interestRows ?? []) {
+      const key = row.status as keyof typeof interestTotals
+      if (key in interestTotals) interestTotals[key] += 1
+      if (row.status !== 'active') continue
+      const cook = (Array.isArray(row.cook) ? row.cook[0] : row.cook) as {
+        full_name?: string
+        kyc_status?: string
+      } | null
+      const entry = demand.get(row.cook_id) ?? {
+        cook_id: row.cook_id,
+        name: cook?.full_name ?? 'Cook',
+        state: cook?.kyc_status ?? 'unverified',
+        active: 0,
+        notify: 0,
+      }
+      entry.active += 1
+      if (row.notify_when_verified) entry.notify += 1
+      demand.set(row.cook_id, entry)
+    }
+  }
+
+  const [pendingVerification, openDisputes] = await Promise.all([
+    countRows(admin, 'kyc_submissions', (q) => q.eq('status', 'pending')),
+    countRows(admin, 'disputes', (q) =>
+      q.in('status', ['open', 'ai_reviewed', 'admin_review']),
+    ),
+  ])
+
+  return NextResponse.json({
+    bookings: data ?? [],
+    counts,
+    interests: interestError
+      ? null
+      : {
+          totals: interestTotals,
+          demand: Array.from(demand.values())
+            .sort((x, y) => y.active - x.active)
+            .slice(0, 20),
+        },
+    pending_verification: pendingVerification,
+    open_disputes: openDisputes,
+    payments_configured: Boolean(
+      process.env.PAYSTACK_SECRET_KEY &&
+      process.env.NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY,
+    ),
+  })
 }
 
 export async function POST(request: NextRequest) {

@@ -19,6 +19,7 @@ import { StoryRing } from '@/components/stories/StoryRing'
 import { ReportButton } from '@/components/reports/ReportButton'
 import { TrackEvent } from '@/components/analytics/TrackEvent'
 import { BackLink } from '@/components/matching/BackLink'
+import { CookBookingPanel } from '@/components/booking/CookBookingPanel'
 import { generalArea } from '@/lib/discovery/geo'
 import { safeReturnPath } from '@/lib/profileLinks'
 
@@ -72,6 +73,15 @@ export default async function CookPublicPage({
   // A signed-in member who is matched with this chef gets a Message button
   // instead of the sign-up prompt shown to visitors.
   let matchId: string | null = null
+  let viewerIsCustomer = false
+  if (viewer && viewer.id !== chef.id) {
+    const { data: me } = await sb
+      .from('profiles')
+      .select('role')
+      .eq('id', viewer.id)
+      .maybeSingle()
+    viewerIsCustomer = me?.role === 'buyer'
+  }
   if (viewer && viewer.id !== chef.id) {
     const { data: matchRows } = await sb
       .from('matches')
@@ -273,6 +283,16 @@ export default async function CookPublicPage({
           )}
 
           {availability && <AvailabilityCard availability={availability} />}
+
+          {viewerIsCustomer && (
+            <div className="mb-5">
+              <CookBookingPanel
+                cookId={chef.id}
+                cookName={chef.full_name}
+                matchId={matchId}
+              />
+            </div>
+          )}
 
           {viewer ? (
             matchId && (

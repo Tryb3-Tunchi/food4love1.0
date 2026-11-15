@@ -16,11 +16,25 @@ function readId(data: unknown, keys: string[]): string | null {
   return null
 }
 
+function readKind(data: unknown): string | null {
+  if (!data || typeof data !== 'object') return null
+  const value = (data as Record<string, unknown>).kind
+  return typeof value === 'string' ? value : null
+}
+
 export function notificationHref(
   notification: { type: NotificationKind; data?: unknown },
   role: string | null | undefined,
 ): string | null {
   const matchId = readId(notification.data, ['match_id', 'matchId'])
+  const kind = readKind(notification.data)
+  // Verification and interest notifications are about a cook's verification, not a booking.
+  if (kind === 'verification' || kind === 'interest')
+    return role === 'cook' ? '/cook/verification' : null
+  if (kind === 'interest_available') {
+    const cookId = readId(notification.data, ['cook_id'])
+    return cookId ? `/cook/${cookId}` : '/swipe'
+  }
   switch (notification.type) {
     case 'match':
       return matchId ? `/chat/${matchId}` : '/matches'

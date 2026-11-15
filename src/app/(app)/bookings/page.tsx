@@ -6,26 +6,15 @@ import { motion } from 'framer-motion'
 import { ChevronRight, Clock, Loader2, MapPin, Receipt } from 'lucide-react'
 import { useAuthStore } from '@/stores/useAuthStore'
 import { getMyBookings, type Booking } from '@/services/bookings'
+import { STATUS_LABELS } from '@/lib/booking/lifecycle'
 
+// Labels come from the shared lifecycle so every screen says the same thing.
 const statusColors: Record<string, string> = {
-  pending: 'bg-amber-500/10 text-amber-400 border-amber-500/20',
-  confirmed: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20',
-  preparing:
-    'bg-[var(--primary)]/10 text-[var(--primary)] border-[var(--primary)]/20',
-  ready: 'bg-sky-500/10 text-sky-400 border-sky-500/20',
-  delivered: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20',
-  cancelled: 'bg-red-500/10 text-red-400 border-red-500/20',
-  disputed: 'bg-red-500/10 text-red-400 border-red-500/20',
-}
-
-const statusLabels: Record<string, string> = {
-  pending: 'Awaiting Chef',
-  confirmed: 'Confirmed',
-  preparing: 'Preparing',
-  ready: 'Ready for the session',
-  delivered: 'Session completed',
-  cancelled: 'Cancelled',
-  disputed: 'Disputed',
+  pending: 'bg-amber-500/10 text-amber-500 border-amber-500/20',
+  alternative_proposed: 'bg-sky-500/10 text-sky-500 border-sky-500/20',
+  confirmed: 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20',
+  completed: 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20',
+  cancelled: 'bg-red-500/10 text-red-500 border-red-500/20',
 }
 
 export default function BookingsPage() {
@@ -99,7 +88,7 @@ export default function BookingsPage() {
                     <span
                       className={`rounded-full border px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide ${statusColors[booking.status]}`}
                     >
-                      {statusLabels[booking.status]}
+                      {STATUS_LABELS[booking.status] ?? booking.status}
                     </span>
                   </div>
 

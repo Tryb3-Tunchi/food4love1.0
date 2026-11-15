@@ -6,7 +6,8 @@ export interface Booking {
   buyer_id: string
   cook_id: string
   match_id: string
-  status: 'pending' | 'confirmed' | 'completed' | 'cancelled'
+  status:
+    'pending' | 'alternative_proposed' | 'confirmed' | 'completed' | 'cancelled'
   payment_status: 'unpaid' | 'paid' | 'refunded' | 'failed' | 'pending'
   amount?: number
   price: number
@@ -17,6 +18,14 @@ export interface Booking {
   guest_count?: number
   meal_description?: string
   special_requests?: string | null
+  service_type?: 'private_cooking' | 'delivery' | 'pickup'
+  allergies?: string | null
+  dietary_preferences?: string[]
+  proposed_scheduled_for?: string | null
+  proposed_note?: string | null
+  cancelled_by?: string | null
+  cancel_reason?: string | null
+  completed_at?: string | null
   payment_reference: string | null
   wallet_credit_used?: number
   created_at: string
@@ -25,12 +34,26 @@ export interface Booking {
   buyer?: { full_name: string; avatar_url: string | null }
 }
 
+export class BookingRequestError extends Error {
+  code?: string
+  bookingId?: string
+  constructor(message: string, code?: string, bookingId?: string) {
+    super(message)
+    this.name = 'BookingRequestError'
+    this.code = code
+    this.bookingId = bookingId
+  }
+}
+
 export async function createBooking(payload: {
   cook_id: string
   match_id: string
   items: { special_id: string; quantity: number }[]
   scheduled_at: string
-  service_address: string
+  service_type: 'private_cooking' | 'delivery' | 'pickup'
+  service_address?: string
+  allergies: string
+  dietary_preferences: string[]
   special_requests?: string
   guest_count: number
 }): Promise<Booking> {
@@ -41,7 +64,11 @@ export async function createBooking(payload: {
   })
   const result = await response.json().catch(() => ({}))
   if (!response.ok) {
-    throw new Error(result.error || 'Could not send booking request')
+    throw new BookingRequestError(
+      result.error || 'Could not send booking request',
+      result.code,
+      result.booking_id,
+    )
   }
   return result.booking as Booking
 }
@@ -116,5 +143,29 @@ export async function acceptBooking(bookingId: string): Promise<void> {
   if (!response.ok) {
     const result = await response.json().catch(() => ({}))
     throw new Error(result.error || 'Could not accept booking')
+  }
+}
+
+export type BookingActionInput =
+  | { action: 'accept' }
+  | { action: 'decline'; reason: DeclineReason; note?: string }
+  | { action: 'propose_alternative'; proposed_at: string; note?: string }
+  | { action: 'accept_alternative' }
+  | { action: 'decline_alternative' }
+  | { action: 'cancel'; reason?: string }
+  | { action: 'complete' }
+
+export async function actOnBooking(
+  bookingId: string,
+  input: BookingActionInput,
+): Promise<void> {
+  const response = await fetch('/api/bookings', {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ booking_id: bookingId, ...input }),
+  })
+  if (!response.ok) {
+    const result = await response.json().catch(() => ({}))
+    throw new Error(result.error || 'Could not update the booking')
   }
 }

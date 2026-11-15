@@ -4,6 +4,42 @@ import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { checkAvailability } from '@/lib/availability'
 import { DECLINE_KEYS, declineMessage } from '@/lib/bookingDecline'
+import { adultStates } from '@/lib/adultCheck'
+import { AGE_REQUIRED_CODE, AGE_REQUIRED_MESSAGE } from '@/lib/ageGate'
+import { clientKey, createLimiter } from '@/lib/rateLimit'
+import {
+  cookBookable,
+  customerExplanation,
+  verificationState,
+} from '@/lib/booking/verification'
+import {
+  applyAction,
+  noticeFor,
+  NEW_REQUEST_NOTICE,
+  type Actor,
+  type BookingAction,
+  type BookingStatus,
+} from '@/lib/booking/lifecycle'
+import {
+  DIETARY_OPTIONS,
+  SERVICE_TYPES,
+  addressFor,
+  deliveryFeeFor,
+  formatLagos,
+  needsAddress,
+  serviceFeeFor,
+  totalFor,
+  validateSchedule,
+} from '@/lib/booking/details'
+import {
+  isMissingSchema,
+  notifyBookingParty,
+  recordBookingEvent,
+} from '@/lib/booking/server'
+import { loadBookingForAction } from '@/lib/booking/load'
+import { checkProposedSlot, lagosSlot } from '@/lib/booking/capacity'
+
+// ------------------------------------------------------------------ create
 
 const bookingRequestSchema = z
   .object({
@@ -19,16 +55,34 @@ const bookingRequestSchema = z
       .min(1)
       .max(20),
     scheduled_at: z.string().datetime(),
-    service_address: z.string().trim().min(8).max(1000),
+    service_type: z.enum(SERVICE_TYPES),
+    service_address: z.string().trim().max(1000).optional(),
+    allergies: z
+      .string()
+      .trim()
+      .min(2, 'Tell the cook about any allergies, or say there are none')
+      .max(500),
+    dietary_preferences: z.array(z.enum(DIETARY_OPTIONS)).max(10).default([]),
     special_requests: z.string().trim().max(2000).optional(),
     guest_count: z.number().int().min(1).max(20),
   })
   .superRefine((data, context) => {
-    if (new Date(data.scheduled_at).getTime() <= Date.now()) {
+    const schedule = validateSchedule(new Date(data.scheduled_at))
+    if (!schedule.ok) {
       context.addIssue({
         code: z.ZodIssueCode.custom,
         path: ['scheduled_at'],
-        message: 'Choose a future cooking-session time',
+        message: schedule.reason,
+      })
+    }
+    if (
+      needsAddress(data.service_type) &&
+      !addressFor(data.service_type, data.service_address)
+    ) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['service_address'],
+        message: 'Enter the full address for this service',
       })
     }
     if (
@@ -43,6 +97,9 @@ const bookingRequestSchema = z
     }
   })
 
+// A customer can send a handful of requests an hour; this stops scripted floods.
+const allowCreate = createLimiter({ limit: 12, windowMs: 60 * 60 * 1000 })
+
 export async function POST(req: NextRequest) {
   try {
     const supabase = await createClient()
@@ -53,11 +110,23 @@ export async function POST(req: NextRequest) {
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
+    if (!allowCreate(`${user.id}:${clientKey(req.headers)}`)) {
+      return NextResponse.json(
+        { error: 'Too many requests. Please wait a little and try again.' },
+        { status: 429 },
+      )
+    }
 
-    const parsed = bookingRequestSchema.safeParse(await req.json())
+    const parsed = bookingRequestSchema.safeParse(
+      await req.json().catch(() => null),
+    )
     if (!parsed.success) {
       return NextResponse.json(
-        { error: 'Invalid cooking-service request' },
+        {
+          error:
+            parsed.error.issues[0]?.message ??
+            'Invalid cooking-service request',
+        },
         { status: 400 },
       )
     }
@@ -95,16 +164,38 @@ export async function POST(req: NextRequest) {
         { status: 403 },
       )
     }
-    if (
-      !cook ||
-      cook.role !== 'cook' ||
-      cook.suspended ||
-      !cook.onboarding_complete ||
-      cook.kyc_status !== 'verified'
-    ) {
+    // Same adult rule as matching: both people must have confirmed (a no-op until the
+    // age migration exists).
+    const adults = await adultStates(admin, [user.id, request.cook_id])
+    if (adults.get(user.id) === 'required') {
+      return NextResponse.json(
+        { error: AGE_REQUIRED_MESSAGE, code: AGE_REQUIRED_CODE },
+        { status: 403 },
+      )
+    }
+
+    // The one rule for "may this cook take a real booking": approved, active, onboarded.
+    // Checked here again at submission time, whatever the screen showed.
+    const bookable = cookBookable(cook)
+    if (!bookable.ok) {
+      const state = cook ? verificationState(cook) : 'not_verified'
+      return NextResponse.json(
+        {
+          error:
+            bookable.reason === 'not_a_cook' ||
+            bookable.reason === 'onboarding_incomplete'
+              ? 'Cook is not eligible for booking'
+              : customerExplanation(state),
+          code: 'cook_not_verified',
+          state,
+        },
+        { status: 403 },
+      )
+    }
+    if (adults.get(request.cook_id) === 'required') {
       return NextResponse.json(
         { error: 'Cook is not eligible for booking' },
-        { status: 400 },
+        { status: 403 },
       )
     }
     if (
@@ -149,16 +240,17 @@ export async function POST(req: NextRequest) {
       const special = specialById.get(item.special_id)
       return sum + Number(special?.price ?? 0) * item.quantity
     }, 0)
-    if (!Number.isSafeInteger(subtotal) || subtotal < (cook.price_min ?? 0)) {
+    if (!Number.isSafeInteger(subtotal) || subtotal < (cook?.price_min ?? 0)) {
       return NextResponse.json(
         { error: 'Selected dishes do not meet the cook minimum' },
         { status: 400 },
       )
     }
 
-    const deliveryFee = 500
-    const serviceFee = Math.round(subtotal * 0.05)
-    const amount = subtotal + deliveryFee + serviceFee
+    // Fees come from the shared rules, so the screen and the server always agree.
+    const deliveryFee = deliveryFeeFor(request.service_type)
+    const serviceFee = serviceFeeFor(subtotal)
+    const amount = totalFor(subtotal, request.service_type)
     const mealDescription = request.items
       .map(
         (item) =>
@@ -168,11 +260,12 @@ export async function POST(req: NextRequest) {
 
     const requestedAt = new Date(request.scheduled_at)
     // Cook schedules are stored and displayed in Nigeria time (UTC+1).
-    const lagosAt = new Date(requestedAt.getTime() + 60 * 60 * 1000)
-    const serviceDate = lagosAt.toISOString().slice(0, 10)
-    const serviceTime = lagosAt.toISOString().slice(11, 16)
-    const dayStart = new Date(`${serviceDate}T00:00:00+01:00`)
-    const dayEnd = new Date(dayStart.getTime() + 24 * 60 * 60 * 1000)
+    const {
+      date: serviceDate,
+      time: serviceTime,
+      dayStart,
+      dayEnd,
+    } = lagosSlot(requestedAt.toISOString())
 
     const { data: availability, error: availabilityError } = await admin
       .from('cook_availability')
@@ -191,8 +284,8 @@ export async function POST(req: NextRequest) {
         .from('bookings')
         .select('id', { count: 'exact', head: true })
         .eq('cook_id', request.cook_id)
-        .gte('scheduled_for', dayStart.toISOString())
-        .lt('scheduled_for', dayEnd.toISOString())
+        .gte('scheduled_for', dayStart)
+        .lt('scheduled_for', dayEnd)
         .neq('status', 'cancelled')
       if (countError) {
         return NextResponse.json(
@@ -214,34 +307,126 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    const { data: booking, error } = await admin
+    // A friendly answer for the common double-click; the database also refuses it.
+    const { data: existing } = await admin
       .from('bookings')
-      .insert({
-        buyer_id: user.id,
-        cook_id: request.cook_id,
-        match_id: request.match_id,
-        dish_title: mealDescription.slice(0, 250),
-        price: subtotal,
-        meal_description: mealDescription,
-        scheduled_for: request.scheduled_at,
-        service_address: request.service_address,
-        special_requests: request.special_requests || null,
-        guest_count: request.guest_count,
-        delivery_fee: deliveryFee,
-        service_fee: serviceFee,
-        amount,
-        status: 'pending',
-        payment_status: 'unpaid',
-      })
+      .select('id')
+      .eq('buyer_id', user.id)
+      .eq('cook_id', request.cook_id)
+      .eq('scheduled_for', request.scheduled_at)
+      .in('status', ['pending', 'alternative_proposed', 'confirmed'])
+      .limit(1)
+    if (existing && existing.length > 0) {
+      return NextResponse.json(
+        {
+          error:
+            'You already have an active request with this cook for that time.',
+          code: 'duplicate_booking',
+          booking_id: existing[0].id,
+        },
+        { status: 409 },
+      )
+    }
+
+    const base = {
+      buyer_id: user.id,
+      cook_id: request.cook_id,
+      match_id: request.match_id,
+      dish_title: mealDescription.slice(0, 250),
+      price: subtotal,
+      meal_description: mealDescription,
+      scheduled_for: request.scheduled_at,
+      service_address: addressFor(
+        request.service_type,
+        request.service_address,
+      ),
+      special_requests: request.special_requests || null,
+      guest_count: request.guest_count,
+      delivery_fee: deliveryFee,
+      service_fee: serviceFee,
+      amount,
+      status: 'pending',
+      payment_status: 'unpaid',
+    }
+    const detailed = {
+      ...base,
+      service_type: request.service_type,
+      allergies: request.allergies,
+      dietary_preferences: request.dietary_preferences,
+    }
+
+    let { data: booking, error } = await admin
+      .from('bookings')
+      .insert(detailed)
       .select()
       .single()
 
-    if (error) {
+    // The booking migration is not applied yet: keep the information by folding it
+    // into the free-text notes the older table already has.
+    if (error && isMissingSchema(error)) {
+      const notes = [
+        request.special_requests,
+        `Service: ${request.service_type}`,
+        `Allergies: ${request.allergies}`,
+        request.dietary_preferences.length
+          ? `Dietary: ${request.dietary_preferences.join(', ')}`
+          : null,
+      ]
+        .filter(Boolean)
+        .join('\n')
+      ;({ data: booking, error } = await admin
+        .from('bookings')
+        .insert({ ...base, special_requests: notes.slice(0, 2000) })
+        .select()
+        .single())
+    }
+
+    if (error || !booking) {
+      const message = error?.message ?? ''
+      if (error?.code === '23505') {
+        return NextResponse.json(
+          {
+            error:
+              'You already have an active request with this cook for that time.',
+            code: 'duplicate_booking',
+          },
+          { status: 409 },
+        )
+      }
+      if (/fully booked/i.test(message)) {
+        return NextResponse.json(
+          { error: 'This cook is fully booked on that day.' },
+          { status: 409 },
+        )
+      }
+      if (/not verified/i.test(message)) {
+        return NextResponse.json(
+          {
+            error: customerExplanation('not_verified'),
+            code: 'cook_not_verified',
+          },
+          { status: 403 },
+        )
+      }
       return NextResponse.json(
         { error: 'Could not create the cooking-service request' },
         { status: 500 },
       )
     }
+
+    await recordBookingEvent(admin, {
+      bookingId: booking.id,
+      actorId: user.id,
+      actorRole: 'buyer',
+      action: 'request',
+      to: 'pending',
+    })
+    await notifyBookingParty(admin, {
+      userId: request.cook_id,
+      notice: NEW_REQUEST_NOTICE,
+      bookingId: booking.id,
+      eventKey: `booking:${booking.id}:requested`,
+    })
 
     return NextResponse.json({ booking }, { status: 201 })
   } catch {
@@ -252,18 +437,39 @@ export async function POST(req: NextRequest) {
   }
 }
 
+// ------------------------------------------------------------------ actions
+
 const bookingActionSchema = z.discriminatedUnion('action', [
-  z.object({
-    booking_id: z.string().uuid(),
-    action: z.literal('accept'),
-  }),
+  z.object({ booking_id: z.string().uuid(), action: z.literal('accept') }),
   z.object({
     booking_id: z.string().uuid(),
     action: z.literal('decline'),
     reason: z.enum(DECLINE_KEYS),
     note: z.string().trim().max(200).optional(),
   }),
+  z.object({
+    booking_id: z.string().uuid(),
+    action: z.literal('propose_alternative'),
+    proposed_at: z.string().datetime(),
+    note: z.string().trim().max(300).optional(),
+  }),
+  z.object({
+    booking_id: z.string().uuid(),
+    action: z.literal('accept_alternative'),
+  }),
+  z.object({
+    booking_id: z.string().uuid(),
+    action: z.literal('decline_alternative'),
+  }),
+  z.object({
+    booking_id: z.string().uuid(),
+    action: z.literal('cancel'),
+    reason: z.string().trim().max(300).optional(),
+  }),
+  z.object({ booking_id: z.string().uuid(), action: z.literal('complete') }),
 ])
+
+const allowAct = createLimiter({ limit: 60, windowMs: 60 * 60 * 1000 })
 
 export async function PATCH(req: NextRequest) {
   try {
@@ -274,86 +480,264 @@ export async function PATCH(req: NextRequest) {
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
+    if (!allowAct(`${user.id}:${clientKey(req.headers)}`)) {
+      return NextResponse.json(
+        { error: 'Too many actions. Please wait a little and try again.' },
+        { status: 429 },
+      )
+    }
 
-    const parsed = bookingActionSchema.safeParse(await req.json())
+    const parsed = bookingActionSchema.safeParse(
+      await req.json().catch(() => null),
+    )
     if (!parsed.success) {
       return NextResponse.json(
         { error: 'Invalid booking action' },
         { status: 400 },
       )
     }
+    const decision = parsed.data
 
     const admin = createAdminClient()
-    const [{ data: cook }, { data: booking }] = await Promise.all([
-      admin
-        .from('profiles')
-        .select('role, suspended')
-        .eq('id', user.id)
-        .maybeSingle(),
-      admin
-        .from('bookings')
-        .select('id, cook_id, match_id, status, payment_status')
-        .eq('id', parsed.data.booking_id)
-        .maybeSingle(),
-    ])
+    // Works before AND after the booking migration (see loadBookingForAction).
+    const booking = await loadBookingForAction(
+      admin as unknown as Parameters<typeof loadBookingForAction>[0],
+      decision.booking_id,
+      isMissingSchema,
+    )
 
-    if (!cook || cook.role !== 'cook' || cook.suspended) {
+    // Not a participant: indistinguishable from a booking that does not exist, so a
+    // guessed booking id reveals nothing.
+    const actor: Actor | null = !booking
+      ? null
+      : booking.cook_id === user.id
+        ? 'cook'
+        : booking.buyer_id === user.id
+          ? 'buyer'
+          : null
+    if (!booking || !actor) {
+      return NextResponse.json({ error: 'Booking not found' }, { status: 404 })
+    }
+
+    const { data: me } = await admin
+      .from('profiles')
+      .select('role, suspended, kyc_status, onboarding_complete')
+      .eq('id', user.id)
+      .maybeSingle()
+    const adults = await adultStates(admin, [user.id])
+    if (adults.get(user.id) === 'required') {
       return NextResponse.json(
-        { error: 'Cook account is not eligible' },
+        { error: AGE_REQUIRED_MESSAGE, code: AGE_REQUIRED_CODE },
         { status: 403 },
       )
     }
-    if (!booking || booking.cook_id !== user.id) {
-      return NextResponse.json({ error: 'Booking not found' }, { status: 404 })
-    }
-    if (booking.status !== 'pending') {
+    if (!me || me.suspended) {
       return NextResponse.json(
-        { error: 'Booking is no longer awaiting a response' },
-        { status: 409 },
+        { error: 'Your account is not eligible for this action' },
+        { status: 403 },
       )
     }
-
-    const decision = parsed.data
-    // A paid booking needs a refund to be undone, so it goes through support.
-    if (decision.action === 'decline' && booking.payment_status === 'paid') {
+    // A cook who is no longer verified can still decline or cancel, but cannot take
+    // on or promise anything new.
+    if (
+      actor === 'cook' &&
+      ['accept', 'propose_alternative'].includes(decision.action) &&
+      !cookBookable(me).ok
+    ) {
       return NextResponse.json(
         {
-          error: 'This booking is already paid. Contact support to cancel it.',
+          error: customerExplanation(verificationState(me)),
+          code: 'cook_not_verified',
         },
-        { status: 409 },
+        { status: 403 },
       )
     }
 
-    const { data: updatedBooking, error } = await admin
+    const transition = applyAction(
+      {
+        status: booking.status as BookingStatus,
+        payment_status: booking.payment_status,
+      },
+      actor,
+      decision.action as BookingAction,
+    )
+    if (!transition.ok) {
+      return NextResponse.json({ error: transition.reason }, { status: 409 })
+    }
+
+    const now = new Date().toISOString()
+    const update: Record<string, unknown> = {
+      status: transition.to,
+      updated_at: now,
+    }
+    let proposedAt: string | null = null
+
+    if (decision.action === 'propose_alternative') {
+      const schedule = validateSchedule(new Date(decision.proposed_at))
+      if (!schedule.ok) {
+        return NextResponse.json({ error: schedule.reason }, { status: 400 })
+      }
+      proposedAt = decision.proposed_at
+      update.proposed_scheduled_for = decision.proposed_at
+      update.proposed_note = decision.note ?? null
+    }
+    if (decision.action === 'accept_alternative') {
+      if (!booking.proposed_scheduled_for) {
+        return NextResponse.json(
+          { error: 'There is no alternative time to accept.' },
+          { status: 409 },
+        )
+      }
+      // The time was free when the cook suggested it; it may not be now (other
+      // customers may have taken the day in the meantime). Check again, on the server,
+      // with the same rules used when a booking is first made. The database repeats
+      // this check under a lock once the booking migration is applied, so two
+      // customers accepting at once cannot both get the last place.
+      const slot = await checkProposedSlot(
+        admin as unknown as Parameters<typeof checkProposedSlot>[0],
+        {
+          cookId: booking.cook_id,
+          bookingId: booking.id,
+          scheduledAtIso: booking.proposed_scheduled_for,
+        },
+        {
+          checkAvailability: checkAvailability as unknown as Parameters<
+            typeof checkProposedSlot
+          >[2]['checkAvailability'],
+        },
+      )
+      if (!slot.ok) {
+        return NextResponse.json(
+          { error: slot.reason, code: slot.code },
+          { status: slot.status },
+        )
+      }
+      update.scheduled_for = booking.proposed_scheduled_for
+      update.proposed_scheduled_for = null
+      update.proposed_note = null
+    }
+    if (transition.to === 'cancelled') {
+      update.cancelled_by = user.id
+      update.cancel_reason =
+        decision.action === 'decline'
+          ? decision.reason
+          : decision.action === 'cancel'
+            ? (decision.reason ?? null)
+            : decision.action === 'decline_alternative'
+              ? 'alternative_declined'
+              : null
+    }
+    if (transition.to === 'completed') update.completed_at = now
+
+    let { data: updated, error } = await admin
       .from('bookings')
-      .update({
-        status: decision.action === 'accept' ? 'confirmed' : 'cancelled',
-        updated_at: new Date().toISOString(),
-      })
+      .update(update)
       .eq('id', booking.id)
-      .eq('cook_id', user.id)
-      .eq('status', 'pending')
+      .eq('status', booking.status) // only if nobody changed it in the meantime
       .select('id, status')
       .maybeSingle()
 
-    if (error || !updatedBooking) {
+    // Older database without the new columns: keep the core status change working.
+    if (error && isMissingSchema(error)) {
+      const legacyStatus =
+        transition.to === 'alternative_proposed' ? null : transition.to
+      if (!legacyStatus) {
+        return NextResponse.json(
+          {
+            error:
+              'Suggesting another time needs the booking update to be installed.',
+          },
+          { status: 503 },
+        )
+      }
+      ;({ data: updated, error } = await admin
+        .from('bookings')
+        .update({ status: legacyStatus, updated_at: now })
+        .eq('id', booking.id)
+        .eq('status', booking.status)
+        .select('id, status')
+        .maybeSingle())
+    }
+
+    if (error || !updated) {
+      const message = error?.message ?? ''
+      if (/no longer verified/i.test(message)) {
+        return NextResponse.json(
+          {
+            error: customerExplanation('not_verified'),
+            code: 'cook_not_verified',
+          },
+          { status: 403 },
+        )
+      }
+      // The database's own check caught a race (someone else took the last place
+      // between our check and this update).
+      if (/fully booked/i.test(message)) {
+        return NextResponse.json(
+          {
+            error:
+              'The suggested time is no longer available. This cook is fully booked that day. You can ask the cook for another time, or cancel the booking.',
+            code: 'slot_unavailable',
+          },
+          { status: 409 },
+        )
+      }
       return NextResponse.json(
         { error: 'Booking changed before it could be updated' },
         { status: 409 },
       )
     }
 
-    // Tell the buyer why, in the chat they already share with the chef.
-    if (decision.action === 'decline' && booking.match_id) {
-      const { error: messageError } = await admin.from('messages').insert({
-        match_id: booking.match_id,
-        sender_id: user.id,
-        content: declineMessage(decision.reason, decision.note),
+    await recordBookingEvent(admin, {
+      bookingId: booking.id,
+      actorId: user.id,
+      actorRole: actor,
+      action: decision.action,
+      from: booking.status,
+      to: transition.to,
+      note:
+        decision.action === 'decline'
+          ? decision.reason
+          : decision.action === 'cancel'
+            ? decision.reason
+            : decision.action === 'propose_alternative'
+              ? decision.note
+              : null,
+    })
+
+    const notice = noticeFor(decision.action as BookingAction, actor)
+    if (notice) {
+      const recipient =
+        notice.to === 'buyer' ? booking.buyer_id : booking.cook_id
+      await notifyBookingParty(admin, {
+        userId: recipient,
+        notice,
+        bookingId: booking.id,
+        eventKey: `booking:${booking.id}:${decision.action}:${transition.to}`,
       })
-      if (messageError) console.error('Decline message error:', messageError)
     }
 
-    return NextResponse.json({ booking: updatedBooking })
+    // Keep the shared conversation up to date, as the decline flow already did.
+    if (booking.match_id) {
+      let content: string | null = null
+      if (decision.action === 'decline') {
+        content = declineMessage(decision.reason, decision.note)
+      } else if (decision.action === 'propose_alternative' && proposedAt) {
+        content = `Hi, I can't do the original time. Could we do ${formatLagos(proposedAt)} instead?${
+          decision.note ? ` ${decision.note}` : ''
+        } Open the booking to accept or decline.`
+      }
+      if (content) {
+        const { error: messageError } = await admin.from('messages').insert({
+          match_id: booking.match_id,
+          sender_id: user.id,
+          content,
+        })
+        if (messageError) console.error('Booking message error:', messageError)
+      }
+    }
+
+    return NextResponse.json({ booking: updated })
   } catch {
     return NextResponse.json(
       { error: 'Could not update booking' },

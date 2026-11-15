@@ -1,8 +1,10 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { RefreshCw, RotateCcw } from 'lucide-react'
+import Link from 'next/link'
+import { RefreshCw, RotateCcw, Search } from 'lucide-react'
 import toast from 'react-hot-toast'
+import { STATUS_LABELS, type BookingStatus } from '@/lib/booking/lifecycle'
 
 interface RefundRecord {
   id: string
@@ -23,9 +25,19 @@ interface BookingRecord {
   amount: number | null
   price: number
   created_at: string
+  scheduled_for?: string | null
+  service_type?: string | null
   buyer?: { id: string; full_name: string } | null
   cook?: { id: string; full_name: string } | null
   payment_refunds?: RefundRecord[]
+}
+
+interface Demand {
+  cook_id: string
+  name: string
+  state: string
+  active: number
+  notify: number
 }
 
 const naira = (amount: number) =>
@@ -37,6 +49,20 @@ export default function AdminBookingsPage() {
   const [bookings, setBookings] = useState<BookingRecord[]>([])
   const [loading, setLoading] = useState(true)
   const [refunding, setRefunding] = useState<string | null>(null)
+  const [counts, setCounts] = useState<Record<string, number>>({})
+  const [demand, setDemand] = useState<Demand[] | null>(null)
+  const [interestTotals, setInterestTotals] = useState<{
+    active: number
+    fulfilled: number
+    withdrawn: number
+  } | null>(null)
+  const [pendingVerification, setPendingVerification] = useState<number | null>(
+    null,
+  )
+  const [openDisputes, setOpenDisputes] = useState<number | null>(null)
+  const [paymentsConfigured, setPaymentsConfigured] = useState(true)
+  const [filter, setFilter] = useState<string>('all')
+  const [search, setSearch] = useState('')
 
   async function loadBookings() {
     setLoading(true)
@@ -46,6 +72,12 @@ export default function AdminBookingsPage() {
       if (!response.ok)
         throw new Error(result.error || 'Could not load bookings')
       setBookings(result.bookings ?? [])
+      setCounts(result.counts ?? {})
+      setDemand(result.interests?.demand ?? null)
+      setInterestTotals(result.interests?.totals ?? null)
+      setPendingVerification(result.pending_verification ?? null)
+      setOpenDisputes(result.open_disputes ?? null)
+      setPaymentsConfigured(result.payments_configured !== false)
     } catch (error) {
       toast.error(
         error instanceof Error ? error.message : 'Could not load bookings',
@@ -144,6 +176,29 @@ export default function AdminBookingsPage() {
     }
   }
 
+  const needle = search.trim().toLowerCase()
+  const visible = bookings.filter((booking) => {
+    if (filter !== 'all' && booking.status !== filter) return false
+    if (!needle) return true
+    return (
+      booking.id.toLowerCase().includes(needle) ||
+      (booking.buyer?.full_name ?? '').toLowerCase().includes(needle) ||
+      (booking.cook?.full_name ?? '').toLowerCase().includes(needle)
+    )
+  })
+  const filters: { key: string; label: string }[] = [
+    { key: 'all', label: 'All' },
+    ...(
+      [
+        'pending',
+        'alternative_proposed',
+        'confirmed',
+        'completed',
+        'cancelled',
+      ] as BookingStatus[]
+    ).map((key) => ({ key, label: STATUS_LABELS[key] })),
+  ]
+
   return (
     <div className="mx-auto min-h-screen max-w-7xl bg-char p-6">
       <header className="mb-6 flex items-center justify-between">
@@ -163,6 +218,137 @@ export default function AdminBookingsPage() {
         </button>
       </header>
 
+      {!paymentsConfigured && (
+        <p
+          role="status"
+          className="mb-4 rounded-lg border border-amber-400/30 bg-amber-400/10 p-3 text-sm text-amber-200"
+        >
+          Online payment is not configured on this site, so customers cannot pay
+          yet. Bookings stay unpaid and nothing is marked paid.
+        </p>
+      )}
+
+      <section
+        aria-label="Booking summary"
+        className="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-4"
+      >
+        <Link
+          href="/admin/kyc"
+          className="rounded-xl border border-white/10 p-3 hover:bg-white/5"
+        >
+          <span className="block text-xs uppercase text-mist">
+            Cooks awaiting verification
+          </span>
+          <span className="text-2xl font-bold text-white">
+            {pendingVerification ?? '–'}
+          </span>
+        </Link>
+        <Link
+          href="/admin/disputes"
+          className="rounded-xl border border-white/10 p-3 hover:bg-white/5"
+        >
+          <span className="block text-xs uppercase text-mist">
+            Open disputes
+          </span>
+          <span className="text-2xl font-bold text-white">
+            {openDisputes ?? '–'}
+          </span>
+        </Link>
+        <div className="rounded-xl border border-white/10 p-3">
+          <span className="block text-xs uppercase text-mist">
+            Interest requests (active)
+          </span>
+          <span className="text-2xl font-bold text-white">
+            {interestTotals?.active ?? '–'}
+          </span>
+        </div>
+        <div className="rounded-xl border border-white/10 p-3">
+          <span className="block text-xs uppercase text-mist">
+            Interest fulfilled
+          </span>
+          <span className="text-2xl font-bold text-white">
+            {interestTotals?.fulfilled ?? '–'}
+          </span>
+        </div>
+      </section>
+
+      <div
+        className="mb-4 flex flex-wrap items-center gap-2"
+        role="group"
+        aria-label="Filter by booking state"
+      >
+        {filters.map((item) => (
+          <button
+            key={item.key}
+            type="button"
+            aria-pressed={filter === item.key}
+            onClick={() => setFilter(item.key)}
+            className={`min-h-10 rounded-full border px-3 text-xs font-semibold ${
+              filter === item.key
+                ? 'border-emerald-400 bg-emerald-400/15 text-emerald-200'
+                : 'border-white/10 text-white/80 hover:bg-white/5'
+            }`}
+          >
+            {item.label}
+            <span className="ml-1.5 text-mist">
+              {item.key === 'all'
+                ? Object.values(counts).reduce((a, b) => a + b, 0)
+                : (counts[item.key] ?? 0)}
+            </span>
+          </button>
+        ))}
+        <label className="relative ml-auto">
+          <span className="sr-only">Search bookings</span>
+          <Search
+            className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-mist"
+            aria-hidden="true"
+          />
+          <input
+            type="search"
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+            placeholder="Search name or booking ID"
+            className="min-h-10 w-64 rounded-lg border border-white/10 bg-transparent pl-9 pr-3 text-sm text-white placeholder:text-mist"
+          />
+        </label>
+      </div>
+
+      {demand && demand.length > 0 && (
+        <section
+          aria-label="Demand waiting on verification"
+          className="mb-6 rounded-xl border border-white/10 p-4"
+        >
+          <h2 className="text-sm font-semibold text-white">
+            Demand waiting on verification
+          </h2>
+          <p className="mt-1 text-xs text-mist">
+            Customers who asked to be told when a cook becomes available. Counts
+            only; customers are not shown.
+          </p>
+          <ul className="mt-3 divide-y divide-white/5 text-sm">
+            {demand.map((row) => (
+              <li
+                key={row.cook_id}
+                className="flex items-center justify-between gap-3 py-2 text-white/80"
+              >
+                <span>
+                  {row.name}
+                  <span className="ml-2 text-xs capitalize text-mist">
+                    {row.state}
+                  </span>
+                </span>
+                <span>
+                  {row.active} interested
+                  <span className="ml-2 text-xs text-mist">
+                    {row.notify} want an update
+                  </span>
+                </span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
       {loading ? (
         <p className="py-10 text-sm text-mist">Loading bookings...</p>
       ) : (
@@ -180,7 +366,7 @@ export default function AdminBookingsPage() {
               </tr>
             </thead>
             <tbody>
-              {bookings.map((booking) => {
+              {visible.map((booking) => {
                 const amount = Number(booking.amount ?? booking.price ?? 0)
                 const inFlight = (booking.payment_refunds ?? []).some(
                   (refund) => ['requested', 'pending'].includes(refund.status),
@@ -207,7 +393,15 @@ export default function AdminBookingsPage() {
                     <td className="whitespace-nowrap py-3 pr-4">
                       {new Date(booking.created_at).toLocaleString()}
                     </td>
-                    <td className="py-3 pr-4 capitalize">{booking.status}</td>
+                    <td className="py-3 pr-4">
+                      {STATUS_LABELS[booking.status as BookingStatus] ??
+                        booking.status}
+                      {booking.scheduled_for && (
+                        <span className="block text-xs text-mist">
+                          For {new Date(booking.scheduled_for).toLocaleString()}
+                        </span>
+                      )}
+                    </td>
                     <td className="py-3 pr-4">
                       <span className="block capitalize">
                         {booking.payment_status}
@@ -270,10 +464,12 @@ export default function AdminBookingsPage() {
                   </tr>
                 )
               })}
-              {!bookings.length && (
+              {!visible.length && (
                 <tr>
                   <td colSpan={7} className="py-10 text-center text-mist">
-                    No bookings recorded.
+                    {bookings.length
+                      ? 'No bookings match this filter.'
+                      : 'No bookings recorded.'}
                   </td>
                 </tr>
               )}
