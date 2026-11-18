@@ -369,6 +369,55 @@ export function testerInvitationEmail(input: {
   return { subject, text, html }
 }
 
+// "Reset your password". Deliberately says nothing about the account (no name, no hint that the
+// address is registered). The link carries a one-time Supabase recovery token in its FRAGMENT, so it
+// is not logged by servers and is not consumed by mail scanners that merely fetch the link.
+export function passwordRecoveryEmail(input: { resetUrl: string }) {
+  const subject = 'Reset your Food4Love password'
+  const text = [
+    'Hello,',
+    '',
+    'We received a request to reset the password for the Food4Love account that uses this email address.',
+    '',
+    `Choose a new password: ${input.resetUrl}`,
+    '',
+    'The link works once and stops working after a short time (usually within an hour). If it has expired, you can ask for a new one on the sign-in page.',
+    '',
+    "If you didn't ask for this, you can ignore this email: your password will not change and nobody can use this message to get into your account without the link.",
+    "Please don't forward this email, because anyone with the link can set a new password.",
+    '',
+    'With love,',
+    'The Food4Love Team ❤️',
+    '',
+    '---',
+    'You received this email because a password reset was requested for this address on Food4Love.',
+  ].join('\n')
+
+  const html = emailLayout({
+    title: 'Reset your Food4Love password',
+    preheader: 'Use the link inside to choose a new password.',
+    heading: 'Reset your password',
+    bodyHtml: [
+      p('Hello,'),
+      p(
+        'We received a request to reset the password for the Food4Love account that uses this email address.',
+      ),
+      brandButton(input.resetUrl, 'Choose a New Password'),
+      p(
+        'The link works once and stops working after a short time (usually within an hour). If it has expired, you can ask for a new one on the sign-in page.',
+      ),
+      p(
+        'If you didn&rsquo;t ask for this, you can ignore this email: your password will not change and nobody can use this message to get into your account without the link. Please don&rsquo;t forward it, because anyone with the link can set a new password.',
+      ),
+      signOff(),
+    ].join(''),
+    footerHtml:
+      'You received this email because a password reset was requested for this address on Food4Love.',
+  })
+
+  return { subject, text, html }
+}
+
 export function adminAnnouncementEmail(input: {
   subject: string
   message: string

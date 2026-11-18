@@ -260,6 +260,7 @@ class FakeAuthAdmin {
     this.tokens = new Map()
     this.failNext = null // { code, status, message }: makes the next generateLink fail
     this.calls = []
+    this.globalSignOuts = [] // user ids whose sessions were all ended
   }
   _create({ email, data }) {
     const user = {
@@ -307,6 +308,16 @@ class FakeAuthAdmin {
         }
       if (!user) user = this._create({ email, data: options?.data })
       else Object.assign(user.user_metadata, options?.data ?? {})
+    } else if (type === 'recovery') {
+      if (!user)
+        return {
+          data: { user: null, properties: null },
+          error: {
+            code: 'user_not_found',
+            status: 404,
+            message: 'User not found',
+          },
+        }
     } else if (type === 'magiclink') {
       if (!user)
         return {
@@ -502,9 +513,10 @@ export function fakeSession(admin) {
     user: null,
     signedOut: false,
     auth: {
-      async verifyOtp({ token_hash }) {
+      async verifyOtp({ token_hash, type }) {
         const token = admin.auth.admin.tokens.get(token_hash)
-        if (!token)
+        // a token only works for the purpose it was issued for (an invitation token cannot reset a password)
+        if (!token || (type && token.type !== type))
           return {
             data: { user: null },
             error: {
@@ -529,12 +541,30 @@ export function fakeSession(admin) {
             error: { code: 'weak_password', message: 'too weak' },
           }
         session.user.has_password = true
+        session.user.password = password // the real service stores only a hash
         return { data: { user: session.user }, error: null }
       },
-      async signOut() {
+      async signOut(options = {}) {
+        if (options.scope === 'global' && session.user)
+          admin.auth.admin.globalSignOuts.push(session.user.id)
         session.user = null
         session.signedOut = true
         return { error: null }
+      },
+      async signInWithPassword({ email, password }) {
+        const user = admin.auth.admin.users.find((u) => u.email === email)
+        if (!user || !user.email_confirmed_at || user.password !== password)
+          return {
+            data: { user: null },
+            error: {
+              code: 'invalid_credentials',
+              message: 'Invalid login credentials',
+            },
+          }
+        user.last_sign_in_at = nowIso()
+        session.user = user
+        session.signedOut = false
+        return { data: { user, session: {} }, error: null }
       },
     },
   }

@@ -69,6 +69,7 @@ export async function getEmailOps(admin: Admin) {
     'welcome',
     'interest_verified',
     'tester_invitation',
+    'password_recovery',
   ] as const
   const statuses = [
     'queued',
@@ -92,10 +93,12 @@ export async function getEmailOps(admin: Admin) {
 
   // Only what the "Retry failed email" button can actually retry. Tester invitations are
   // excluded on purpose: their link's secret is not stored, so they are re-sent from
-  // Invite testers (which issues a fresh link), not retried here.
+  // Invite testers (which issues a fresh link), not retried here. Password-reset emails are
+  // excluded for the same reason: the person simply asks for a new link.
   const retryable = deliveries.filter(
     (d) =>
       d.kind !== 'tester_invitation' &&
+      d.kind !== 'password_recovery' &&
       (d.status === 'failed' || d.status === 'queued') &&
       d.attempts < MAX_EMAIL_ATTEMPTS,
   ).length

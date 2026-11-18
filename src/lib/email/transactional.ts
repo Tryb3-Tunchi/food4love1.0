@@ -9,6 +9,7 @@ export type EmailKind =
   | 'welcome'
   | 'interest_verified'
   | 'tester_invitation'
+  | 'password_recovery'
 
 // queued     = we decided to send, Resend has not answered yet
 // processing = one worker has claimed it and is sending right now
@@ -52,6 +53,12 @@ export function senderFor(kind: EmailKind) {
       process.env.BOOKING_FROM_EMAIL,
       process.env.ACCOUNT_UPDATES_FROM_EMAIL,
       process.env.RESEND_FROM_EMAIL,
+    ],
+    // a security message about the account: account-updates sender first
+    password_recovery: [
+      process.env.ACCOUNT_UPDATES_FROM_EMAIL,
+      process.env.RESEND_FROM_EMAIL,
+      process.env.WELCOME_FROM_EMAIL,
     ],
     // a personal "hello" from the team, like the welcome email
     tester_invitation: [

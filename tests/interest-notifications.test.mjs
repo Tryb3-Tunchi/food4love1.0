@@ -634,8 +634,12 @@ function approve(db, cookId = COOK) {
   }
   for (const i of db
     .rows('booking_interests')
-    .filter((r) => r.cook_id === cookId && r.status === 'active'))
+    .filter((r) => r.cook_id === cookId && r.status === 'active')) {
     i.status = 'fulfilled'
+    // what the trigger records: when a consenting customer was told
+    if (i.notify_when_verified)
+      i.customer_notified_at = new Date().toISOString()
+  }
 }
 
 // ---- the route
@@ -922,6 +926,7 @@ test('approval: the interested customer gets ONE branded email with a link to th
     cancelled: 0,
     failed: 0,
     notConfigured: 0,
+    reconciled: 0,
   })
   assert.equal(mail.requests.length, 1)
   assert.deepEqual(mail.requests[0].to, ['ngozi@example.com'])
@@ -1324,6 +1329,7 @@ test('the delivery table missing means nothing is queued and nothing breaks', as
     cancelled: 0,
     failed: 0,
     notConfigured: 0,
+    reconciled: 0,
   })
   assert.equal(mail.requests.length, 0)
 })
@@ -1466,6 +1472,7 @@ test('scheduled processing: the right secret drains the queue, returns counts on
         'failed',
         'notConfigured',
         'ok',
+        'reconciled',
         'sent',
       ],
       'counts only: no addresses, names or ids',
@@ -1919,4 +1926,381 @@ test('webhook: invitation emails are tracked the same way, and the admin table w
       status,
     )
   }
+})
+
+// ================================================================== 7. recovering emails the outbox missed
+// The trigger must never block a verification, so very rarely a customer gets the in-app notice but
+// no email row. Reconciliation queues the missing row; the normal worker sends or cancels it.
+const { reconcileMissedInterestEmails, RECONCILE_WINDOW_DAYS } =
+  await import('../src/lib/notifications/reconcile.ts')
+
+const DAY = 24 * 60 * 60 * 1000
+const setCutover = (db, daysAgo = 3) =>
+  db.rows('interest_email_cutover').push({
+    id: true,
+    applied_at: new Date(Date.now() - daysAgo * DAY).toISOString(),
+  })
+// A consenting request, fulfilled by approval, whose email row the outbox never wrote.
+async function missedEmail(db, { notifiedAgoMs = 60 * 60 * 1000 } = {}) {
+  await interested(db)
+  approve(db)
+  const interest = db.rows('booking_interests')[0]
+  interest.customer_notified_at = new Date(
+    Date.now() - notifiedAgoMs,
+  ).toISOString()
+  db.rows('email_deliveries').length = 0 // the outbox insert that failed
+  return interest
+}
+const reconcile = (db, over = {}) => reconcileMissedInterestEmails(db, over)
+
+test('recovery: a customer the outbox missed gets exactly one queued row, then the normal email', async () => {
+  const { db, mail } = world()
+  setCutover(db)
+  const interest = await missedEmail(db)
+  const r = await reconcile(db)
+  assert.deepEqual(r, { candidates: 1, queued: 1 })
+  const rows = delivery(db)
+  assert.equal(rows.length, 1)
+  assert.equal(rows[0].recipient_key, interest.id)
+  assert.equal(rows[0].status, 'queued')
+  assert.equal(
+    rows[0].last_error_code,
+    'reconciled',
+    'the row says why it exists',
+  )
+  assert.equal((await run(db)).sent, 1, 'the normal worker sends it')
+  assert.equal(mail.requests.length, 1)
+  assert.equal(delivery(db)[0].status, 'accepted')
+  assert.equal(
+    delivery(db)[0].last_error_code,
+    null,
+    'the marker clears once it is sent',
+  )
+  // running again, or the worker again, can never produce a second email
+  assert.deepEqual(await reconcile(db), { candidates: 0, queued: 0 })
+  await run(db)
+  assert.equal(mail.requests.length, 1)
+  assert.equal(delivery(db).length, 1)
+  const note = db.rows('ops_events').at(-1)
+  assert.equal(
+    note.code,
+    'interest_email_reconciled',
+    'the recovery action is recorded',
+  )
+  assert.doesNotMatch(
+    JSON.stringify(note),
+    /@|ngozi|Ada/i,
+    'counts only, no personal data',
+  )
+})
+
+test('recovery: nothing happens before the outbox migration (no cutover row)', async () => {
+  const { db, mail } = world()
+  await missedEmail(db)
+  assert.deepEqual(await reconcile(db), { candidates: 0, queued: 0 })
+  assert.equal(delivery(db).length, 0)
+  const unapplied = world()
+  unapplied.db.config.interest_email_cutover = { missing: true }
+  assert.deepEqual(await reconcile(unapplied.db), { candidates: 0, queued: 0 })
+  assert.equal(mail.requests.length, 0)
+})
+
+test('recovery: HISTORICAL requests (fulfilled before the outbox went live) are never emailed', async () => {
+  const { db, mail } = world()
+  setCutover(db, 1) // outbox went live a day ago
+  await missedEmail(db, { notifiedAgoMs: 5 * DAY }) // customer was told 5 days ago: before the cutover
+  assert.deepEqual(await reconcile(db), { candidates: 0, queued: 0 })
+  await run(db, { reconcile: true })
+  assert.equal(delivery(db).length, 0)
+  assert.equal(mail.requests.length, 0)
+})
+
+test(`recovery: requests older than ${RECONCILE_WINDOW_DAYS} days are too stale to announce`, async () => {
+  const { db, mail } = world()
+  setCutover(db, 60)
+  await missedEmail(db, { notifiedAgoMs: (RECONCILE_WINDOW_DAYS + 1) * DAY })
+  assert.deepEqual(await reconcile(db), { candidates: 0, queued: 0 })
+  const fresh = world()
+  setCutover(fresh.db, 60)
+  await missedEmail(fresh.db, {
+    notifiedAgoMs: (RECONCILE_WINDOW_DAYS - 1) * DAY,
+  })
+  assert.equal(
+    (await reconcile(fresh.db)).queued,
+    1,
+    'inside the window it is recovered',
+  )
+  assert.equal(mail.requests.length, 0)
+})
+
+test('recovery: only consenting, fulfilled requests are considered', async () => {
+  const { db } = world()
+  setCutover(db)
+  const interest = await missedEmail(db)
+  for (const change of [
+    { notify_when_verified: false },
+    { status: 'withdrawn' },
+    { status: 'active' },
+  ]) {
+    Object.assign(
+      interest,
+      { notify_when_verified: true, status: 'fulfilled' },
+      change,
+    )
+    assert.deepEqual(
+      await reconcile(db),
+      { candidates: 0, queued: 0 },
+      JSON.stringify(change),
+    )
+  }
+  Object.assign(interest, {
+    notify_when_verified: true,
+    status: 'fulfilled',
+    customer_notified_at: null,
+  })
+  assert.deepEqual(
+    await reconcile(db),
+    { candidates: 0, queued: 0 },
+    'a request never marked as notified',
+  )
+})
+
+test('recovery: anyone with an email row in ANY state is left alone (no spam, history kept)', async () => {
+  for (const status of [
+    'queued',
+    'processing',
+    'accepted',
+    'delivered',
+    'bounced',
+    'failed',
+    'cancelled',
+  ]) {
+    const { db } = world()
+    setCutover(db)
+    const interest = await missedEmail(db)
+    db.rows('email_deliveries').push({
+      id: `d-${status}`,
+      kind: 'interest_verified',
+      recipient_key: interest.id,
+      status,
+      attempts: 1,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    })
+    assert.deepEqual(await reconcile(db), { candidates: 0, queued: 0 }, status)
+    assert.equal(delivery(db).length, 1, status)
+    assert.equal(delivery(db)[0].status, status, `${status} row untouched`)
+  }
+})
+
+test('recovery: eligibility is re-checked at send time, so an outdated notice is cancelled, not sent', async () => {
+  const cases = [
+    [
+      'cook_no_longer_verified',
+      (db) =>
+        (db.rows('profiles').find((p) => p.id === COOK).kyc_status =
+          'unverified'),
+    ],
+    [
+      'email_opt_out',
+      (db) =>
+        (db
+          .rows('profiles')
+          .find((p) => p.id === CUSTOMER).notification_preferences = {
+          bookings: false,
+        }),
+    ],
+    [
+      'customer_unavailable',
+      (db) =>
+        (db.rows('profiles').find((p) => p.id === CUSTOMER).suspended = true),
+    ],
+  ]
+  for (const [reason, change] of cases) {
+    const { db, mail } = world()
+    setCutover(db)
+    await missedEmail(db)
+    change(db)
+    assert.equal((await reconcile(db)).queued, 1, reason)
+    const summary = await run(db)
+    assert.equal(summary.cancelled, 1, reason)
+    assert.equal(delivery(db)[0].status, 'cancelled', reason)
+    assert.equal(delivery(db)[0].last_error_code, reason)
+    assert.equal(mail.requests.length, 0, `${reason}: no email`)
+    assert.equal(db.rows('bookings').length, 0, 'never creates a booking')
+  }
+})
+
+test('recovery: two runs at once, and a partial failure, still produce one row per customer', async () => {
+  const { db } = world()
+  setCutover(db)
+  const people = [customerEmail(1), customerEmail(2), customerEmail(3)]
+  for (const p of people)
+    addMember(db, { id: p.id, role: 'buyer', name: 'B', email: p.email })
+  await interested(db, people)
+  approve(db)
+  for (const i of db.rows('booking_interests'))
+    i.customer_notified_at = new Date().toISOString()
+  db.rows('email_deliveries').length = 0
+  const [a, b] = await Promise.all([reconcile(db), reconcile(db)])
+  assert.equal(
+    a.queued + b.queued,
+    3,
+    'each customer was queued by exactly one of the two runs',
+  )
+  assert.equal(delivery(db).length, 3)
+  assert.equal(new Set(delivery(db).map((d) => d.recipient_key)).size, 3)
+
+  // partial failure: the insert fails once, nothing is queued, the next run recovers everything
+  const second = world()
+  setCutover(second.db)
+  await missedEmail(second.db)
+  const realFrom = second.db.from.bind(second.db)
+  let failures = 1
+  second.db.from = (table) => {
+    const q = realFrom(table)
+    if (table === 'email_deliveries') {
+      const upsert = q.upsert.bind(q)
+      q.upsert = (...args) => {
+        if (failures-- > 0) {
+          q.then = (resolve) =>
+            resolve({
+              data: null,
+              error: { code: 'XX000', message: 'simulated outage' },
+            })
+          return q
+        }
+        return upsert(...args)
+      }
+    }
+    return q
+  }
+  assert.deepEqual(
+    await reconcile(second.db),
+    { candidates: 1, queued: 0 },
+    'failed insert: nothing queued, no throw',
+  )
+  assert.equal(delivery(second.db).length, 0)
+  assert.equal(
+    (await reconcile(second.db)).queued,
+    1,
+    'the next run recovers it',
+  )
+  assert.equal(delivery(second.db).length, 1)
+})
+
+test('recovery: a large backlog of already-handled requests cannot hide a missed one', async () => {
+  const { db } = world()
+  setCutover(db)
+  const missed = await missedEmail(db)
+  missed.customer_notified_at = new Date(Date.now() - 1000).toISOString() // the NEWEST request
+  for (let i = 0; i < 450; i++) {
+    const id = `old-${i}`
+    db.rows('booking_interests').push({
+      id,
+      customer_id: `cust-${i}`,
+      cook_id: COOK,
+      status: 'fulfilled',
+      notify_when_verified: true,
+      customer_notified_at: new Date(
+        Date.now() - 2 * DAY + i * 1000,
+      ).toISOString(),
+    })
+    db.rows('email_deliveries').push({
+      id: `d-old-${i}`,
+      kind: 'interest_verified',
+      recipient_key: id,
+      status: 'accepted',
+      attempts: 1,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    })
+  }
+  assert.deepEqual(await reconcile(db), { candidates: 1, queued: 1 })
+})
+
+test('recovery: the scheduled run and the admin retry both recover and send in one pass', async () => {
+  const { db, mail } = world()
+  setCutover(db)
+  await missedEmail(db)
+  const summary = await worker.drainInterestEmails(db, { appUrl: APP })
+  assert.equal(summary.reconciled, 1)
+  assert.equal(summary.sent, 1)
+  assert.equal(mail.requests.length, 1)
+  assert.match(read('src/app/api/email/retry/route.ts'), /reconcile: true/)
+  // and the per-cook call right after an approval does not reconcile
+  assert.doesNotMatch(read('src/app/api/admin/kyc/route.ts'), /reconcile: true/)
+})
+
+// ================================================================== 8. migration order safeguard (static)
+// The behaviour is proven in a real in-memory Postgres by the PGlite harness (engineering folder);
+// these pin the text, so an edit that removes the safeguard fails CI.
+test('booking-verification cannot put the older verification trigger back over the newer one', () => {
+  const a = read('supabase-migration-booking-verification.sql')
+  const guard = a.slice(
+    a.indexOf('do $guard$'),
+    a.indexOf('$guard$;', a.indexOf('do $guard$')),
+  )
+  assert.ok(guard.length > 200, 'the guard block exists')
+  assert.match(
+    guard,
+    /prosrc like '%interest_verified%'/,
+    'it detects the newer function by what it queues',
+  )
+  assert.match(
+    guard,
+    /f4l\.allow_trigger_downgrade/,
+    'going back needs an explicit opt-in',
+  )
+  assert.match(guard, /raise notice/, 'and says what it did')
+  assert.match(
+    guard,
+    /execute \$fn\$[\s\S]*create or replace function public\.booking_interest_on_verification\(\)/,
+    'the original function is still installed on a first run',
+  )
+  assert.equal(
+    (
+      a.match(
+        /create or replace function public\.booking_interest_on_verification\(\)/g,
+      ) ?? []
+    ).length,
+    1,
+    'and it is ONLY created inside the guard',
+  )
+  // the original behaviour is preserved: still notifies the cook and fulfils requests
+  for (const phrase of [
+    "'You are verified'",
+    "'interest_available'",
+    "status = 'fulfilled'",
+    "'Verification removed'",
+  ])
+    assert.ok(guard.includes(phrase), phrase)
+})
+
+test('the verification-email migration records its cutover once and never moves it', () => {
+  const c = read('supabase-migration-interest-verification-email.sql')
+  assert.match(c, /create table if not exists public\.interest_email_cutover/)
+  assert.match(
+    c,
+    /id boolean primary key default true check \(id\)/,
+    'one row at most',
+  )
+  assert.match(
+    c,
+    /insert into public\.interest_email_cutover \(id\) values \(true\) on conflict \(id\) do nothing/,
+    'a re-run never changes the date',
+  )
+  assert.match(
+    c,
+    /revoke all on public\.interest_email_cutover from anon, authenticated/,
+  )
+  assert.match(c, /enable row level security/)
+})
+
+test('the readiness diagnostic knows about the safeguard objects and splits recoverable from historical', () => {
+  const d = read('supabase-diagnostic-readiness-check.sql')
+  assert.match(d, /'interest_email_cutover'/)
+  assert.match(d, /'password_recovery'/)
+  assert.match(d, /-- B8\./)
+  assert.match(d, /historical_before_cutover/)
 })

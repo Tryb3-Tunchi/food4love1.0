@@ -4,6 +4,7 @@ import { interestVerifiedEmail } from '@/lib/email/templates'
 import { isRetryDue, retryDelayMs } from '@/lib/email/retryPolicy'
 import { MAX_ATTEMPTS, sendTransactionalEmail } from '@/lib/email/transactional'
 import { decideInterestEmail } from '@/lib/notifications/interestRules'
+import { reconcileMissedInterestEmails } from '@/lib/notifications/reconcile'
 
 type Admin = ReturnType<typeof createAdminClient>
 
@@ -27,6 +28,8 @@ export interface ProcessSummary {
   cancelled: number
   failed: number
   notConfigured: number
+  // verification emails the database outbox had missed, queued by reconciliation this run
+  reconciled: number
 }
 
 interface DeliveryRow {
@@ -41,7 +44,14 @@ interface DeliveryRow {
 
 export async function processInterestEmails(
   admin: Admin,
-  options: { appUrl: string; cookId?: string; limit?: number },
+  options: {
+    appUrl: string
+    cookId?: string
+    limit?: number
+    // Also queue verification emails the database outbox missed (see reconcile.ts). For scheduled
+    // runs and the admin retry button, not for the per-cook call right after an approval.
+    reconcile?: boolean
+  },
 ): Promise<ProcessSummary> {
   const summary: ProcessSummary = {
     checked: 0,
@@ -49,8 +59,18 @@ export async function processInterestEmails(
     cancelled: 0,
     failed: 0,
     notConfigured: 0,
+    reconciled: 0,
   }
   const limit = Math.min(options.limit ?? 25, 50)
+
+  // Recovery first, so what it queues is picked up by this same run. Never allowed to break sending.
+  if (options.reconcile && !options.cookId) {
+    try {
+      summary.reconciled = (await reconcileMissedInterestEmails(admin)).queued
+    } catch {
+      // reconciliation is best effort; the next run tries again
+    }
+  }
 
   // Narrow to one cook's interests when called straight after that cook was approved.
   let interestIds: string[] | null = null
@@ -171,6 +191,7 @@ export async function drainInterestEmails(
     cancelled: 0,
     failed: 0,
     notConfigured: 0,
+    reconciled: 0,
     batches: 0,
   }
   const deadline = Date.now() + (options.budgetMs ?? 40_000)
@@ -179,6 +200,8 @@ export async function drainInterestEmails(
     const batch = await processInterestEmails(admin, {
       appUrl: options.appUrl,
       limit: 25,
+      // once per run: the first batch only
+      reconcile: total.batches === 0,
     })
     total.batches++
     total.checked += batch.checked
@@ -186,6 +209,7 @@ export async function drainInterestEmails(
     total.cancelled += batch.cancelled
     total.failed += batch.failed
     total.notConfigured += batch.notConfigured
+    total.reconciled += batch.reconciled
     if (batch.sent + batch.cancelled + batch.failed === 0) break
   }
   return total

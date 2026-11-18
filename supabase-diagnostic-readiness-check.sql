@@ -69,12 +69,13 @@ from (
            when 'tester_invitations'   then 'created by tester-invitations'
            when 'email_deliveries'     then 'created by email-deliveries (applied 2026-11-13 per handover)'
            when 'admin_audit_log'      then 'needed by invitations and admin actions'
+           when 'interest_email_cutover' then 'created by interest-verification-email (when the outbox went live)'
            else 'existing table the migrations rely on'
          end as detail
     from (values ('profiles'), ('notifications'), ('matches'), ('cook_availability'),
                  ('bookings'), ('booking_events'), ('booking_interests'),
                  ('email_deliveries'), ('email_events'), ('admin_audit_log'),
-                 ('tester_invitations')) as w(t)
+                 ('tester_invitations'), ('interest_email_cutover')) as w(t)
 
   union all
   -- 2. columns
@@ -108,7 +109,7 @@ from (
                               and c.contype = 'c' and pg_get_constraintdef(c.oid) like '%' || w.v || '%')
               then 'OK' else 'MISSING' end,
          'needs interest-verification-email'
-    from (values ('interest_verified'), ('tester_invitation')) as w(v)
+    from (values ('interest_verified'), ('tester_invitation'), ('password_recovery')) as w(v)
   union all
   select 31, 'constraints', 'email_deliveries status allows ' || w.v,
          case when to_regclass('public.email_deliveries') is null then 'MISSING'
@@ -178,7 +179,7 @@ from (
               when (select c.relrowsecurity from pg_class c where c.oid = to_regclass('public.' || w.t))
               then 'OK' else 'PROBLEM' end,
          'must be on'
-    from (values ('booking_events'), ('booking_interests'), ('email_deliveries'), ('tester_invitations')) as w(t)
+    from (values ('booking_events'), ('booking_interests'), ('email_deliveries'), ('tester_invitations'), ('interest_email_cutover')) as w(t)
   union all
   -- server-only tables: no policy and no browser-role privilege of ANY kind
   select 61, 'row level security', 'public.' || w.t || ' has no policies',
@@ -186,7 +187,7 @@ from (
               when (select count(*) from pg_policies p where p.schemaname = 'public' and p.tablename = w.t) = 0
               then 'OK' else 'PROBLEM' end,
          'server-only table: expect 0 policies'
-    from (values ('email_deliveries'), ('tester_invitations')) as w(t)
+    from (values ('email_deliveries'), ('tester_invitations'), ('interest_email_cutover')) as w(t)
   union all
   select 62, 'permissions', r.role_name || ' has NO privilege on public.' || t.tbl,
          case when to_regclass('public.' || t.tbl) is null then 'MISSING'
@@ -194,7 +195,7 @@ from (
                                            'select,insert,update,delete,truncate,references,trigger')
               then 'OK' else 'PROBLEM' end,
          'server-only table: browser roles must have nothing'
-    from (values ('email_deliveries'), ('tester_invitations')) as t(tbl)
+    from (values ('email_deliveries'), ('tester_invitations'), ('interest_email_cutover')) as t(tbl)
     cross join (values ('anon'), ('authenticated')) as r(role_name)
   union all
   -- interest/event tables: the signed-in customer may READ (their own rows via RLS), never write
@@ -257,8 +258,9 @@ order by ord, check_name;
 --   from public.email_deliveries group by 1, 2 order by 1, 2;
 
 -- B4. customers who asked to be told and whose cook is now verified, but who have NO queued or
---     sent email. After applying interest-verification-email this should only list people
---     whose cook was verified BEFORE that migration (they got the in-app notice only).
+--     sent email. This counts BOTH kinds: people fulfilled before the outbox existed (historical:
+--     never emailed automatically) and people the outbox missed (recovered automatically by the
+--     scheduled reconciliation). B8 below separates them.
 -- select count(*) as asked_and_never_emailed
 --   from public.booking_interests i
 --  where i.notify_when_verified and i.status = 'fulfilled'
@@ -280,3 +282,17 @@ order by ord, check_name;
 --   from auth.users u
 --  where u.email_confirmed_at is null and u.last_sign_in_at is null
 --    and u.invited_at is not null;
+
+-- B8. B4 split in two (needs interest_email_cutover, so only after interest-verification-email):
+--     "recoverable" = fulfilled AFTER the outbox went live and within the last 14 days: the server's
+--     reconciliation queues these by itself (after re-checking consent, preferences and that the cook is
+--     still verified). "historical" = fulfilled before the cutover or longer ago: NEVER emailed
+--     automatically; the owner decides (see the handover). Counts only.
+-- select
+--   count(*) filter (where i.customer_notified_at >= c.applied_at and i.customer_notified_at > now() - interval '14 days') as recoverable,
+--   count(*) filter (where i.customer_notified_at < c.applied_at) as historical_before_cutover,
+--   count(*) filter (where i.customer_notified_at >= c.applied_at and i.customer_notified_at <= now() - interval '14 days') as too_old_to_recover
+--   from public.booking_interests i cross join public.interest_email_cutover c
+--  where i.notify_when_verified and i.status = 'fulfilled' and i.customer_notified_at is not null
+--    and not exists (select 1 from public.email_deliveries d
+--                     where d.kind = 'interest_verified' and d.recipient_key = i.id::text);

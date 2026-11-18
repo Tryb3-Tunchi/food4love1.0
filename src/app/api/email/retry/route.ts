@@ -55,6 +55,7 @@ export async function POST(request: Request) {
     // stored, so an admin resends them (which issues a fresh link).
     const interestEmails = await processInterestEmails(admin, {
       appUrl: resolveAppUrl(origin),
+      reconcile: true,
     }).catch(() => null)
 
     const { data: rows, error } = await admin

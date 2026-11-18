@@ -49,6 +49,7 @@ const KIND: Record<string, string> = {
   welcome: 'Welcome email',
   interest_verified: 'Cook verified notice',
   tester_invitation: 'Tester invitation',
+  password_recovery: 'Password reset',
 }
 
 export default function EmailOperationsPage() {

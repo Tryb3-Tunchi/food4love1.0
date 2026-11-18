@@ -18,14 +18,19 @@
 -- DEPLOY ORDER: ship the app code first, then run this. The code tolerates this migration
 -- not being applied yet (no emails are queued; in-app notifications keep working).
 --
--- ROLLBACK:
---   re-run section "6. tell people when a cook's verification changes" of
---   supabase-migration-booking-verification.sql to restore the previous trigger body.
---   (the new columns/states are harmless to leave in place.)
+-- ROLLBACK (deliberate, to the older trigger):
+--   set f4l.allow_trigger_downgrade = 'on';      -- same session, then:
+--   re-run supabase-migration-booking-verification.sql
+--   (the new columns/states/tables are harmless to leave in place.)
 --
--- ORDER MATTERS: if booking-verification is run again AFTER this file, the trigger goes back to
--- its old form and verification emails stop being queued without any error. Run this file
--- again to put the new trigger back.
+-- ORDER IS NOW SAFE: re-running booking-verification AFTER this file leaves this file's trigger
+-- in place (that file's trigger section is conditional) and prints a NOTICE. Without the explicit
+-- opt-in above it can no longer switch verification emails off by accident.
+--
+-- ALSO ADDS: a one-row table (interest_email_cutover) recording WHEN this outbox went live. The
+-- server's reconciliation step only recovers customers fulfilled AFTER that moment; anyone fulfilled
+-- before it is "historical" and is never emailed automatically. It also adds the 'password_recovery'
+-- email kind used by the forgot-password flow.
 --
 -- NOT APPLIED to any database by this commit. The owner of the Supabase project runs it.
 
@@ -63,7 +68,7 @@ $$;
 
 alter table public.email_deliveries
   add constraint email_deliveries_kind_check
-  check (kind in ('waitlist_confirmation', 'welcome', 'interest_verified', 'tester_invitation'));
+  check (kind in ('waitlist_confirmation', 'welcome', 'interest_verified', 'tester_invitation', 'password_recovery'));
 
 -- queued     decided to send; nothing attempted yet
 -- processing one worker has claimed it (stale claims are re-claimed by the server)
@@ -81,6 +86,17 @@ alter table public.email_deliveries
 create index if not exists email_deliveries_due_idx
   on public.email_deliveries (kind, status, next_attempt_at)
   where status in ('queued', 'failed', 'processing');
+
+-- ----------------------------------------------- 1b. when the outbox went live (cutover)
+-- One row, written the FIRST time this file runs and never changed by a re-run. Server-only.
+create table if not exists public.interest_email_cutover (
+  id boolean primary key default true check (id),
+  applied_at timestamptz not null default now()
+);
+insert into public.interest_email_cutover (id) values (true) on conflict (id) do nothing;
+alter table public.interest_email_cutover enable row level security;
+revoke all on public.interest_email_cutover from anon, authenticated;
+grant all on public.interest_email_cutover to service_role;
 
 -- ------------------------------------------- 2. the verification trigger (final wording)
 create or replace function public.booking_interest_on_verification()
