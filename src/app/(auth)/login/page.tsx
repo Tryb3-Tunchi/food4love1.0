@@ -48,7 +48,11 @@ export default function LoginPage() {
       return
     }
     try {
-      const nextPath = await getPostLoginRedirect(sb, authData.user.id)
+      const nextPath = await getPostLoginRedirect(
+        sb,
+        authData.user.id,
+        new URLSearchParams(window.location.search).get('next'),
+      )
       toast.success('Welcome back.')
       window.location.assign(nextPath)
     } catch {

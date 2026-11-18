@@ -299,6 +299,16 @@ test('every API route that is not a public form or a webhook checks who is calli
     'analytics/collect',
     'webhooks/resend',
     'webhooks/paystack',
+    // Tester invitations. The invitee has no account yet, so these cannot check a session.
+    // Instead each call must present the invitation's 256-bit secret (only its hash is
+    // stored), the request must come from this site, and responses are never cached.
+    // tests/invitations.test.mjs pins those three properties.
+    'invitations/validate',
+    'invitations/accept',
+    // Called by a scheduler, not a person: no session exists. It must present
+    // `Authorization: Bearer $CRON_SECRET` and refuses everyone when that is not set.
+    // tests/interest-notifications.test.mjs ("scheduled processing") pins this behaviour.
+    'cron/process-notifications',
   ])
   const missing = []
   const apiRoot = join(src, 'app/api')

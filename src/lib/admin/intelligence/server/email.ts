@@ -64,13 +64,20 @@ export async function getEmailOps(admin: Admin) {
     tracking = false
   }
 
-  const kinds = ['waitlist_confirmation', 'welcome'] as const
+  const kinds = [
+    'waitlist_confirmation',
+    'welcome',
+    'interest_verified',
+    'tester_invitation',
+  ] as const
   const statuses = [
     'queued',
+    'processing',
     'accepted',
     'delivered',
     'bounced',
     'failed',
+    'cancelled',
   ] as const
   const byKind = kinds.map((kind) => {
     const mine = deliveries.filter((d) => d.kind === kind)
@@ -83,8 +90,12 @@ export async function getEmailOps(admin: Admin) {
     }
   })
 
+  // Only what the "Retry failed email" button can actually retry. Tester invitations are
+  // excluded on purpose: their link's secret is not stored, so they are re-sent from
+  // Invite testers (which issues a fresh link), not retried here.
   const retryable = deliveries.filter(
     (d) =>
+      d.kind !== 'tester_invitation' &&
       (d.status === 'failed' || d.status === 'queued') &&
       d.attempts < MAX_EMAIL_ATTEMPTS,
   ).length

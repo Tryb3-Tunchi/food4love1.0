@@ -48,7 +48,11 @@ export default function CookLoginPage() {
       return
     }
     try {
-      const nextPath = await getPostLoginRedirect(sb, authData.user.id)
+      const nextPath = await getPostLoginRedirect(
+        sb,
+        authData.user.id,
+        new URLSearchParams(window.location.search).get('next'),
+      )
       toast.success('Welcome back, chef.')
       window.location.assign(nextPath)
     } catch {

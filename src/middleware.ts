@@ -79,6 +79,7 @@ export const config = {
     // makes a session check plus a profile query for every request, which the
     // analytics beacon (a heartbeat every 45 s per signed-in visitor) and the
     // payment and email webhooks (each authenticated by its own signature) do not need.
-    '/((?!_next/static|_next/image|favicon.ico|api/analytics/collect|api/webhooks/resend|api/webhooks/paystack|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
+    // api/cron/* is called by a scheduler with a bearer secret and has no user session.
+    '/((?!_next/static|_next/image|favicon.ico|api/analytics/collect|api/webhooks/resend|api/webhooks/paystack|api/cron/|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
   ],
 }
