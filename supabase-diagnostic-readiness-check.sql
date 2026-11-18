@@ -35,6 +35,9 @@
 --                tester_invitations means that migration is not applied yet.
 --   columns      Specific columns (e.g. email_deliveries.next_attempt_at, profiles.kyc_status).
 --                MISSING next_attempt_at = interest-verification-email not applied.
+--   baseline     The EXISTING parts the new features stand on (signup trigger on auth.users, the profiles guard trigger,
+--                row level security on profiles and notifications, notification kinds). On production these should already be OK.
+--                On a brand-new staging project every row is MISSING until the application's baseline schema is built.
 --   constraints  Whether the email_deliveries CHECKs already allow the new kinds/states, and
 --                whether bookings allows 'alternative_proposed'. MISSING = migration not applied.
 --   triggers     booking_guard, the verification trigger, booking_interest_guard,
@@ -103,6 +106,48 @@ from (
       ('tester_invitations','token_hash',              'tester-invitations (hash only)'),
       ('tester_invitations','claimed_at',              'tester-invitations')
     ) as w(t, c, note)
+
+  union all
+  -- 2b. the EXISTING baseline the new features depend on. A brand-new Supabase project has NONE of this;
+  --     on production it should all read OK already. Read-only: it asks the catalog what exists.
+  select 15, 'baseline', 'a signup trigger on auth.users runs a public function (creates profiles)',
+         case when to_regclass('auth.users') is null then 'MISSING'
+              when exists (select 1 from pg_trigger g
+                             join pg_proc p on p.oid = g.tgfoid
+                             join pg_namespace n on n.oid = p.pronamespace
+                            where g.tgrelid = to_regclass('auth.users') and not g.tgisinternal
+                              and n.nspname = 'public')
+              then 'OK' else 'MISSING' end,
+         'new accounts need a profile row. The invitation flow creates one itself if the trigger did not, but sign-ups depend on it.'
+  union all
+  select 16, 'baseline', 'profiles guard trigger exists (members cannot verify themselves)',
+         case when to_regclass('public.profiles') is null then 'MISSING'
+              when exists (select 1 from pg_trigger g
+                            where g.tgrelid = to_regclass('public.profiles') and not g.tgisinternal
+                              and g.tgname = 'food4love_guard_profile_privileges')
+              then 'OK' else 'MISSING' end,
+         'without it a cook could mark themselves verified: do not test verification until it exists'
+  union all
+  select 17, 'baseline', 'public.' || w.t || ' has row level security on',
+         case when to_regclass('public.' || w.t) is null then 'MISSING'
+              when (select c.relrowsecurity from pg_class c where c.oid = to_regclass('public.' || w.t))
+              then 'OK' else 'PROBLEM' end,
+         'profiles and notifications must be protected before any test account is created'
+    from (values ('profiles'), ('notifications')) as w(t)
+  union all
+  select 18, 'baseline', 'notifications.type accepts the kinds the features write (booking, system)',
+         case when to_regclass('public.notifications') is null then 'MISSING'
+              when not exists (select 1 from pg_constraint c
+                                where c.conrelid = to_regclass('public.notifications')
+                                  and c.contype = 'c' and pg_get_constraintdef(c.oid) like '%type%')
+              then 'OK'
+              when exists (select 1 from pg_constraint c
+                            where c.conrelid = to_regclass('public.notifications')
+                              and c.contype = 'c' and pg_get_constraintdef(c.oid) like '%type%'
+                              and pg_get_constraintdef(c.oid) like '%booking%'
+                              and pg_get_constraintdef(c.oid) like '%system%')
+              then 'OK' else 'PROBLEM' end,
+         'OK when there is no restriction, or the restriction lists both'
 
   union all
   -- 3. check constraints (is the NEW definition in place?)
