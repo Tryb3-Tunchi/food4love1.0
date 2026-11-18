@@ -2304,3 +2304,164 @@ test('the readiness diagnostic knows about the safeguard objects and splits reco
   assert.match(d, /-- B8\./)
   assert.match(d, /historical_before_cutover/)
 })
+
+// ================================================================== 9. diagnostic security review (static)
+// Part A is one SELECT; Part B is commented out and pasted one block at a time, so BOTH must be checked as code.
+const DIAGNOSTIC = 'supabase-diagnostic-readiness-check.sql'
+const SQL_WORDS = new Set([
+  'values',
+  'from',
+  'exists',
+  'in',
+  'and',
+  'or',
+  'not',
+  'when',
+  'then',
+  'else',
+  'end',
+  'case',
+  'select',
+  'where',
+  'as',
+  'on',
+  'join',
+  'union',
+  'by',
+  'having',
+  'filter',
+  'cross',
+  'group',
+  'order',
+  'all',
+  'lateral',
+  'limit',
+])
+const ALIASES = new Set(['w', 't', 'r', 'k', 'c', 'g', 'p', 'n', 'i', 'd'])
+const READ_ONLY_FUNCTIONS = new Set([
+  'to_regclass',
+  'to_regprocedure',
+  'pg_get_constraintdef',
+  'has_table_privilege',
+  'has_function_privilege',
+  'version',
+  'count',
+  'max',
+  'now',
+])
+const DANGEROUS =
+  /\b(pg_read_file|pg_read_binary_file|pg_ls_dir|lo_import|lo_export|lo_unlink|dblink|set_config|nextval|setval|pg_sleep|pg_terminate_backend|pg_cancel_backend|pg_reload_conf|pg_notify|pg_stat_reset|pg_advisory_lock|pg_advisory_xact_lock|txid_current|pg_switch_wal|pg_create_restore_point|current_setting|pg_get_functiondef|pg_get_viewdef|vault|decrypted_secrets)\b/i
+const FORBIDDEN_STATEMENTS =
+  /\b(insert|update|delete|create|alter|drop|grant|revoke|truncate|copy|call|execute|vacuum|reindex|merge|do|set|reset|begin|commit|rollback|listen|notify|prepare|lock|comment|security|into)\b/i
+const PERSONAL_OUTPUT =
+  /\b(email|full_name|phone|password|encrypted_password|token|token_hash|raw_user_meta_data|raw_app_meta_data|buyer_id|cook_id|customer_id|user_id|recipient_key|auth_user_id|invited_by|id)\b/i
+
+function functionCalls(code) {
+  return [...code.matchAll(/\b([a-z_][a-z0-9_]*)\s*\(/gi)]
+    .map((m) => m[1].toLowerCase())
+    .filter((name) => !SQL_WORDS.has(name) && !ALIASES.has(name))
+}
+const partBBlocks = () => {
+  const sql = read(DIAGNOSTIC)
+  const afterB = sql.slice(sql.indexOf('PART B'))
+  return afterB
+    .split(/\n(?=-- B\d+\.)/)
+    .slice(1)
+    .map((blk) => {
+      const lines = blk.split('\n')
+      const start = lines.findIndex((l) => /^-- select/.test(l))
+      return {
+        title: lines[0],
+        code: lines
+          .slice(start)
+          .filter((l) => l.startsWith('--'))
+          .map((l) => l.replace(/^-- ?/, ''))
+          .join('\n'),
+      }
+    })
+}
+
+test('diagnostic review: Part A calls only read-only catalog functions and no side-effect function', () => {
+  const sql = read(DIAGNOSTIC)
+  const partA = sql.slice(
+    sql.indexOf('select section, check_name'),
+    sql.indexOf('order by ord, check_name;') + 26,
+  )
+  const code = stripSql(partA)
+  assert.ok(partA.length > 3000)
+  assert.doesNotMatch(
+    code,
+    FORBIDDEN_STATEMENTS,
+    'no write, DDL, privilege or transaction statement',
+  )
+  assert.doesNotMatch(partA, DANGEROUS)
+  const unknown = [...new Set(functionCalls(code))].filter(
+    (f) => !READ_ONLY_FUNCTIONS.has(f),
+  )
+  assert.deepEqual(
+    unknown,
+    [],
+    'every function called is on the read-only allow-list',
+  )
+  assert.doesNotMatch(
+    code,
+    /\$\$|\$[a-z_]*\$/i,
+    'no dollar-quoted (dynamic) code',
+  )
+  assert.equal((code.match(/;/g) ?? []).length, 1, 'a single statement')
+})
+
+test('diagnostic review: every Part B block is read-only and returns counts, never people', () => {
+  const blocks = partBBlocks()
+  assert.equal(blocks.length, 8)
+  for (const { title, code: raw } of blocks) {
+    const code = stripSql(raw)
+    assert.doesNotMatch(code, FORBIDDEN_STATEMENTS, title)
+    assert.doesNotMatch(raw, DANGEROUS, title)
+    assert.match(code, /count\(/, `${title}: aggregate output only`)
+    const unknown = [...new Set(functionCalls(code))].filter(
+      (f) => !READ_ONLY_FUNCTIONS.has(f),
+    )
+    assert.deepEqual(unknown, [], title)
+    // the columns it RETURNS (everything before the first FROM) must not identify anyone
+    const outputList = code.slice(
+      code.indexOf('select') + 6,
+      code.search(/\bfrom\b/i),
+    )
+    assert.doesNotMatch(
+      outputList.replace(/count\([^)]*\)|max\([^)]*\)/gi, ''),
+      PERSONAL_OUTPUT,
+      `${title}: returns ${outputList.trim().slice(0, 80)}`,
+    )
+  }
+})
+
+test('diagnostic review: it only reads schemas the migrations concern', () => {
+  const sql =
+    stripSql(read(DIAGNOSTIC)) +
+    '\n' +
+    partBBlocks()
+      .map((b) => stripSql(b.code))
+      .join('\n')
+  const schemas = new Set(
+    [
+      ...sql.matchAll(/\b(public|auth|information_schema|pg_catalog)\.\w+/gi),
+    ].map((m) => m[1].toLowerCase()),
+  )
+  assert.ok(
+    [...schemas].every((x) =>
+      ['public', 'auth', 'information_schema'].includes(x),
+    ),
+    [...schemas].join(),
+  )
+  // auth.users is read in exactly one place (a count in B7) and nothing else in auth is touched
+  const authReads = [...sql.matchAll(/\bauth\.(\w+)/gi)].map((m) =>
+    m[1].toLowerCase(),
+  )
+  assert.deepEqual([...new Set(authReads)], ['users'])
+  assert.equal(
+    authReads.length,
+    1,
+    'exactly one read of auth.users: the count in B7',
+  )
+})

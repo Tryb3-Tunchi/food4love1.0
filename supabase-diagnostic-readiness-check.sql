@@ -4,13 +4,17 @@
 --   supabase-migration-interest-verification-email.sql
 --   supabase-migration-tester-invitations.sql
 --
--- HOW TO USE: Supabase dashboard > SQL Editor > New query. Paste PART A, run it, read the
--- RESULT column. Then (optionally) run the PART B statements ONE AT A TIME.
+-- HOW TO USE: Supabase dashboard > SQL Editor > New query. Paste PART A (or the whole file: Part B is
+-- commented out, so it does nothing), run it, read the RESULT column. Then (optionally) run the PART B
+-- statements ONE AT A TIME, removing the leading "-- " from the single block you want.
 --
 -- THIS FILE ONLY READS. It contains SELECT statements and nothing else: no insert, update,
--- delete, create, alter, drop, grant or function that writes. It reads the database's own
--- catalog (what tables, columns, triggers and permissions exist) and, in Part B, counts rows.
--- It never selects an email address, a name, a token, a password or any user content.
+-- delete, create, alter, drop, grant, dynamic SQL, or function with side effects (a repo test
+-- enforces this with an allow-list of the few catalog functions it calls, for Part A AND Part B).
+-- It reads the database's own catalog (what tables, columns, triggers and permissions exist) and,
+-- in Part B, returns COUNTS only. It never selects an email address, a name, a token, a password,
+-- or any customer/cook identifier: Part A returns object names; Part B returns numbers and states.
+-- The one touch of the auth schema is a count in B7.
 --
 -- STATUS OF THIS FILE: executed against a throwaway in-memory PostgreSQL (PGlite) that imitates
 -- Supabase's roles; NEVER executed against Supabase itself. There it ran without error (a) on a
@@ -267,11 +271,15 @@ order by ord, check_name;
 --    and not exists (select 1 from public.email_deliveries d
 --                     where d.kind = 'interest_verified' and d.recipient_key = i.id::text);
 
--- B5. booking-verification precondition: must return NO rows
--- select buyer_id, cook_id, scheduled_for, count(*) as copies
---   from public.bookings
---  where status in ('pending', 'alternative_proposed', 'confirmed')
---  group by 1, 2, 3 having count(*) > 1;
+-- B5. booking-verification precondition: must be 0. COUNT ONLY: it deliberately does not list who the
+--     duplicates are (that would show customer identifiers). If it is not 0, do not apply booking-verification;
+--     the header of that migration has the row-level query to run in a private session.
+-- select count(*) as duplicate_active_booking_groups
+--   from (select 1
+--           from public.bookings
+--          where status in ('pending', 'alternative_proposed', 'confirmed')
+--          group by buyer_id, cook_id, scheduled_for
+--         having count(*) > 1) d;
 
 -- B6. invitations by state (needs tester_invitations)
 -- select status, access_type, count(*) as invitations
