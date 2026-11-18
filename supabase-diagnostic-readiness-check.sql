@@ -12,15 +12,48 @@
 -- catalog (what tables, columns, triggers and permissions exist) and, in Part B, counts rows.
 -- It never selects an email address, a name, a token, a password or any user content.
 --
--- STATUS OF THIS FILE: written carefully but NOT EXECUTED by its author (no Postgres was
--- available where it was written). If the editor reports a syntax error, nothing has run and
--- nothing has changed; tell whoever is helping you the exact message.
+-- STATUS OF THIS FILE: executed against a throwaway in-memory PostgreSQL (PGlite) that imitates
+-- Supabase's roles; NEVER executed against Supabase itself. There it ran without error (a) on a
+-- database where none of the new objects exist, (b) on a fully migrated one, (c) pasted whole,
+-- inside a READ ONLY transaction, changing nothing, and (d) it flagged nine deliberately broken
+-- states. Supabase differs in ways PGlite cannot imitate, so if the editor reports an error,
+-- nothing has run and nothing has changed: send the exact message back.
 --
--- HOW TO READ PART A:
+-- HOW TO READ PART A (one row per check; the `section` column groups them):
 --   OK       the object/permission is as the migrations expect
 --   MISSING  not there yet (a migration has not been applied, or was partly applied)
 --   PROBLEM  there but NOT as expected: read the detail column before doing anything
 --   INFO     context only
+--
+-- WHAT EACH SECTION CHECKS, AND WHAT YOU SHOULD SEE
+--   tables       The 5 tables the features read, plus the 4 they create. Expect OK for every
+--                existing table. A MISSING on booking_interests / booking_events /
+--                tester_invitations means that migration is not applied yet.
+--   columns      Specific columns (e.g. email_deliveries.next_attempt_at, profiles.kyc_status).
+--                MISSING next_attempt_at = interest-verification-email not applied.
+--   constraints  Whether the email_deliveries CHECKs already allow the new kinds/states, and
+--                whether bookings allows 'alternative_proposed'. MISSING = migration not applied.
+--   triggers     booking_guard, the verification trigger, booking_interest_guard,
+--                tester_invitations_guard. The row "verification trigger function version" is the
+--                important one: OK = the NEW version (queues the email); PROBLEM = the OLD
+--                version is live, so verification sends NO email. That happens if
+--                booking-verification was run AFTER interest-verification-email. Fix: run
+--                interest-verification-email again.
+--   indexes      The unique/lookup indexes that make duplicates impossible. MISSING = not applied.
+--   row level security / permissions
+--                RLS must be ON for the 4 new tables; email_deliveries and tester_invitations must
+--                have NO policy and NO privilege for the browser roles (anon, authenticated);
+--                booking_interests / booking_events must be readable (not writable) by signed-in
+--                members and unreadable by anon. ANY PROBLEM HERE IS A SECURITY ISSUE: stop and
+--                send the row back before applying anything.
+--   functions    admin_lookup_auth_user must exist and must NOT be executable by the browser
+--                roles; my_interest_count must exist.
+--   context      The Postgres version. Informational.
+--
+-- EXPECTED RESULT BEFORE ANY OF THE THREE MIGRATIONS ARE APPLIED: OK for the existing tables
+-- and email_deliveries; MISSING for everything new; NO PROBLEM rows. AFTER ALL ARE APPLIED:
+-- every row OK (email_events may read MISSING if the admin-intelligence migration was not
+-- applied; that is unrelated). Any PROBLEM row at any time deserves attention.
 
 -- =====================================================================================
 -- PART A - structure and permissions (safe to run even if every table is missing)

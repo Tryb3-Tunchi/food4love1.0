@@ -23,6 +23,10 @@
 --   supabase-migration-booking-verification.sql to restore the previous trigger body.
 --   (the new columns/states are harmless to leave in place.)
 --
+-- ORDER MATTERS: if booking-verification is run again AFTER this file, the trigger goes back to
+-- its old form and verification emails stop being queued without any error. Run this file
+-- again to put the new trigger back.
+--
 -- NOT APPLIED to any database by this commit. The owner of the Supabase project runs it.
 
 begin;

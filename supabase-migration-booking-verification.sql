@@ -3,6 +3,13 @@
 -- PREPARED, NOT APPLIED. Additive and re-runnable. Tested only in a throwaway in-memory
 -- PostgreSQL. Reuses the existing bookings table: nothing is duplicated.
 --
+-- WARNING - DO NOT RE-RUN THIS FILE AFTER supabase-migration-interest-verification-email.sql.
+-- Section 6 below (re)creates the verification trigger function in its ORIGINAL form, which
+-- silently stops "your cook is verified" emails from being queued (the in-app notice keeps
+-- working, so nothing looks broken). If it ever happens, run
+-- supabase-migration-interest-verification-email.sql again; the readiness diagnostic reports it
+-- as a PROBLEM on "verification trigger function version".
+--
 -- WHAT IT ADDS
 --  1. bookings: service_type, allergies, dietary_preferences, a proposed alternative time,
 --     who cancelled and why, and a completion time. One new status, 'alternative_proposed'.
