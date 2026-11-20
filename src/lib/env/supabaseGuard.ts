@@ -71,11 +71,52 @@ export function classifySupabaseTarget(
   return isLocalUrl(url) ? 'local' : 'unknown'
 }
 
-// A process running ON Vercel is the deployed app and legitimately uses production (VERCEL is set by
-// the platform). Anything else is a local process.
+// Where is this process running?
+//   'production'   the live Vercel deployment (VERCEL_ENV=production)
+//   'preview'      a Vercel preview deployment: every pull request and non-production branch gets one
+//   'development'  `vercel dev`
+//   'unknown'      VERCEL is set but VERCEL_ENV is not (the project hides Vercel's system variables)
+//   'local'        not on Vercel at all (a developer's computer, CI)
+// VERCEL alone cannot tell production from a preview: the platform sets it for both.
+export type RuntimeEnvironment =
+  'production' | 'preview' | 'development' | 'unknown' | 'local'
+
+export function runtimeEnvironment(env: Env): RuntimeEnvironment {
+  if (!env.VERCEL) return 'local'
+  const stage = (env.VERCEL_ENV ?? '').trim().toLowerCase()
+  if (stage === 'production' || stage === 'preview' || stage === 'development')
+    return stage
+  return 'unknown'
+}
+
+// May this process hold the PRODUCTION Supabase project?
+//   * the live deployment: yes
+//   * a Vercel preview or `vercel dev`: NEVER, not even with the override below. A preview is built from
+//     any branch and is reachable by everyone on the team, so it must run on staging data.
+//   * 'unknown' (VERCEL set, VERCEL_ENV hidden): yes, as before. Refusing here could take the live site down
+//     if the project ever stops exposing system variables; the build check and the dashboard settings still apply.
+//   * a local process: only with the deliberate override phrase.
 export function mayUseProductionHere(env: Env): boolean {
-  if (env.VERCEL) return true
+  const where = runtimeEnvironment(env)
+  if (where === 'preview' || where === 'development') return false
+  if (where === 'production' || where === 'unknown') return true
   return env.F4L_ALLOW_PRODUCTION_LOCAL === PRODUCTION_OVERRIDE_VALUE
+}
+
+// True when this process points at production but is not allowed to. Needs only the address and the
+// platform variables (no key parsing), so it is safe to call from the edge middleware on every request.
+export function productionForbiddenHere(env: Env): boolean {
+  return (
+    classifySupabaseTarget(env.NEXT_PUBLIC_SUPABASE_URL) === 'production' &&
+    !mayUseProductionHere(env)
+  )
+}
+
+function whyProductionIsForbidden(env: Env): string {
+  const where = runtimeEnvironment(env)
+  return where === 'preview' || where === 'development'
+    ? `This is a Vercel ${where} deployment and it points at PRODUCTION, which holds real customer data. Previews must use the staging Supabase project: set the Preview environment variables in Vercel to staging values.`
+    : 'This configuration points at PRODUCTION, which holds real customer data, and this is a local process. Use a staging project (npm run dev:staging).'
 }
 
 export interface EnvAssessment {
@@ -128,9 +169,7 @@ export function assessSupabaseEnv(
   }
 
   if (target === 'production' && !mayUseProductionHere(env))
-    problems.push(
-      'This configuration points at PRODUCTION, which holds real customer data, and this is a local process. Use a staging project (npm run dev:staging).',
-    )
+    problems.push(whyProductionIsForbidden(env))
 
   return { target, ref, ok: problems.length === 0, problems }
 }
@@ -139,10 +178,14 @@ export function assessSupabaseEnv(
 // holding a production service key would otherwise have unlimited access to real data.
 export function assertSupabaseTargetAllowed(env: Env): void {
   const assessment = assessSupabaseEnv(env, { requireServiceKey: false })
-  if (assessment.target === 'production' && !mayUseProductionHere(env))
+  if (assessment.target === 'production' && !mayUseProductionHere(env)) {
+    const where = runtimeEnvironment(env)
     throw new Error(
-      'Refusing to use the production Supabase project from a local process. Use a staging project (see STAGING-ENVIRONMENT-PLAN).',
+      where === 'preview' || where === 'development'
+        ? 'Refusing to use the production Supabase project from a Vercel preview deployment. Previews must use the staging project.'
+        : 'Refusing to use the production Supabase project from a local process. Use a staging project (see STAGING-ENVIRONMENT-PLAN).',
     )
+  }
   if (
     assessment.problems.some((p) =>
       /different Supabase project|PRODUCTION key/.test(p),

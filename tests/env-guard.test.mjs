@@ -789,3 +789,177 @@ test('the production project reference is the one in the engineering notes', () 
   assert.equal(PRODUCTION_SUPABASE_REF, 'oynhaqpuqzvaymntnzqo')
   assert.match(read('src/lib/env/supabaseGuard.ts'), /PUBLIC identifier/)
 })
+
+// ============================================================================== 6. preview vs production on Vercel
+// VERCEL is set for every deployment, so it cannot tell the live site from a pull-request preview.
+// VERCEL_ENV can. These tests pin that difference.
+import {
+  productionForbiddenHere,
+  runtimeEnvironment,
+} from '../src/lib/env/supabaseGuard.ts'
+
+test('Vercel: the live deployment may use production, a preview or `vercel dev` never may', () => {
+  assert.equal(runtimeEnvironment({}), 'local')
+  assert.equal(runtimeEnvironment({ VERCEL: '1' }), 'unknown')
+  assert.equal(
+    runtimeEnvironment({ VERCEL: '1', VERCEL_ENV: 'Production' }),
+    'production',
+  )
+  assert.equal(
+    runtimeEnvironment({ VERCEL: '1', VERCEL_ENV: 'preview' }),
+    'preview',
+  )
+  assert.equal(
+    runtimeEnvironment({ VERCEL: '1', VERCEL_ENV: 'something-new' }),
+    'unknown',
+  )
+
+  const live = productionEnv({ VERCEL: '1', VERCEL_ENV: 'production' })
+  assert.equal(assessSupabaseEnv(live).ok, true)
+  assert.equal(productionForbiddenHere(live), false)
+
+  for (const stage of ['preview', 'development']) {
+    const env = productionEnv({ VERCEL: '1', VERCEL_ENV: stage })
+    const assessment = assessSupabaseEnv(env)
+    assert.equal(assessment.ok, false, stage)
+    assert.match(assessment.problems.join(' '), /Vercel .* deployment/, stage)
+    assert.equal(productionForbiddenHere(env), true, stage)
+    assert.equal(mayUseProductionHere(env), false, stage)
+    // the override phrase is for a developer's computer; it does not open a preview
+    const overridden = {
+      ...env,
+      F4L_ALLOW_PRODUCTION_LOCAL: PRODUCTION_OVERRIDE_VALUE,
+    }
+    assert.equal(mayUseProductionHere(overridden), false, `${stage} + override`)
+    assert.throws(
+      () => assertSupabaseTargetAllowed(overridden),
+      /Vercel preview/,
+      `${stage} + override`,
+    )
+  }
+})
+
+test('Vercel: a preview on the staging project is fine, and when VERCEL_ENV is hidden the old behaviour is kept', () => {
+  const preview = stagingEnv({ VERCEL: '1', VERCEL_ENV: 'preview' })
+  assert.equal(assessSupabaseEnv(preview).ok, true)
+  assert.equal(productionForbiddenHere(preview), false)
+  assert.doesNotThrow(() => assertSupabaseTargetAllowed(preview))
+  // the platform did not report the stage: do not take the live site down
+  assert.equal(productionForbiddenHere(productionEnv({ VERCEL: '1' })), false)
+  // a plain local process on production is still refused, and still allowed with the phrase
+  assert.equal(productionForbiddenHere(productionEnv()), true)
+  assert.equal(
+    productionForbiddenHere(
+      productionEnv({ F4L_ALLOW_PRODUCTION_LOCAL: PRODUCTION_OVERRIDE_VALUE }),
+    ),
+    false,
+  )
+  // nothing configured is not "production"
+  assert.equal(
+    productionForbiddenHere({ VERCEL: '1', VERCEL_ENV: 'preview' }),
+    false,
+  )
+})
+
+test('a preview that holds the production service key cannot build an admin client', async () => {
+  const adminModule = await import('../src/lib/supabase/admin.ts')
+  const previous = { ...process.env }
+  try {
+    for (const k of Object.keys(process.env)) delete process.env[k]
+    Object.assign(
+      process.env,
+      productionEnv({ VERCEL: '1', VERCEL_ENV: 'preview' }),
+    )
+    assert.throws(() => adminModule.createAdminClient(), /preview deployment/)
+    Object.assign(
+      process.env,
+      productionEnv({ VERCEL: '1', VERCEL_ENV: 'production' }),
+    )
+    assert.ok(adminModule.createAdminClient())
+  } finally {
+    for (const k of Object.keys(process.env)) delete process.env[k]
+    Object.assign(process.env, previous)
+  }
+})
+
+test('the middleware refuses every request first when production is forbidden here', () => {
+  const src = read('src/middleware.ts')
+  assert.match(src, /productionForbiddenHere\(process\.env\)/)
+  assert.ok(
+    src.indexOf('productionForbiddenHere(process.env)') <
+      src.indexOf('createServerClient('),
+    'the check must come before any Supabase client is built',
+  )
+  assert.ok(
+    src.indexOf('productionForbiddenHere(process.env)') <
+      src.indexOf("pathname === '/'"),
+    'and before the redirects',
+  )
+  assert.match(src, /status: 503/)
+})
+
+function runBuildGuard(env) {
+  // a clean environment: only what the test names, so nothing from this machine leaks in
+  const result = spawnSync(
+    process.execPath,
+    ['scripts/vercel-build-guard.mjs'],
+    {
+      cwd: root,
+      env: { PATH: process.env.PATH, ...env },
+      encoding: 'utf8',
+    },
+  )
+  return { code: result.status, out: `${result.stdout}${result.stderr}` }
+}
+
+test('build guard: a preview build against production is stopped, with names only', () => {
+  const env = productionEnv({ VERCEL: '1', VERCEL_ENV: 'preview' })
+  const run = runBuildGuard(env)
+  assert.equal(run.code, 1)
+  assert.match(run.out, /PRODUCTION project/)
+  assert.match(run.out, /PRODUCTION key/)
+  for (const secret of [
+    env.SUPABASE_SERVICE_ROLE_KEY,
+    env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+  ])
+    assert.ok(!run.out.includes(secret), 'no key is ever printed')
+  // production key next to a staging address is also stopped in a preview
+  const mixed = runBuildGuard(
+    stagingEnv({
+      VERCEL: '1',
+      VERCEL_ENV: 'preview',
+      SUPABASE_SERVICE_ROLE_KEY: jwt(PRODUCTION_SUPABASE_REF, 'service_role'),
+    }),
+  )
+  assert.equal(mixed.code, 1)
+})
+
+test('build guard: production builds, staging previews and builds outside Vercel are never blocked', () => {
+  assert.equal(
+    runBuildGuard(productionEnv({ VERCEL: '1', VERCEL_ENV: 'production' }))
+      .code,
+    0,
+  )
+  // VERCEL_ENV not reported: never blocks (cannot tell, and the live site must keep deploying)
+  assert.equal(runBuildGuard(productionEnv({ VERCEL: '1' })).code, 0)
+  assert.equal(
+    runBuildGuard(stagingEnv({ VERCEL: '1', VERCEL_ENV: 'preview' })).code,
+    0,
+  )
+  // a preview with no Supabase settings at all still builds (as today)
+  assert.equal(runBuildGuard({ VERCEL: '1', VERCEL_ENV: 'preview' }).code, 0)
+  // GitHub Actions and laptops have no VERCEL
+  assert.equal(runBuildGuard(productionEnv()).code, 0)
+  assert.equal(runBuildGuard({}).code, 0)
+})
+
+test('build guard: it is wired before `next build`, and names the same production project as the app guard', () => {
+  const pkg = JSON.parse(read('package.json'))
+  assert.equal(pkg.scripts.prebuild, 'node scripts/vercel-build-guard.mjs')
+  assert.equal(pkg.scripts.build, 'next build')
+  assert.match(
+    read('scripts/vercel-build-guard.mjs'),
+    new RegExp(`PRODUCTION_REF = '${PRODUCTION_SUPABASE_REF}'`),
+  )
+  assert.doesNotMatch(read('scripts/vercel-build-guard.mjs'), /^import /m)
+})
