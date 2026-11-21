@@ -1,7 +1,24 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
+import { productionForbiddenHere } from '@/lib/env/supabaseGuard'
 
 export async function middleware(request: NextRequest) {
+  // A Vercel preview (every pull request gets one) or a local process that points at the PRODUCTION
+  // database serves nothing: no page, no sign-in, no query. The live deployment is unaffected
+  // (VERCEL_ENV=production). Runs before anything else so no request can reach the real data.
+  if (productionForbiddenHere(process.env)) {
+    return new NextResponse(
+      'This deployment is disabled: it is configured to use the production database but is not the production deployment. Point its environment at the staging Supabase project.',
+      {
+        status: 503,
+        headers: {
+          'Content-Type': 'text/plain; charset=utf-8',
+          'X-Robots-Tag': 'noindex',
+        },
+      },
+    )
+  }
+
   if (
     request.nextUrl.pathname === '/' ||
     request.nextUrl.pathname.startsWith('/signup')
@@ -79,6 +96,7 @@ export const config = {
     // makes a session check plus a profile query for every request, which the
     // analytics beacon (a heartbeat every 45 s per signed-in visitor) and the
     // payment and email webhooks (each authenticated by its own signature) do not need.
-    '/((?!_next/static|_next/image|favicon.ico|api/analytics/collect|api/webhooks/resend|api/webhooks/paystack|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
+    // api/cron/* is called by a scheduler with a bearer secret and has no user session.
+    '/((?!_next/static|_next/image|favicon.ico|api/analytics/collect|api/webhooks/resend|api/webhooks/paystack|api/cron/|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
   ],
 }

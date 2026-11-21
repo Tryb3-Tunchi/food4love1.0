@@ -85,6 +85,7 @@ export async function getHealth(admin: Admin) {
     'RESEND_API_KEY',
     'RESEND_FROM_EMAIL',
     'RESEND_WEBHOOK_SECRET',
+    'CRON_SECRET',
     'PAYSTACK_SECRET_KEY',
     'NEXT_PUBLIC_APP_URL',
   ].map((name) => ({ name, set: has(name) }))
@@ -168,8 +169,9 @@ export async function getHealth(admin: Admin) {
         reason: 'Available in the Supabase dashboard under Logs.',
       },
       {
-        label: 'Background jobs',
-        reason: 'Food4Love does not run scheduled background jobs yet.',
+        label: 'Scheduled job run history',
+        reason:
+          'Vercel Cron is configured to call the notification processor daily. Run history and outcomes are not stored here; check Vercel Logs.',
       },
     ],
     generatedAt: new Date().toISOString(),

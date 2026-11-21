@@ -1,6 +1,7 @@
 'use client'
 
 import Link from 'next/link'
+import { useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -32,6 +33,15 @@ const LOGIN_CARDS = [
 ]
 
 export default function LoginPage() {
+  // Shown after a password reset sends the person here (/login?reset=1). Read on the client
+  // so the page itself stays static.
+  const [passwordWasReset, setPasswordWasReset] = useState(false)
+  useEffect(() => {
+    setPasswordWasReset(
+      new URLSearchParams(window.location.search).get('reset') === '1',
+    )
+  }, [])
+
   const {
     register,
     handleSubmit,
@@ -48,7 +58,11 @@ export default function LoginPage() {
       return
     }
     try {
-      const nextPath = await getPostLoginRedirect(sb, authData.user.id)
+      const nextPath = await getPostLoginRedirect(
+        sb,
+        authData.user.id,
+        new URLSearchParams(window.location.search).get('next'),
+      )
       toast.success('Welcome back.')
       window.location.assign(nextPath)
     } catch {
@@ -143,6 +157,15 @@ export default function LoginPage() {
               </p>
             </div>
 
+            {passwordWasReset && (
+              <p
+                role="status"
+                className="mb-4 rounded-2xl bg-mint px-4 py-3 text-sm font-medium text-meadow"
+              >
+                Your password has been updated. Sign in with your new password.
+              </p>
+            )}
+
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
               <Input
                 label="Email address"
@@ -161,6 +184,14 @@ export default function LoginPage() {
                 hint="Minimum 6 characters"
                 {...register('password')}
               />
+              <div className="-mt-1 text-right">
+                <Link
+                  href="/forgot-password"
+                  className="inline-flex min-h-11 items-center text-sm font-semibold text-[color:var(--accent)] hover:underline"
+                >
+                  Forgot password?
+                </Link>
+              </div>
 
               <Button
                 type="submit"

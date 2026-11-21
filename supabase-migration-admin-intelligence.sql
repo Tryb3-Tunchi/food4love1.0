@@ -1,9 +1,13 @@
 -- Admin Operations & Intelligence Center: privacy-conscious analytics, online
 -- presence, operational events and email event history.
 --
--- REVIEW BEFORE RUNNING. NOT applied anywhere. Run it in a staging project
--- first if you have one. Everything is additive and safe to re-run: it creates
--- NEW tables and one guard on admin_audit_log; it changes no existing rows.
+-- CURRENT DATABASE STATUS (2026-11-20): The tables, indexes, RLS settings,
+-- retention function and audit guard created here are already present in both
+-- production and food4love-staging. Neither Supabase migration ledger records
+-- this SQL file, so its original "NOT applied anywhere" status is stale. Do not
+-- run it as an outstanding migration without reviewing the live object state.
+-- Although table creation is guarded by IF NOT EXISTS, this file also changes
+-- audit-log privileges and replaces its triggers/functions.
 --
 -- WHAT IS (AND IS NOT) STORED
 --   * No IP addresses, no user agents, no precise location. Country/region come
