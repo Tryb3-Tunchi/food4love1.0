@@ -1,4 +1,5 @@
 'use client'
+import Link from 'next/link'
 import { useEffect, useState } from 'react'
 import { getAllUsers, suspendUser } from '@/services/admin'
 import { Avatar } from '@/components/ui/Avatar'
@@ -22,10 +23,6 @@ export default function AdminUsersPage() {
   const [total, setTotal] = useState(0)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
-  const [inviteEmail, setInviteEmail] = useState('')
-  const [inviteName, setInviteName] = useState('')
-  const [inviteRole, setInviteRole] = useState<'buyer' | 'cook'>('cook')
-  const [inviting, setInviting] = useState(false)
   const [resettingUserId, setResettingUserId] = useState<string | null>(null)
 
   const resetUnmatchedSwipes = async (userId: string, name: string) => {
@@ -55,35 +52,6 @@ export default function AdminUsersPage() {
       )
     } finally {
       setResettingUserId(null)
-    }
-  }
-
-  const invitePilot = async (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault()
-    setInviting(true)
-    try {
-      const response = await fetch('/api/admin/users', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          email: inviteEmail,
-          full_name: inviteName,
-          role: inviteRole,
-        }),
-      })
-      const result = await response.json().catch(() => ({}))
-      if (!response.ok)
-        throw new Error(result.error || 'Could not invite account')
-      toast.success(`Invitation sent to ${inviteEmail}`)
-      if (result.audit_warning) toast.error(result.audit_warning)
-      setInviteEmail('')
-      setInviteName('')
-    } catch (cause) {
-      toast.error(
-        cause instanceof Error ? cause.message : 'Could not send invitation',
-      )
-    } finally {
-      setInviting(false)
     }
   }
 
@@ -139,60 +107,20 @@ export default function AdminUsersPage() {
       <p className="mb-6 text-sm text-mist">
         Search marketplace accounts and manage account access.
       </p>
-      <form
-        onSubmit={invitePilot}
-        className="mb-5 grid gap-3 rounded-2xl border border-white/10 bg-smoke p-4 sm:grid-cols-[1fr_1fr_auto_auto] sm:items-end"
-      >
-        <label className="block text-xs font-semibold text-mist">
-          Name
-          <Input
-            required
-            minLength={2}
-            maxLength={100}
-            value={inviteName}
-            onChange={(event) => setInviteName(event.target.value)}
-            placeholder="Tester name"
-            className="mt-1"
-          />
-        </label>
-        <label className="block text-xs font-semibold text-mist">
-          Email
-          <Input
-            required
-            type="email"
-            maxLength={254}
-            value={inviteEmail}
-            onChange={(event) => setInviteEmail(event.target.value)}
-            placeholder="name@example.com"
-            className="mt-1"
-          />
-        </label>
-        <label className="block text-xs font-semibold text-mist">
-          Account type
-          <select
-            value={inviteRole}
-            onChange={(event) =>
-              setInviteRole(event.target.value as 'buyer' | 'cook')
-            }
-            className="mt-1 min-h-11 w-full rounded-lg border border-white/10 bg-char px-3 text-sm text-white outline-none focus:border-[var(--accent)]"
-          >
-            <option value="cook">Home cook</option>
-            <option value="buyer">Food lover</option>
-          </select>
-        </label>
-        <Button
-          type="submit"
-          disabled={inviting}
-          loading={inviting}
-          leftIcon={<UserPlus className="h-4 w-4" />}
-        >
-          Invite tester
-        </Button>
-        <p className="text-xs leading-5 text-mist sm:col-span-4">
-          Sends a Supabase sign-up invitation. The new account receives no admin
-          privileges; use Admin access to grant scoped permissions if needed.
+      <div className="mb-5 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-white/10 bg-smoke p-4">
+        <p className="max-w-xl text-sm leading-6 text-mist">
+          Want someone to try Food4Love early? Invitations now have their own
+          page, with delivery status, resend and revoke. New accounts never
+          receive admin access.
         </p>
-      </form>
+        <Link
+          href="/admin/users/invite"
+          className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-[var(--accent)] px-5 text-sm font-bold text-white"
+        >
+          <UserPlus className="h-4 w-4" aria-hidden="true" />
+          Invite testers
+        </Link>
+      </div>
       <div className="mb-4 grid gap-3 sm:grid-cols-[minmax(14rem,1fr)_auto_auto]">
         <Input
           placeholder="Search by name..."

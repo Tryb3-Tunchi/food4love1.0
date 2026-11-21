@@ -1,7 +1,17 @@
 -- Booking verification, lifecycle integrity, booking interest, and audit trail.
 --
--- PREPARED, NOT APPLIED. Additive and re-runnable. Tested only in a throwaway in-memory
--- PostgreSQL. Reuses the existing bookings table: nothing is duplicated.
+-- RELEASE STATUS (2026-11-20): Prepared for production, where the new booking
+-- columns, booking_events, booking_interests and related guards/indexes are
+-- absent. Staging already contains matching feature objects, but its migration
+-- ledger is empty, so this file's historical "NOT APPLIED" label is not evidence
+-- that staging lacks the schema. Reuses the existing bookings table.
+--
+-- RE-RUNNING AFTER supabase-migration-interest-verification-email.sql IS SAFE: section 6 only
+-- (re)creates the verification trigger function when the NEWER version (the one that queues the
+-- "your cook is verified" email) is not already installed, and says so in a NOTICE. Before this
+-- safeguard, a re-run silently switched those emails off while the in-app notice kept working.
+-- To go back to the older trigger on purpose, run  set f4l.allow_trigger_downgrade = 'on';
+-- in the same session first. The readiness diagnostic still reports a wrong version as a PROBLEM.
 --
 -- WHAT IT ADDS
 --  1. bookings: service_type, allergies, dietary_preferences, a proposed alternative time,
@@ -345,6 +355,22 @@ create unique index if not exists notifications_event_key_once
   where data ? 'event_key';
 
 -- ===================== 6. tell people when a cook's verification changes
+-- SAFEGUARD: supabase-migration-interest-verification-email.sql installs a NEWER version of this
+-- function (it also queues the "your cook is verified" email). Re-running THIS file must never put
+-- the older version back over it, so the function is only (re)created when the newer behaviour is
+-- NOT already installed. On a database that never had the newer version this block behaves exactly
+-- as before. To deliberately go back to the older version (rollback), run first, in the same session:
+--     set f4l.allow_trigger_downgrade = 'on';
+do $guard$
+begin
+  if exists (
+    select 1 from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+     where n.nspname = 'public' and p.proname = 'booking_interest_on_verification'
+       and p.prosrc like '%interest_verified%'
+  ) and coalesce(current_setting('f4l.allow_trigger_downgrade', true), '') <> 'on' then
+    raise notice 'booking_interest_on_verification already has the newer verification-email behaviour: left unchanged';
+  else
+    execute $fn$
 create or replace function public.booking_interest_on_verification()
 returns trigger
 language plpgsql
@@ -397,6 +423,10 @@ begin
   return new;
 end;
 $$;
+    $fn$;
+  end if;
+end;
+$guard$;
 
 drop trigger if exists zz_booking_interest_on_verification on public.profiles;
 create trigger zz_booking_interest_on_verification

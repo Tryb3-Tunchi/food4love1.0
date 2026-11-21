@@ -2,6 +2,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { createHmac } from 'node:crypto'
+import { readFileSync } from 'node:fs'
 import {
   resolveRange,
   startOfAdminDay,
@@ -41,6 +42,28 @@ import {
 import { collectPages } from '../src/lib/admin/intelligence/paging.ts'
 import { computeRetention } from '../src/lib/admin/intelligence/retention.ts'
 import { verifySvixSignature } from '../src/lib/admin/intelligence/webhookSignature.ts'
+
+test('admin health reflects the configured notification cron and its secret', () => {
+  const healthSource = readFileSync(
+    new URL('../src/lib/admin/intelligence/server/health.ts', import.meta.url),
+    'utf8',
+  )
+  const vercel = JSON.parse(
+    readFileSync(new URL('../vercel.json', import.meta.url), 'utf8'),
+  )
+
+  assert.ok(
+    vercel.crons.some(
+      (cron) => cron.path === '/api/cron/process-notifications',
+    ),
+  )
+  assert.match(healthSource, /'CRON_SECRET'/)
+  assert.match(healthSource, /Vercel Cron is configured/)
+  assert.doesNotMatch(
+    healthSource,
+    /does not run scheduled background jobs yet/,
+  )
+})
 
 // 2026-11-12 15:30 UTC = 16:30 in Lagos (UTC+1)
 const NOW = Date.parse('2026-11-12T15:30:00Z')

@@ -68,7 +68,11 @@ grant select (
 ) on public.profiles to authenticated;
 
 -- The member's own private columns. Everything else about others stays hidden.
-create or replace function public.get_my_private_profile()
+-- Dropped first because supabase-migration-profiles-privacy-hotfix.sql (if it was applied earlier) created
+-- this function WITHOUT age_confirmed_at, and PostgreSQL cannot change a function's result columns in place.
+-- It runs inside this transaction, so there is no moment when the function is missing.
+drop function if exists public.get_my_private_profile();
+create function public.get_my_private_profile()
 returns table (
   referral_code text,
   notification_preferences jsonb,
