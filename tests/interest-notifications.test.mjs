@@ -424,7 +424,7 @@ test('the migration: hard stops, one queued email per interest, never blocks a v
   assert.match(sql, /'interest_verified', 'tester_invitation'/)
   assert.match(sql, /'processing'[\s\S]*'cancelled'/)
   assert.match(sql, /add column if not exists next_attempt_at timestamptz/)
-  assert.match(sql, /NOT APPLIED/)
+  assert.match(sql, /Production has the base email_deliveries table/)
   assert.match(sql, /ROLLBACK/)
 })
 

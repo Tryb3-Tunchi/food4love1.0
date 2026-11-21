@@ -22,8 +22,10 @@
 -- 'tester_invitation' email kind to email_deliveries; without it invitation emails are still
 -- sent, but their delivery state is not tracked (the admin table shows no delivery detail).
 --
--- SAFE TO RE-RUN. NOT APPLIED to any database by this commit; the owner of the Supabase
--- project runs it. ROLLBACK:
+-- RELEASE STATUS (2026-11-20): Production does not have tester_invitations or
+-- admin_lookup_auth_user. Staging has the table, indexes, guard and function, but
+-- its migration ledger is empty. Confirm live definitions and existing rows
+-- before re-running. ROLLBACK:
 --   drop function if exists public.admin_lookup_auth_user(text);
 --   drop table if exists public.tester_invitations;
 

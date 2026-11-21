@@ -1,8 +1,10 @@
 -- Discovery map (opt-in, approximate location) + match integrity.
 --
--- PREPARED, NOT APPLIED. Review before running. Additive and safe to re-run: it creates
--- NEW objects only and changes no existing rows. (Tested in a throwaway in-memory
--- PostgreSQL, see tests; never run against production by the assistant.)
+-- OBSERVED DATABASE STATUS (2026-11-20): public.member_discovery, its policies and
+-- indexes, matches_pair_unique_idx, and the discovery functions exist in both
+-- production and staging. Neither Supabase migration ledger records this file.
+-- The live function definitions were not compared byte-for-byte with this SQL;
+-- do not treat it as unapplied or re-run it without reviewing the live objects.
 --
 -- WHY
 --   * The old map read every verified chef's EXACT stored coordinates straight from the

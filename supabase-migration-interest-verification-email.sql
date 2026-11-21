@@ -32,7 +32,11 @@
 -- before it is "historical" and is never emailed automatically. It also adds the 'password_recovery'
 -- email kind used by the forgot-password flow.
 --
--- NOT APPLIED to any database by this commit. The owner of the Supabase project runs it.
+-- RELEASE STATUS (2026-11-20): Production has the base email_deliveries table but
+-- not this migration's extra kinds/statuses, next_attempt_at, due index,
+-- interest_email_cutover table, or verification-email trigger. Staging contains
+-- these objects, but its migration ledger is empty; confirm live definitions
+-- rather than inferring absence from migration history before re-running.
 
 begin;
 

@@ -1,7 +1,10 @@
 -- Booking verification, lifecycle integrity, booking interest, and audit trail.
 --
--- PREPARED, NOT APPLIED. Additive and re-runnable. Tested only in a throwaway in-memory
--- PostgreSQL. Reuses the existing bookings table: nothing is duplicated.
+-- RELEASE STATUS (2026-11-20): Prepared for production, where the new booking
+-- columns, booking_events, booking_interests and related guards/indexes are
+-- absent. Staging already contains matching feature objects, but its migration
+-- ledger is empty, so this file's historical "NOT APPLIED" label is not evidence
+-- that staging lacks the schema. Reuses the existing bookings table.
 --
 -- RE-RUNNING AFTER supabase-migration-interest-verification-email.sql IS SAFE: section 6 only
 -- (re)creates the verification trigger function when the NEWER version (the one that queues the
