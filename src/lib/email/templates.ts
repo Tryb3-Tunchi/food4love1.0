@@ -203,6 +203,56 @@ export function welcomeEmail(input: {
   return { subject, text, html }
 }
 
+export function referralRewardEmail(input: {
+  name?: string | null
+  appUrl: string
+}) {
+  const subject = 'Your ₦1,000 Food4Love referral credit is here ❤️'
+  const firstName =
+    (input.name ?? '').trim().split(/\s+/)[0]?.slice(0, 40) || ''
+  const greeting = firstName ? `Hi ${firstName},` : 'Hello,'
+  const walletUrl = `${input.appUrl.replace(/\/+$/, '')}/profile`
+  const text = [
+    greeting,
+    '',
+    'A new member confirmed their email after joining with your Food4Love referral link.',
+    '₦1,000 has been added to your Food4Love wallet as your full signup referral reward.',
+    '',
+    `View your wallet: ${walletUrl}`,
+    '',
+    'Thank you for bringing someone new to Food4Love!',
+    '',
+    'With love,',
+    'The Food4Love Team ❤️',
+    '',
+    'You received this transactional email because a referral reward was added to your account.',
+  ].join('\n')
+  const html = emailLayout({
+    title: 'Your Food4Love referral credit is here',
+    preheader: '₦1,000 has been added to your Food4Love wallet.',
+    heading: `Your ₦1,000 credit is here <span style="color:${RED};">&#10084;&#65039;</span>`,
+    bodyHtml: [
+      p(escapeEmailHtml(greeting)),
+      p(
+        'A new member confirmed their email after joining with your Food4Love referral link.',
+      ),
+      `<p style="margin:0 0 16px 0;font-size:22px;line-height:1.4;font-weight:bold;color:${GREEN};font-family:${FONT};">₦1,000 added to your wallet</p>`,
+      p('This is your full signup referral reward.'),
+      brandButton(walletUrl, 'View your wallet'),
+      p(
+        'Thank you for bringing someone new to Food4Love!<br><strong style="color:' +
+          GREEN +
+          ';">The Food4Love Team</strong> <span style="color:' +
+          RED +
+          ';">&#10084;&#65039;</span>',
+      ),
+    ].join(''),
+    footerHtml:
+      'You received this transactional email because a referral reward was added to your Food4Love account.',
+  })
+  return { subject, text, html }
+}
+
 // ---------------------------------------------------------------- shared small helpers
 const oneLine = (value: string, max: number) =>
   value

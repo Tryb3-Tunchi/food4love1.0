@@ -1095,7 +1095,7 @@ test('the routes are wired safely', () => {
 test('the migration allows the new email kind and keeps recovery out of the retry queue', () => {
   assert.match(
     read('supabase-migration-interest-verification-email.sql'),
-    /'tester_invitation', 'password_recovery'\)/,
+    /'tester_invitation', 'password_recovery', 'referral_reward'\)/,
   )
   assert.match(
     read('src/lib/admin/intelligence/server/email.ts'),

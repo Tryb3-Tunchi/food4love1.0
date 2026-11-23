@@ -72,7 +72,7 @@ $$;
 
 alter table public.email_deliveries
   add constraint email_deliveries_kind_check
-  check (kind in ('waitlist_confirmation', 'welcome', 'interest_verified', 'tester_invitation', 'password_recovery'));
+  check (kind in ('waitlist_confirmation', 'welcome', 'interest_verified', 'tester_invitation', 'password_recovery', 'referral_reward'));
 
 -- queued     decided to send; nothing attempted yet
 -- processing one worker has claimed it (stale claims are re-claimed by the server)

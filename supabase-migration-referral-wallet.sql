@@ -1,8 +1,10 @@
--- Referral wallet for the agreed Food4Love rewards:
--- ₦500 to the referrer after signup, then ₦500 after the invitee's first
--- qualifying paid booking (buyer or cook) or, for cooks, KYC verification.
--- Signup is credited after email confirmation. All monetary mutations are
--- server/trigger only and idempotent.
+-- Initial referral wallet baseline. The original plan credited ₦500 after
+-- signup and ₦500 after a qualifying booking/KYC milestone. The later
+-- referral-signup-credit-and-email migration supersedes that rule for new
+-- referrals with a single ₦1,000 confirmed-signup reward.
+-- All monetary mutations are server/trigger only and idempotent.
+-- Once supabase-migration-referral-signup-credit-and-email.sql is applied, this
+-- legacy reward definition is deliberately not restored by a re-run.
 begin;
 
 alter table public.profiles
@@ -158,6 +160,10 @@ begin
 end;
 $$;
 
+do $legacy_referral_signup$
+begin
+  if to_regclass('public.referral_reward_email_cutover') is null then
+    execute $function$
 create or replace function public.food4love_reward_referral_signup()
 returns trigger
 language plpgsql
@@ -205,6 +211,12 @@ begin
   return new;
 end;
 $$;
+$function$;
+  else
+    raise notice 'Referral reward upgrade is present; leaving the newer signup trigger function unchanged';
+  end if;
+end;
+$legacy_referral_signup$;
 
 create or replace function public.food4love_reward_cook_verification()
 returns trigger

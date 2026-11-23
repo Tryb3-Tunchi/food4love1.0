@@ -10,6 +10,7 @@ export type EmailKind =
   | 'interest_verified'
   | 'tester_invitation'
   | 'password_recovery'
+  | 'referral_reward'
 
 // queued     = we decided to send, Resend has not answered yet
 // processing = one worker has claimed it and is sending right now
@@ -65,6 +66,13 @@ export function senderFor(kind: EmailKind) {
       process.env.WELCOME_FROM_EMAIL,
       process.env.ACCOUNT_UPDATES_FROM_EMAIL,
       process.env.RESEND_FROM_EMAIL,
+    ],
+    // A wallet-credit confirmation is account-related transactional mail.
+    referral_reward: [
+      process.env.REFERRAL_REWARD_FROM_EMAIL,
+      process.env.ACCOUNT_UPDATES_FROM_EMAIL,
+      process.env.RESEND_FROM_EMAIL,
+      process.env.WELCOME_FROM_EMAIL,
     ],
   }
   return candidatesByKind[kind].find((value) => !!value) ?? null

@@ -469,6 +469,17 @@ export function productionLikeConfig() {
     },
     email_deliveries: {
       defaults: { status: 'queued', attempts: 0, next_attempt_at: null },
+      check: (r) =>
+        [
+          'waitlist_confirmation',
+          'welcome',
+          'interest_verified',
+          'tester_invitation',
+          'password_recovery',
+          'referral_reward',
+        ].includes(r.kind)
+          ? null
+          : 'violates check constraint "email_deliveries_kind_check"',
       uniques: [
         {
           name: 'email_deliveries_kind_recipient_key_key',

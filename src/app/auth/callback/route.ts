@@ -1,6 +1,9 @@
 import { NextResponse, type NextRequest } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { sendWelcomeEmailAfterVerification } from '@/lib/email/welcome'
+import { createAdminClient } from '@/lib/supabase/admin'
+import { resolveAppUrl } from '@/lib/appUrl'
+import { processReferralRewardEmails } from '@/lib/email/referralRewards'
 import { safeNextPath } from '@/lib/safeRedirect'
 
 export async function GET(request: NextRequest) {
@@ -27,7 +30,20 @@ export async function GET(request: NextRequest) {
   const {
     data: { user },
   } = await supabase.auth.getUser()
-  await sendWelcomeEmailAfterVerification(user, requestUrl.origin)
+  const referralEmail =
+    user?.id && user.user_metadata?.referral_code
+      ? processReferralRewardEmails(createAdminClient(), {
+          appUrl: resolveAppUrl(requestUrl.origin),
+          referredUserId: user.id,
+          limit: 1,
+        }).catch(() => undefined)
+      : Promise.resolve()
+  // Send both transactional messages in parallel so the referral notice does not
+  // add another provider timeout to the existing confirmation redirect.
+  await Promise.all([
+    sendWelcomeEmailAfterVerification(user, requestUrl.origin),
+    referralEmail,
+  ])
 
   return NextResponse.redirect(new URL(next, request.url))
 }

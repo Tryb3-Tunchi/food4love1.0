@@ -7,6 +7,7 @@ import { welcomeEmail, waitlistSignupEmail } from '@/lib/email/templates'
 import { MAX_ATTEMPTS, sendTransactionalEmail } from '@/lib/email/transactional'
 import { resolveAppUrl } from '@/lib/appUrl'
 import { processInterestEmails } from '@/lib/notifications/interestEmails'
+import { processReferralRewardEmails } from '@/lib/email/referralRewards'
 
 export const runtime = 'nodejs'
 
@@ -56,6 +57,9 @@ export async function POST(request: Request) {
     const interestEmails = await processInterestEmails(admin, {
       appUrl: resolveAppUrl(origin),
       reconcile: true,
+    }).catch(() => null)
+    const referralRewards = await processReferralRewardEmails(admin, {
+      appUrl: resolveAppUrl(origin),
     }).catch(() => null)
 
     const { data: rows, error } = await admin
@@ -137,12 +141,18 @@ export async function POST(request: Request) {
       () => undefined,
     )
     return NextResponse.json({
-      checked: (rows?.length ?? 0) + (interestEmails?.checked ?? 0),
-      accepted_by_provider: accepted + (interestEmails?.sent ?? 0),
-      still_failing: failed + (interestEmails?.failed ?? 0),
+      checked:
+        (rows?.length ?? 0) +
+        (interestEmails?.checked ?? 0) +
+        (referralRewards?.checked ?? 0),
+      accepted_by_provider:
+        accepted + (interestEmails?.sent ?? 0) + (referralRewards?.sent ?? 0),
+      still_failing:
+        failed + (interestEmails?.failed ?? 0) + (referralRewards?.failed ?? 0),
       // detail for the "cook is verified" queue: cancelled = deliberately not sent
       // (no consent, cook no longer verified, ...); not_configured = waiting for email setup
       interest_emails: interestEmails,
+      referral_rewards: referralRewards,
     })
   } catch {
     await finishAdminAudit(

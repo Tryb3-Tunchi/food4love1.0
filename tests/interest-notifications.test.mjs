@@ -1473,6 +1473,7 @@ test('scheduled processing: the right secret drains the queue, returns counts on
         'notConfigured',
         'ok',
         'reconciled',
+        'referral_rewards',
         'sent',
       ],
       'counts only: no addresses, names or ids',

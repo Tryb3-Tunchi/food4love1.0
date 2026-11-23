@@ -42,6 +42,20 @@ export async function getEmailOps(admin: Admin) {
       purpose: 'Welcome email sender',
     },
     {
+      name: 'ACCOUNT_UPDATES_FROM_EMAIL',
+      set: has('ACCOUNT_UPDATES_FROM_EMAIL'),
+      purpose: 'Fallback sender for account and referral emails',
+    },
+    {
+      name: 'REFERRAL_REWARD_FROM_EMAIL',
+      set:
+        has('REFERRAL_REWARD_FROM_EMAIL') ||
+        has('ACCOUNT_UPDATES_FROM_EMAIL') ||
+        has('RESEND_FROM_EMAIL') ||
+        has('WELCOME_FROM_EMAIL'),
+      purpose: 'Referral wallet credit sender (falls back to account updates)',
+    },
+    {
       name: 'RESEND_WEBHOOK_SECRET',
       set: has('RESEND_WEBHOOK_SECRET'),
       purpose: 'Lets Resend report bounces and complaints',
@@ -70,6 +84,7 @@ export async function getEmailOps(admin: Admin) {
     'interest_verified',
     'tester_invitation',
     'password_recovery',
+    'referral_reward',
   ] as const
   const statuses = [
     'queued',

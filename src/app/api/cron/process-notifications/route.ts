@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { verifyCronRequest } from '@/lib/cron/auth'
 import { drainInterestEmails } from '@/lib/notifications/interestEmails'
+import { drainReferralRewardEmails } from '@/lib/email/referralRewards'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -57,8 +58,19 @@ async function handle(request: Request) {
   }
 
   try {
-    const summary = await drainInterestEmails(createAdminClient(), { appUrl })
-    return NextResponse.json({ ok: true, ...summary }, { headers: noStore })
+    const admin = createAdminClient()
+    const [interestEmails, referralRewards] = await Promise.all([
+      drainInterestEmails(admin, { appUrl }),
+      drainReferralRewardEmails(admin, { appUrl }),
+    ])
+    return NextResponse.json(
+      {
+        ok: true,
+        ...interestEmails,
+        referral_rewards: referralRewards,
+      },
+      { headers: noStore },
+    )
   } catch {
     // Details stay in the server log; the caller only learns that this run failed.
     console.error('Scheduled notification processing failed')

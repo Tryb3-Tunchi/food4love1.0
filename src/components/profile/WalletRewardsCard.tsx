@@ -174,9 +174,8 @@ export function WalletRewardsCard({ role }: { role: Role }) {
                 className="mt-1 text-xs leading-5"
                 style={{ color: 'var(--text-3)' }}
               >
-                Your friend’s email-confirmed signup earns ₦500. Their first
-                paid booking earns another ₦500; for cooks, full KYC
-                verification also qualifies.
+                When a friend confirms signup through your referral link, you
+                receive ₦1,000 in Food4Love wallet credit.
               </p>
             </>
           )}
@@ -228,7 +227,7 @@ export function WalletRewardsCard({ role }: { role: Role }) {
             </button>
             <span className="text-xs" style={{ color: 'var(--text-3)' }}>
               {wallet.referral_count} joined · {wallet.completed_referrals}{' '}
-              completed both milestones
+              rewards credited
             </span>
           </div>
 
