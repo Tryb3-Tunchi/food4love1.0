@@ -5,6 +5,9 @@ import { getAdminUser } from '@/lib/admin/auth'
 import { beginAdminAudit, finishAdminAudit } from '@/lib/admin/audit'
 import { welcomeEmail, waitlistSignupEmail } from '@/lib/email/templates'
 import { MAX_ATTEMPTS, sendTransactionalEmail } from '@/lib/email/transactional'
+import { resolveAppUrl } from '@/lib/appUrl'
+import { processInterestEmails } from '@/lib/notifications/interestEmails'
+import { processReferralRewardEmails } from '@/lib/email/referralRewards'
 
 export const runtime = 'nodejs'
 
@@ -48,9 +51,21 @@ export async function POST(request: Request) {
     // Leave rows alone for two minutes so an in-flight send is never raced.
     const settledBefore = new Date(Date.now() - 2 * 60 * 1000).toISOString()
 
+    // "Your cook is verified" emails have their own worker (claim, consent re-check, retry
+    // schedule). Invitation emails are never retried here: their link's secret is not
+    // stored, so an admin resends them (which issues a fresh link).
+    const interestEmails = await processInterestEmails(admin, {
+      appUrl: resolveAppUrl(origin),
+      reconcile: true,
+    }).catch(() => null)
+    const referralRewards = await processReferralRewardEmails(admin, {
+      appUrl: resolveAppUrl(origin),
+    }).catch(() => null)
+
     const { data: rows, error } = await admin
       .from('email_deliveries')
       .select('kind, recipient_key')
+      .in('kind', ['welcome', 'waitlist_confirmation'])
       .in('status', ['failed', 'queued'])
       .lt('attempts', MAX_ATTEMPTS)
       .lt('updated_at', settledBefore)
@@ -126,9 +141,18 @@ export async function POST(request: Request) {
       () => undefined,
     )
     return NextResponse.json({
-      checked: rows?.length ?? 0,
-      accepted_by_provider: accepted,
-      still_failing: failed,
+      checked:
+        (rows?.length ?? 0) +
+        (interestEmails?.checked ?? 0) +
+        (referralRewards?.checked ?? 0),
+      accepted_by_provider:
+        accepted + (interestEmails?.sent ?? 0) + (referralRewards?.sent ?? 0),
+      still_failing:
+        failed + (interestEmails?.failed ?? 0) + (referralRewards?.failed ?? 0),
+      // detail for the "cook is verified" queue: cancelled = deliberately not sent
+      // (no consent, cook no longer verified, ...); not_configured = waiting for email setup
+      interest_emails: interestEmails,
+      referral_rewards: referralRewards,
     })
   } catch {
     await finishAdminAudit(

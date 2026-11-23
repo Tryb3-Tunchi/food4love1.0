@@ -497,7 +497,16 @@ test('interest requests are their own thing: own rows only, no booking, no payme
   assert.match(route, /createLimiter/)
   assert.match(route, /adultStates\(/)
   const panel = read('src/components/booking/CookBookingPanel.tsx')
-  assert.match(panel, /useState\(false\)/)
+  // Consent to be notified is never assumed or pre-set. It used to be an unticked checkbox;
+  // it is now the single button whose label says exactly what pressing it does, so there is
+  // no checkbox, no default-on state, and nothing records consent except that press.
+  assert.ok(!/type="checkbox"|defaultChecked|useState\(true\)/.test(panel))
+  assert.match(panel, /Notify me when \$\{first\} is verified/)
+  assert.equal(
+    (panel.match(/notify_when_verified: true/g) ?? []).length,
+    1,
+    'consent is sent from exactly one place: the notify button',
+  )
   assert.match(panel, /This is not a booking|not a booking/i)
 })
 

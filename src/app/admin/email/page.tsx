@@ -47,6 +47,10 @@ interface EmailOps {
 const KIND: Record<string, string> = {
   waitlist_confirmation: 'Waitlist confirmation',
   welcome: 'Welcome email',
+  interest_verified: 'Cook verified notice',
+  tester_invitation: 'Tester invitation',
+  password_recovery: 'Password reset',
+  referral_reward: 'Referral credit',
 }
 
 export default function EmailOperationsPage() {
@@ -145,10 +149,12 @@ export default function EmailOperationsPage() {
                       items={(
                         [
                           'queued',
+                          'processing',
                           'accepted',
                           'delivered',
                           'bounced',
                           'failed',
+                          'cancelled',
                         ] as const
                       ).map((s) => ({
                         key: s,

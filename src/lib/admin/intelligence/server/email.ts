@@ -42,6 +42,20 @@ export async function getEmailOps(admin: Admin) {
       purpose: 'Welcome email sender',
     },
     {
+      name: 'ACCOUNT_UPDATES_FROM_EMAIL',
+      set: has('ACCOUNT_UPDATES_FROM_EMAIL'),
+      purpose: 'Fallback sender for account and referral emails',
+    },
+    {
+      name: 'REFERRAL_REWARD_FROM_EMAIL',
+      set:
+        has('REFERRAL_REWARD_FROM_EMAIL') ||
+        has('ACCOUNT_UPDATES_FROM_EMAIL') ||
+        has('RESEND_FROM_EMAIL') ||
+        has('WELCOME_FROM_EMAIL'),
+      purpose: 'Referral wallet credit sender (falls back to account updates)',
+    },
+    {
       name: 'RESEND_WEBHOOK_SECRET',
       set: has('RESEND_WEBHOOK_SECRET'),
       purpose: 'Lets Resend report bounces and complaints',
@@ -64,13 +78,22 @@ export async function getEmailOps(admin: Admin) {
     tracking = false
   }
 
-  const kinds = ['waitlist_confirmation', 'welcome'] as const
+  const kinds = [
+    'waitlist_confirmation',
+    'welcome',
+    'interest_verified',
+    'tester_invitation',
+    'password_recovery',
+    'referral_reward',
+  ] as const
   const statuses = [
     'queued',
+    'processing',
     'accepted',
     'delivered',
     'bounced',
     'failed',
+    'cancelled',
   ] as const
   const byKind = kinds.map((kind) => {
     const mine = deliveries.filter((d) => d.kind === kind)
@@ -83,8 +106,14 @@ export async function getEmailOps(admin: Admin) {
     }
   })
 
+  // Only what the "Retry failed email" button can actually retry. Tester invitations are
+  // excluded on purpose: their link's secret is not stored, so they are re-sent from
+  // Invite testers (which issues a fresh link), not retried here. Password-reset emails are
+  // excluded for the same reason: the person simply asks for a new link.
   const retryable = deliveries.filter(
     (d) =>
+      d.kind !== 'tester_invitation' &&
+      d.kind !== 'password_recovery' &&
       (d.status === 'failed' || d.status === 'queued') &&
       d.attempts < MAX_EMAIL_ATTEMPTS,
   ).length

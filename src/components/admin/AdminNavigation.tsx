@@ -25,6 +25,7 @@ import {
   Megaphone,
   Mail,
   TrendingUp,
+  UserPlus,
   UserRoundCog,
   Users,
   Utensils,
@@ -62,7 +63,7 @@ const groups: { label: string; items: AdminNavigationItem[] }[] = [
     ],
   },
   {
-    label: 'Operations',
+    label: 'User management',
     items: [
       {
         href: '/admin/users',
@@ -70,6 +71,17 @@ const groups: { label: string; items: AdminNavigationItem[] }[] = [
         icon: Users,
         permission: 'users:manage',
       },
+      {
+        href: '/admin/users/invite',
+        label: 'Invite testers',
+        icon: UserPlus,
+        permission: 'users:manage',
+      },
+    ],
+  },
+  {
+    label: 'Operations',
+    items: [
       {
         href: '/admin/waitlist',
         label: 'Waitlist',

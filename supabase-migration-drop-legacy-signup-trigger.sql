@@ -1,4 +1,8 @@
--- Remove the legacy signup trigger (PREPARED, NOT APPLIED).
+-- Remove the legacy signup trigger (prepared for production, not applied there).
+-- OBSERVED DATABASE STATUS (2026-11-20): Production has both the replacement and
+-- legacy triggers; staging has only the replacement trigger, with no migration
+-- history entry. This is not proof the file ran there; confirm signup policy and
+-- live trigger state before any production execution.
 --
 -- FINDING: the live database has TWO triggers on auth.users that each create the
 -- member's profile row:

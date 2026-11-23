@@ -1,6 +1,8 @@
 import { createAdminClient } from '@/lib/supabase/admin'
 import { getAdminUser } from '@/lib/admin/auth'
 import { beginAdminAudit, finishAdminAudit } from '@/lib/admin/audit'
+import { resolveAppUrl } from '@/lib/appUrl'
+import { processInterestEmails } from '@/lib/notifications/interestEmails'
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 
@@ -216,6 +218,25 @@ export async function PATCH(request: NextRequest) {
     }
 
     await finishAdminAudit(audit.admin, audit.auditId, 'succeeded')
+
+    // The database has already written the in-app notifications and queued the emails for
+    // customers who asked to be told (it watches kyc_status, so that happens however a cook
+    // becomes verified). Send what is queued for THIS cook now. Best effort and time-boxed:
+    // approving a cook must never wait on, or fail because of, email. Anything not finished
+    // stays queued and is picked up by the email retry.
+    if (approved) {
+      try {
+        await Promise.race([
+          processInterestEmails(admin, {
+            appUrl: resolveAppUrl(request.nextUrl.origin),
+            cookId: submission.user_id,
+          }),
+          new Promise((resolve) => setTimeout(resolve, 8000)),
+        ])
+      } catch {
+        // see above
+      }
+    }
 
     return NextResponse.json({ success: true })
   } catch {

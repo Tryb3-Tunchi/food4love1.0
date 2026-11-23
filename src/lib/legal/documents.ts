@@ -606,7 +606,10 @@ const refunds: LegalDocument = {
     {
       id: 'wallet',
       heading: '4. Wallet credits and referral rewards',
-      body: [`${'[WALLET AND REFERRAL CREDIT RULES: TO BE CONFIRMED]'}.`],
+      body: [
+        'When a new member signs up using your referral link and confirms their email address, Food4Love adds ₦1,000 in referral credit to your wallet. Each new account can generate one referral reward, and you cannot refer yourself.',
+        'Referral credit is recorded in your Food4Love wallet. The wallet shows your balance and the payment options available to your account; cook accounts keep earned credit until buyer ordering is available to them.',
+      ],
     },
     {
       id: 'subs',

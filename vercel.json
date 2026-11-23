@@ -1,0 +1,15 @@
+{
+  "git": {
+    "deploymentEnabled": {
+      "*": false,
+      "develop": true,
+      "fix/booking-interest-admin-invitations-v2": true
+    }
+  },
+  "crons": [
+    {
+      "path": "/api/cron/process-notifications",
+      "schedule": "0 7 * * *"
+    }
+  ]
+}
