@@ -1,4 +1,10 @@
 {
+  "git": {
+    "deploymentEnabled": {
+      "*": false,
+      "develop": true
+    }
+  },
   "crons": [
     {
       "path": "/api/cron/process-notifications",

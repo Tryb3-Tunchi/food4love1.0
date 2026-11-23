@@ -1657,6 +1657,10 @@ test('the scheduler route is wired safely: no session shortcuts, no secret in lo
   assert.match(src, /dynamic = 'force-dynamic'/)
   assert.match(read('src/middleware.ts'), /api\/cron\//)
   const vercel = JSON.parse(read('vercel.json'))
+  assert.deepEqual(vercel.git.deploymentEnabled, {
+    '*': false,
+    develop: true,
+  })
   assert.deepEqual(
     vercel.crons.map((c) => c.path),
     ['/api/cron/process-notifications'],
