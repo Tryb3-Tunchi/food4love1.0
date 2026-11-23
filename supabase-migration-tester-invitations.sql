@@ -96,6 +96,7 @@ drop trigger if exists tester_invitations_guard on public.tester_invitations;
 create trigger tester_invitations_guard
   before update on public.tester_invitations
   for each row execute function public.tester_invitations_guard();
+revoke all on function public.tester_invitations_guard() from public, anon, authenticated;
 
 alter table public.tester_invitations enable row level security;
 revoke all on public.tester_invitations from anon, authenticated;

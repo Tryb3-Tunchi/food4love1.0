@@ -177,6 +177,7 @@ drop trigger if exists zz_booking_interest_on_verification on public.profiles;
 create trigger zz_booking_interest_on_verification
   after update of kyc_status on public.profiles
   for each row execute function public.booking_interest_on_verification();
+revoke all on function public.booking_interest_on_verification() from public, anon, authenticated;
 
 commit;
 

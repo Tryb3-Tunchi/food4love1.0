@@ -213,6 +213,7 @@ drop trigger if exists booking_guard on public.bookings;
 create trigger booking_guard
   before insert or update on public.bookings
   for each row execute function public.booking_guard();
+revoke all on function public.booking_guard() from public, anon, authenticated;
 
 -- ================================================================ 4. booking history
 create table if not exists public.booking_events (
@@ -262,6 +263,7 @@ drop trigger if exists booking_events_append_only on public.booking_events;
 create trigger booking_events_append_only
   before update on public.booking_events
   for each row execute function public.booking_events_no_update();
+revoke all on function public.booking_events_no_update() from public, anon, authenticated;
 
 -- ========================================================== 5. booking interest
 create table if not exists public.booking_interests (
@@ -333,6 +335,7 @@ drop trigger if exists booking_interest_guard on public.booking_interests;
 create trigger booking_interest_guard
   before insert on public.booking_interests
   for each row execute function public.booking_interest_guard();
+revoke all on function public.booking_interest_guard() from public, anon, authenticated;
 
 -- Cooks see how many people are interested, never who.
 create or replace function public.my_interest_count()
@@ -432,6 +435,7 @@ drop trigger if exists zz_booking_interest_on_verification on public.profiles;
 create trigger zz_booking_interest_on_verification
   after update of kyc_status on public.profiles
   for each row execute function public.booking_interest_on_verification();
+revoke all on function public.booking_interest_on_verification() from public, anon, authenticated;
 
 commit;
 
