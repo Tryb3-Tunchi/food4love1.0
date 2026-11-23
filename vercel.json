@@ -1,8 +1,10 @@
+
 {
   "git": {
     "deploymentEnabled": {
       "*": false,
-      "develop": true
+      "develop": true,
+      "fix/booking-interest-admin-invitations-v2": true
     }
   },
   "crons": [
