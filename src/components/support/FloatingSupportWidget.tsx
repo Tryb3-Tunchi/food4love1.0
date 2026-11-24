@@ -22,10 +22,11 @@ type SupportMessage = {
 type SupportThread = { id: string; status: 'open' | 'in_progress' | 'resolved' }
 
 const supportPaths = [
+  '/waitlist',
   '/discover',
   '/swipe',
   '/matches',
-  '/chat',
+  // '/chat',
   '/profile',
   '/bookings',
   '/stories',
