@@ -240,7 +240,10 @@ test('before the migration is applied the routes degrade instead of failing', as
   const db = new FakeSupabase({ push_subscriptions: { missing: true } })
   globalThis.__f4lFakeAdmin = db
   as(CUSTOMER)
-  assert.deepEqual(await (await subscriptions.GET()).json(), { devices: [], enrolled: true })
+  assert.deepEqual(await (await subscriptions.GET()).json(), {
+    devices: [],
+    enrolled: true,
+  })
   assert.equal((await post(sub(1))).status, 503)
   assert.equal((await testPush.POST()).status, 503)
 })
