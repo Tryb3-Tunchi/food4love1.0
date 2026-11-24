@@ -4,6 +4,7 @@ import { formatDistanceToNowStrict } from 'date-fns'
 import { motion } from 'framer-motion'
 import { Heart, Loader2, MapPin, X } from 'lucide-react'
 import { getInitials } from '@/lib/utils'
+import { VerifiedBadge } from '@/components/ui/VerifiedBadge'
 import type { MatchRequest } from '@/services/cookRequests'
 
 export function MatchRequestCard({
@@ -47,10 +48,11 @@ export function MatchRequestCard({
         </div>
         <div className="min-w-0 flex-1">
           <p
-            className="truncate text-sm font-semibold"
+            className="flex items-center gap-1.5 truncate text-sm font-semibold"
             style={{ color: 'var(--text-1)' }}
           >
-            {name}
+            <span className="truncate">{name}</span>
+            {request.swiper?.is_verified && <VerifiedBadge />}
           </p>
           <p
             className="flex items-center gap-1 text-xs"

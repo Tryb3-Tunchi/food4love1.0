@@ -16,6 +16,7 @@ import { motion } from 'framer-motion'
 import { useMatches, type MatchListItem } from '@/hooks/useMatches'
 import { useLikes } from '@/hooks/useLikes'
 import { Avatar } from '@/components/ui/Avatar'
+import { VerifiedBadge } from '@/components/ui/VerifiedBadge'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { AppPage } from '@/components/ui/AppPage'
 import { PageHeader } from '@/components/ui/PageHeader'
@@ -117,14 +118,7 @@ function MatchCard({ match, index }: { match: MatchListItem; index: number }) {
   const isExpired = expiresAt.getTime() < Date.now()
   const isExpiringSoon =
     !isExpired && expiresAt.getTime() - Date.now() < 3 * 60 * 60 * 1000
-  const avatar = (
-    <Avatar
-      src={person.avatar_url}
-      name={displayName}
-      size="lg"
-      verified={!!person.is_verified}
-    />
-  )
+  const avatar = <Avatar src={person.avatar_url} name={displayName} size="lg" />
 
   return (
     <motion.div
@@ -159,22 +153,25 @@ function MatchCard({ match, index }: { match: MatchListItem; index: number }) {
 
           <div className="min-w-0 flex-1">
             <div className="flex items-center justify-between">
-              {href ? (
-                <Link
-                  href={href}
-                  className="truncate text-sm font-bold hover:underline"
-                  style={{ color: 'var(--text-1)' }}
-                >
-                  {displayName}
-                </Link>
-              ) : (
-                <span
-                  className="truncate text-sm font-bold"
-                  style={{ color: 'var(--text-1)' }}
-                >
-                  {displayName}
-                </span>
-              )}
+              <div className="flex min-w-0 items-center gap-1.5">
+                {href ? (
+                  <Link
+                    href={href}
+                    className="truncate text-sm font-bold hover:underline"
+                    style={{ color: 'var(--text-1)' }}
+                  >
+                    {displayName}
+                  </Link>
+                ) : (
+                  <span
+                    className="truncate text-sm font-bold"
+                    style={{ color: 'var(--text-1)' }}
+                  >
+                    {displayName}
+                  </span>
+                )}
+                {person.is_verified && <VerifiedBadge />}
+              </div>
               {match.unread_count ? (
                 <span
                   className="ml-2 flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px] font-bold text-white"

@@ -1,6 +1,6 @@
 import { notFound, redirect } from 'next/navigation'
 import Link from 'next/link'
-import { BadgeCheck, MapPin, MessageCircle, UserRound } from 'lucide-react'
+import { MapPin, MessageCircle, UserRound } from 'lucide-react'
 import type { Metadata } from 'next'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
@@ -11,6 +11,7 @@ import { generalArea } from '@/lib/discovery/geo'
 import { BackLink } from '@/components/matching/BackLink'
 import { LikeBackButton } from '@/components/matching/LikeBackButton'
 import { ReportButton } from '@/components/reports/ReportButton'
+import { VerifiedBadge } from '@/components/ui/VerifiedBadge'
 
 export const dynamic = 'force-dynamic'
 export const metadata: Metadata = { title: 'Member profile — Food4Love' }
@@ -163,13 +164,7 @@ export default async function MemberPage({
                 style={{ color: 'var(--text-1)' }}
               >
                 <span className="truncate">{name}</span>
-                {member.is_verified && (
-                  <BadgeCheck
-                    className="h-5 w-5 shrink-0"
-                    style={{ color: 'var(--success)' }}
-                    aria-label="Verified member"
-                  />
-                )}
+                {member.is_verified && <VerifiedBadge size="h-5 w-5" />}
               </h1>
               <p className="mt-0.5 text-sm" style={{ color: 'var(--accent)' }}>
                 Food lover

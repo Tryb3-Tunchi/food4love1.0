@@ -14,6 +14,7 @@ import { format } from 'date-fns'
 import { CookBookingPanel } from '@/components/booking/CookBookingPanel'
 import { ChatBookings } from '@/components/booking/ChatBookings'
 import { ChefChiLauncher } from '@/components/chat/ChefChiLauncher'
+import { VerifiedBadge } from '@/components/ui/VerifiedBadge'
 
 interface Profile {
   id: string
@@ -172,17 +173,15 @@ export default function ChatDetailPage() {
                     {isCook ? '👨‍🍳' : '👤'}
                   </div>
                 )}
-                {otherUser?.is_verified && (
-                  <div className="absolute -bottom-0.5 -right-0.5 flex h-4 w-4 items-center justify-center rounded-full border-2 border-[var(--bg)] bg-[var(--success)]">
-                    <span className="text-[8px] font-bold text-white">✓</span>
-                  </div>
-                )}
               </div>
 
               <div className="min-w-0 flex-1">
-                <h2 className="truncate text-sm font-semibold text-[var(--text-1)]">
-                  {otherUser?.full_name ||
-                    (isLoading ? 'Loading…' : 'Food4Love member')}
+                <h2 className="flex min-w-0 items-center gap-1.5 text-sm font-semibold text-[var(--text-1)]">
+                  <span className="truncate">
+                    {otherUser?.full_name ||
+                      (isLoading ? 'Loading…' : 'Food4Love member')}
+                  </span>
+                  {otherUser?.is_verified && <VerifiedBadge />}
                 </h2>
                 <p className="truncate text-xs text-[var(--text-2)]">
                   {isCook
