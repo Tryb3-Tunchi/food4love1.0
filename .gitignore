@@ -17,3 +17,6 @@ yarn-error.log*
 *.tsbuildinfo
 # TypeScript incremental compiler cache
 *.tsbuildinfo
+
+# Supabase CLI local cache (project ref, CLI version)
+supabase/.temp/

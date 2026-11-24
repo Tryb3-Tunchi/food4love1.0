@@ -21,6 +21,8 @@
 -- ROLLBACK: select cron.unschedule('food4love-push-sweep'); select cron.unschedule('food4love-push-cleanup');
 --           (pg_net / pg_cron can stay enabled; other features may use them.)
 
+begin;
+
 create extension if not exists pg_net with schema extensions;
 create extension if not exists pg_cron;
 
@@ -49,5 +51,20 @@ select cron.schedule('food4love-push-sweep', '* * * * *',
 
 select cron.schedule('food4love-push-cleanup', '17 3 * * *',
   $$select public.food4love_push_cleanup()$$);
+
+-- refuse to commit unless exactly these two jobs exist and are active
+do $$
+begin
+  if (select count(*) from cron.job
+       where jobname in ('food4love-push-sweep', 'food4love-push-cleanup') and active) <> 2 then
+    raise exception 'push cron jobs were not scheduled as expected';
+  end if;
+  if to_regprocedure('net.http_post(text, jsonb, jsonb, jsonb, integer)') is null then
+    raise exception 'pg_net http_post is not available with the expected signature';
+  end if;
+end;
+$$;
+
+commit;
 
 -- CHECK: select jobname, schedule, active from cron.job where jobname like 'food4love-push-%';
