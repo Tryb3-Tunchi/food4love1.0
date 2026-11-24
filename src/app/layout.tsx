@@ -7,6 +7,7 @@ import '@fontsource/space-grotesk/700.css'
 import './globals.css'
 import { Providers } from './providers'
 import { AnalyticsProvider } from '@/components/analytics/AnalyticsProvider'
+import { FloatingSupportWidget } from '@/components/support/FloatingSupportWidget'
 
 export const metadata: Metadata = {
   title: {
@@ -61,7 +62,10 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body className="font-sans antialiased">
-        <Providers>{children}</Providers>
+        <Providers>
+          {children}
+          <FloatingSupportWidget />
+        </Providers>
         <AnalyticsProvider />
       </body>
     </html>

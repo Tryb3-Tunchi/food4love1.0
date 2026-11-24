@@ -9,9 +9,11 @@ export const runtime = 'nodejs'
 // Resend tells us what happened to an email after it was accepted: delivered,
 // bounced, marked as spam. Every call is signature-checked, so only genuine
 // Resend events can change anything. No email addresses are stored.
-const STATUS_FOR_EVENT: Record<string, 'delivered' | 'bounced'> = {
+const STATUS_FOR_EVENT: Record<string, 'delivered' | 'bounced' | 'failed'> = {
   'email.delivered': 'delivered',
   'email.bounced': 'bounced',
+  'email.complained': 'bounced',
+  'email.failed': 'failed',
 }
 
 export async function POST(request: Request) {
@@ -78,6 +80,21 @@ export async function POST(request: Request) {
         .eq('provider_message_id', messageId)
         // Never move a bounced email back to delivered because of a late event.
         .neq('status', 'bounced')
+
+      const campaignStatus = type === 'email.complained' ? 'bounced' : next
+      await admin
+        .from('admin_announcement_deliveries')
+        .update({
+          email_status: campaignStatus,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('email_provider_message_id', messageId)
+        .neq('email_status', 'bounced')
+      await admin
+        .from('waitlist_email_deliveries')
+        .update({ status: campaignStatus, error_message: null })
+        .eq('provider_message_id', messageId)
+        .neq('status', 'bounced')
     }
     // A permanent bounce or a spam complaint means this person must not get marketing
     // again. Find the waitlist subscriber behind the message and suppress them, the
@@ -109,6 +126,22 @@ export async function POST(request: Request) {
           })
           .eq('id', subscriberId)
           .is('unsubscribed_at', null)
+      }
+
+      const accountDelivery = await admin
+        .from('admin_announcement_deliveries')
+        .select('user_id')
+        .eq('email_provider_message_id', messageId)
+        .maybeSingle()
+      if (accountDelivery.data?.user_id) {
+        await admin
+          .from('profiles')
+          .update({
+            email_updates_consent: false,
+            email_updates_consent_at: null,
+          })
+          .eq('id', accountDelivery.data.user_id)
+          .eq('email_updates_consent', true)
       }
     }
     if (type === 'email.bounced' || type === 'email.complained') {

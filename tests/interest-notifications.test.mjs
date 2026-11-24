@@ -1663,7 +1663,7 @@ test('the scheduler route is wired safely: no session shortcuts, no secret in lo
   })
   assert.deepEqual(
     vercel.crons.map((c) => c.path),
-    ['/api/cron/process-notifications'],
+    ['/api/cron/process-notifications', '/api/cron/process-email-campaigns'],
   )
   // Vercel's free plan only accepts crons that run at most once a day. A faster schedule
   // there makes the whole deployment fail, so the committed one must be a daily floor.
@@ -1674,6 +1674,14 @@ test('the scheduler route is wired safely: no session shortcuts, no secret in lo
     assert.match(hour, /^\d+$/, 'a fixed hour, so it runs once a day at most')
     assert.equal([dayOfMonth, month, dayOfWeek].join(' '), '* * *')
   }
+  const campaigns = read('src/app/api/cron/process-email-campaigns/route.ts')
+  assert.match(campaigns, /verifyCronRequest\(/)
+  assert.match(campaigns, /process\.env\.CRON_SECRET/)
+  assert.match(campaigns, /scheduled_at/)
+  assert.doesNotMatch(
+    campaigns,
+    /console\.(log|info|error)\([^)]*(secret|authorization)/i,
+  )
   assert.match(
     read('.env.example'),
     /^CRON_SECRET=$/m,

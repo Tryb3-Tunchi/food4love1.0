@@ -2,14 +2,17 @@
   "git": {
     "deploymentEnabled": {
       "*": false,
-      "develop": true,
-      "fix/booking-interest-admin-invitations-v2": true
+      "develop": true
     }
   },
   "crons": [
     {
       "path": "/api/cron/process-notifications",
       "schedule": "0 7 * * *"
+    },
+    {
+      "path": "/api/cron/process-email-campaigns",
+      "schedule": "0 8 * * *"
     }
   ]
 }

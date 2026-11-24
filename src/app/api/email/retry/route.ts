@@ -8,6 +8,7 @@ import { MAX_ATTEMPTS, sendTransactionalEmail } from '@/lib/email/transactional'
 import { resolveAppUrl } from '@/lib/appUrl'
 import { processInterestEmails } from '@/lib/notifications/interestEmails'
 import { processReferralRewardEmails } from '@/lib/email/referralRewards'
+import { processSupportAlerts } from '@/lib/email/supportAlerts'
 
 export const runtime = 'nodejs'
 
@@ -59,6 +60,9 @@ export async function POST(request: Request) {
       reconcile: true,
     }).catch(() => null)
     const referralRewards = await processReferralRewardEmails(admin, {
+      appUrl: resolveAppUrl(origin),
+    }).catch(() => null)
+    const supportAlerts = await processSupportAlerts(admin, {
       appUrl: resolveAppUrl(origin),
     }).catch(() => null)
 
@@ -144,15 +148,23 @@ export async function POST(request: Request) {
       checked:
         (rows?.length ?? 0) +
         (interestEmails?.checked ?? 0) +
-        (referralRewards?.checked ?? 0),
+        (referralRewards?.checked ?? 0) +
+        (supportAlerts?.checked ?? 0),
       accepted_by_provider:
-        accepted + (interestEmails?.sent ?? 0) + (referralRewards?.sent ?? 0),
+        accepted +
+        (interestEmails?.sent ?? 0) +
+        (referralRewards?.sent ?? 0) +
+        (supportAlerts?.accepted ?? 0),
       still_failing:
-        failed + (interestEmails?.failed ?? 0) + (referralRewards?.failed ?? 0),
+        failed +
+        (interestEmails?.failed ?? 0) +
+        (referralRewards?.failed ?? 0) +
+        (supportAlerts?.failed ?? 0),
       // detail for the "cook is verified" queue: cancelled = deliberately not sent
       // (no consent, cook no longer verified, ...); not_configured = waiting for email setup
       interest_emails: interestEmails,
       referral_rewards: referralRewards,
+      support_alerts: supportAlerts,
     })
   } catch {
     await finishAdminAudit(
