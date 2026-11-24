@@ -3,7 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createLimiter } from '@/lib/rateLimit'
 import { parseSubscriptionInput } from '@/lib/push/subscriptionInput'
-import { isPushSchemaMissing } from '@/lib/push/server'
+import { isPushSchemaMissing, mayEnrollInPush } from '@/lib/push/server'
 
 // This device's Web Push subscription.
 //
@@ -49,13 +49,20 @@ export async function GET() {
     .limit(20)
   if (error) {
     if (isPushSchemaMissing(error))
-      return NextResponse.json({ devices: [] }, { headers: noStore })
+      return NextResponse.json(
+        { devices: [], enrolled: mayEnrollInPush(user.id, process.env) },
+        { headers: noStore },
+      )
     return NextResponse.json(
       { error: 'Could not load devices' },
       { status: 500, headers: noStore },
     )
   }
-  return NextResponse.json({ devices: data ?? [] }, { headers: noStore })
+  // enrolled: may this member turn push on (pilot gate). Never says who else is enrolled.
+  return NextResponse.json(
+    { devices: data ?? [], enrolled: mayEnrollInPush(user.id, process.env) },
+    { headers: noStore },
+  )
 }
 
 export async function POST(request: NextRequest) {
@@ -64,6 +71,15 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(
       { error: 'Unauthorized' },
       { status: 401, headers: noStore },
+    )
+  // Pilot gate (server-side, fails closed): see pushEnrollment() in src/lib/push/server.ts
+  if (!mayEnrollInPush(user.id, process.env))
+    return NextResponse.json(
+      {
+        error: 'Push notifications are being tested with a small group first',
+        code: 'not_enrolled',
+      },
+      { status: 403, headers: noStore },
     )
   if (!allow(user.id))
     return NextResponse.json(

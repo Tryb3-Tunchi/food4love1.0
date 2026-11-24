@@ -22,11 +22,17 @@ export interface PushDevice {
   last_success_at: string | null
 }
 
-async function loadDevices(): Promise<PushDevice[]> {
+async function loadDevices(): Promise<{
+  devices: PushDevice[]
+  enrolled: boolean
+}> {
   const response = await fetch('/api/push/subscriptions', { cache: 'no-store' })
   if (!response.ok) throw new Error('Could not load devices')
-  const body = (await response.json()) as { devices?: PushDevice[] }
-  return body.devices ?? []
+  const body = (await response.json()) as {
+    devices?: PushDevice[]
+    enrolled?: boolean
+  }
+  return { devices: body.devices ?? [], enrolled: body.enrolled === true }
 }
 
 export function usePushNotifications() {
@@ -103,7 +109,9 @@ export function usePushNotifications() {
     support,
     onHere,
     busy,
-    devices: devices.data ?? [],
+    devices: devices.data?.devices ?? [],
+    // false until the server says this member is in the push pilot (fails closed)
+    enrolled: devices.data?.enrolled === true,
     devicesLoading: devices.isLoading,
     thisDeviceId: typeof window === 'undefined' ? null : currentDeviceId(),
     turnOn,

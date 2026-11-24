@@ -147,6 +147,11 @@ export function PushNotificationSettings() {
           <p className="text-xs text-[var(--text-3)]" role="status">
             Checking this device…
           </p>
+        ) : !push.onHere && !push.devicesLoading && !push.enrolled ? (
+          <p className="rounded-xl bg-[var(--bg-2)] p-3 text-xs leading-5 text-[var(--text-2)]">
+            Push notifications are being tested with a small group of members
+            first. You will still see every update in the app.
+          </p>
         ) : support !== 'supported' ? (
           <p className="rounded-xl bg-[var(--bg-2)] p-3 text-xs leading-5 text-[var(--text-2)]">
             {PUSH_SUPPORT_MESSAGE[support]}

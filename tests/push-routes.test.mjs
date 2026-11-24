@@ -13,6 +13,10 @@ const subscriptions = await import('../src/app/api/push/subscriptions/route.ts')
 const device = await import('../src/app/api/push/subscriptions/[id]/route.ts')
 const testPush = await import('../src/app/api/push/test/route.ts')
 
+// Most tests run with enrollment open; the pilot gate has its own tests at the end.
+process.env.PUSH_ENROLLMENT = 'open'
+delete process.env.PUSH_PILOT_USER_IDS
+
 const CUSTOMER = {
   id: '00000000-0000-4000-8000-000000000001',
   email: 'customer@example.test',
@@ -236,7 +240,65 @@ test('before the migration is applied the routes degrade instead of failing', as
   const db = new FakeSupabase({ push_subscriptions: { missing: true } })
   globalThis.__f4lFakeAdmin = db
   as(CUSTOMER)
-  assert.deepEqual(await (await subscriptions.GET()).json(), { devices: [] })
+  assert.deepEqual(await (await subscriptions.GET()).json(), { devices: [], enrolled: true })
   assert.equal((await post(sub(1))).status, 503)
   assert.equal((await testPush.POST()).status, 503)
+})
+
+test('pilot gate fails closed: with nothing configured nobody can register a device', async () => {
+  const { db, calls } = setup()
+  delete process.env.PUSH_ENROLLMENT
+  delete process.env.PUSH_PILOT_USER_IDS
+  try {
+    as(CUSTOMER)
+    const r = await post(sub(1))
+    assert.equal(r.status, 403)
+    assert.equal((await r.json()).code, 'not_enrolled')
+    assert.equal(calls.length, 0)
+    assert.equal(db.rows('push_subscriptions').length, 0)
+    assert.equal((await (await subscriptions.GET()).json()).enrolled, false)
+  } finally {
+    process.env.PUSH_ENROLLMENT = 'open'
+  }
+})
+
+test('pilot gate: only listed accounts can register; the response never lists other members', async () => {
+  const { db } = setup()
+  delete process.env.PUSH_ENROLLMENT
+  process.env.PUSH_PILOT_USER_IDS = ` ${CUSTOMER.id.toUpperCase()} , not-a-uuid,`
+  try {
+    as(CUSTOMER)
+    assert.equal((await post(sub(1))).status, 200)
+    const mine = await (await subscriptions.GET()).json()
+    assert.equal(mine.enrolled, true)
+    assert.ok(!JSON.stringify(mine).includes(COOK.id))
+    as(COOK)
+    assert.equal((await post(sub(2))).status, 403)
+    assert.equal((await (await subscriptions.GET()).json()).enrolled, false)
+    assert.deepEqual(
+      db.rows('push_subscriptions').map((r) => r.user_id),
+      [CUSTOMER.id],
+    )
+  } finally {
+    process.env.PUSH_ENROLLMENT = 'open'
+    delete process.env.PUSH_PILOT_USER_IDS
+  }
+})
+
+test('enrollment cannot be opened from the browser (only the exact server value "open")', async () => {
+  setup()
+  delete process.env.PUSH_PILOT_USER_IDS
+  try {
+    for (const value of ['OPEN', 'true', 'all', ' yes ', '']) {
+      process.env.PUSH_ENROLLMENT = value
+      as(CUSTOMER)
+      assert.equal(
+        (await post({ ...sub(5), enrollment: 'open' })).status,
+        403,
+        value,
+      )
+    }
+  } finally {
+    process.env.PUSH_ENROLLMENT = 'open'
+  }
 })
