@@ -32,6 +32,7 @@ const supportPaths = [
   '/stories',
   '/notifications',
   '/settings',
+  '/',
 ]
 
 export function FloatingSupportWidget() {
