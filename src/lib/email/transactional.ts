@@ -11,6 +11,8 @@ export type EmailKind =
   | 'tester_invitation'
   | 'password_recovery'
   | 'referral_reward'
+  | 'support_alert'
+  | 'campaign_test'
 
 // queued     = we decided to send, Resend has not answered yet
 // processing = one worker has claimed it and is sending right now
@@ -73,6 +75,14 @@ export function senderFor(kind: EmailKind) {
       process.env.ACCOUNT_UPDATES_FROM_EMAIL,
       process.env.RESEND_FROM_EMAIL,
       process.env.WELCOME_FROM_EMAIL,
+    ],
+    support_alert: [
+      process.env.SUPPORT_FROM_EMAIL,
+      process.env.RESEND_FROM_EMAIL,
+    ],
+    campaign_test: [
+      process.env.ACCOUNT_UPDATES_FROM_EMAIL,
+      process.env.RESEND_FROM_EMAIL,
     ],
   }
   return candidatesByKind[kind].find((value) => !!value) ?? null

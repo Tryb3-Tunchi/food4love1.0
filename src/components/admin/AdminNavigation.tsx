@@ -15,6 +15,7 @@ import {
   Handshake,
   HeartPulse,
   LayoutDashboard,
+  LifeBuoy,
   ListChecks,
   MessageCircle,
   MessagesSquare,
@@ -146,6 +147,12 @@ const groups: { label: string; items: AdminNavigationItem[] }[] = [
         href: '/admin/messages',
         label: 'Support messages',
         icon: MessageCircle,
+        permission: 'messages:manage',
+      },
+      {
+        href: '/admin/live-support',
+        label: 'Live support inbox',
+        icon: LifeBuoy,
         permission: 'messages:manage',
       },
       {
