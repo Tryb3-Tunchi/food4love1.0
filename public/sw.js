@@ -1,4 +1,4 @@
-const CACHE_NAME = 'food4love-static-v1'
+const CACHE_NAME = 'food4love-static-v2'
 const OFFLINE_URL = '/offline.html'
 const PRE_CACHE = [
   OFFLINE_URL,
@@ -6,6 +6,7 @@ const PRE_CACHE = [
   '/icons/icon-180.png',
   '/icons/icon-192.png',
   '/icons/icon-512.png',
+  '/icons/badge-96.png',
   '/logo4lfood11.png',
 ]
 
@@ -35,6 +36,153 @@ self.addEventListener('activate', (event) => {
 
 self.addEventListener('message', (event) => {
   if (event.data?.type === 'SKIP_WAITING') self.skipWaiting()
+})
+
+// ---------------------------------------------------------------- Web Push
+// Payloads come from the Supabase Edge Function "push-dispatch" (generic text only, see
+// supabase/functions/_shared/push-core.ts). Everything in them is still treated as untrusted here.
+
+const PUSH_DEFAULT_URL = '/notifications'
+const PUSH_SAFE_PATHS = [
+  /^\/notifications$/,
+  /^\/chat$/,
+  /^\/chat\/[0-9a-f-]{36}$/i,
+  /^\/matches$/,
+  /^\/requests$/,
+  /^\/bookings$/,
+  /^\/bookings\/[0-9a-f-]{36}$/i,
+  /^\/cook\/verification$/,
+  /^\/cook\/[0-9a-f-]{36}$/i,
+  /^\/swipe$/,
+  /^\/settings$/,
+  /^\/support$/,
+]
+const NOTIFICATION_ID = /^[0-9a-f-]{36}$/i
+
+// Same rules as safePushUrl() in push-core.ts: a relative path from the allowlist, nothing else.
+function safePushUrl(candidate) {
+  if (typeof candidate !== 'string') return PUSH_DEFAULT_URL
+  const value = candidate.trim()
+  if (!value.startsWith('/') || value.startsWith('//') || /[\\%\s]/.test(value))
+    return PUSH_DEFAULT_URL
+  const path = value.split(/[?#]/)[0]
+  return PUSH_SAFE_PATHS.some((rule) => rule.test(path))
+    ? path
+    : PUSH_DEFAULT_URL
+}
+
+function cleanText(value, fallback, max) {
+  return typeof value === 'string' && value.trim()
+    ? value.trim().slice(0, max)
+    : fallback
+}
+
+function readPush(event) {
+  try {
+    const data = event.data ? event.data.json() : null
+    if (data && typeof data === 'object') return data
+  } catch {
+    // not JSON: fall through to the generic notification
+  }
+  return {}
+}
+
+self.addEventListener('push', (event) => {
+  const data = readPush(event)
+  const id =
+    typeof data.id === 'string' && NOTIFICATION_ID.test(data.id)
+      ? data.id
+      : null
+  const title = cleanText(data.title, 'Food4Love', 80)
+  const options = {
+    body: cleanText(data.body, 'You have a new update.', 200),
+    icon: '/icons/icon-192.png',
+    badge: '/icons/badge-96.png',
+    tag: cleanText(data.tag, 'food4love', 64),
+    // a newer update on the same conversation/booking alerts again instead of replacing silently
+    renotify: true,
+    silent: data.silent === true,
+    timestamp: Date.now(),
+    data: { url: safePushUrl(data.url), id },
+  }
+  const badge =
+    Number.isInteger(data.badge) && data.badge >= 0 ? data.badge : null
+  const nav = self.navigator
+  // ALWAYS show a notification: Safari and Chrome revoke push for a site that receives pushes
+  // without showing one. Open Food4Love windows are also told, so their bell refreshes at once.
+  event.waitUntil(
+    Promise.all([
+      self.registration.showNotification(title, options),
+      badge === null || !nav || !nav.setAppBadge
+        ? null
+        : (badge > 0 ? nav.setAppBadge(badge) : nav.clearAppBadge()).catch(
+            () => undefined,
+          ),
+      self.clients
+        .matchAll({ type: 'window', includeUncontrolled: true })
+        .then((windows) =>
+          windows.forEach((client) =>
+            client.postMessage({ type: 'F4L_PUSH_RECEIVED' }),
+          ),
+        ),
+    ]),
+  )
+})
+
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close()
+  const data = event.notification.data || {}
+  const url = safePushUrl(data.url)
+  const id =
+    typeof data.id === 'string' && NOTIFICATION_ID.test(data.id)
+      ? data.id
+      : null
+  event.waitUntil(
+    self.clients
+      .matchAll({ type: 'window', includeUncontrolled: true })
+      .then(async (windows) => {
+        // reuse an open Food4Love window: the page routes itself and marks the notification read
+        const existing = windows.find(
+          (client) => new URL(client.url).origin === self.location.origin,
+        )
+        if (existing) {
+          await existing.focus().catch(() => undefined)
+          existing.postMessage({ type: 'F4L_OPEN_NOTIFICATION', url, id })
+          return
+        }
+        await self.clients.openWindow(id ? `${url}?f4l_n=${id}` : url)
+      }),
+  )
+})
+
+// The browser replaced the subscription (Chrome/Firefox; Safari does not fire this). Re-subscribe
+// with the same key and tell the server to swap the old endpoint for the new one. The request is
+// same-origin, so it carries the member's session cookie; without a session it is refused and
+// the old row is purged on its first 410.
+self.addEventListener('pushsubscriptionchange', (event) => {
+  const oldSubscription = event.oldSubscription
+  const key =
+    oldSubscription && oldSubscription.options
+      ? oldSubscription.options.applicationServerKey
+      : null
+  if (!key) return
+  event.waitUntil(
+    self.registration.pushManager
+      .subscribe({ userVisibleOnly: true, applicationServerKey: key })
+      .then((subscription) =>
+        fetch('/api/push/subscriptions', {
+          method: 'POST',
+          credentials: 'same-origin',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            subscription: subscription.toJSON(),
+            oldEndpoint: oldSubscription.endpoint,
+            label: 'Renewed device',
+          }),
+        }),
+      )
+      .catch(() => undefined),
+  )
 })
 
 self.addEventListener('fetch', (event) => {

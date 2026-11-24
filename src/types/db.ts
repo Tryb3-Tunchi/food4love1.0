@@ -3,11 +3,25 @@ export type MatchStatus = 'pending' | 'matched' | 'expired' | 'blocked'
 export type KycStatus = 'unverified' | 'pending' | 'verified' | 'rejected'
 export type SwipeAction = 'like' | 'pass' | 'superlike'
 
+// The first four keys control the in-app notification feed. `push` controls Web Push delivery to
+// devices and is read by the database (food4love_push_allowed); a missing key means "on".
 export interface NotificationPreferences {
   messages: boolean
   swipeActivity: boolean
   bookings: boolean
   reviews: boolean
+  push?: PushPreferences
+}
+
+export interface PushPreferences {
+  enabled?: boolean
+  messages?: boolean
+  matches?: boolean
+  bookings?: boolean
+  verification?: boolean
+  stories?: boolean
+  updates?: boolean
+  sound?: boolean
 }
 
 export type LikeStatus = 'pending' | 'accepted' | 'rejected'
