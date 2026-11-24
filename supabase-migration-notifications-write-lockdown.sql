@@ -75,9 +75,9 @@ create policy notifications_update_read_own
 -- 2. table privileges: least privilege for browser roles. PUBLIC (every role, including any role
 --    created later) is covered too, and so are explicit column-level grants, which a table-level
 --    REVOKE does not always remove.
-revoke all on public.notifications from public, anon;
-revoke insert, update, delete, truncate, references, trigger
-  on public.notifications from authenticated;
+-- "all" (not a list) so privileges newer than this file, such as PostgreSQL 17's MAINTAIN, go too;
+-- members get back only what they need just below.
+revoke all on public.notifications from public, anon, authenticated;
 do $$
 declare
   v_cols text;
@@ -106,6 +106,11 @@ begin
        or has_table_privilege(r, 'public.notifications', 'TRUNCATE')
        or has_table_privilege(r, 'public.notifications', 'TRIGGER') then
       raise exception 'lockdown incomplete: % can still insert, delete, truncate or add triggers', r;
+    end if;
+    if has_table_privilege(r, 'public.notifications', 'REFERENCES')
+       or (current_setting('server_version_num')::int >= 170000
+           and has_table_privilege(r, 'public.notifications', 'MAINTAIN')) then
+      raise exception 'lockdown incomplete: % still holds REFERENCES or MAINTAIN', r;
     end if;
     for c in
       select attname from pg_attribute
