@@ -21,7 +21,8 @@
     "**/*.tsx",
     ".next/types/**/*.ts",
     "next.config.mjs",
-    "src/types/**/*.d.ts"
+    "src/types/**/*.d.ts",
+    ".next-staging/types/**/*.ts"
   ],
   "exclude": ["node_modules", "supabase/functions/push-dispatch/index.ts"]
 }
