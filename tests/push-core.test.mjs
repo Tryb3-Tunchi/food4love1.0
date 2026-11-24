@@ -104,6 +104,7 @@ test('push destinations agree with the in-app notification routes for customers 
     ['booking', { kind: 'interest_available' }],
     ['review', {}],
     ['system', {}],
+    ['message', { support_thread_id: ID }],
   ]
   for (const role of ['buyer', 'cook']) {
     for (const [type, data] of cases) {

@@ -170,6 +170,7 @@ test('the service worker URL rules match the Edge Function rules', () => {
     'https://evil',
     '/admin',
     '/cook/verification',
+    '/support',
     '/chat/%2e%2e',
     `/cook/${ID}`,
     null,

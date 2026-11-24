@@ -44,6 +44,7 @@ const SAFE_PATH = [
   /^\/cook\/[0-9a-f-]{36}$/i,
   /^\/swipe$/,
   /^\/settings$/,
+  /^\/support$/,
 ]
 
 export const DEFAULT_PUSH_URL = '/notifications'
@@ -85,6 +86,7 @@ export function pushHref(
     const cookId = readId(data, ['cook_id'])
     return cookId ? `/cook/${cookId}` : '/swipe'
   }
+  if (readId(data, ['support_thread_id'])) return '/support'
   const matchId = readId(data, ['match_id', 'matchId'])
   switch (type) {
     case 'match':

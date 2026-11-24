@@ -35,6 +35,8 @@ export function notificationHref(
     const cookId = readId(notification.data, ['cook_id'])
     return cookId ? `/cook/${cookId}` : '/swipe'
   }
+  // A reply from Food4Love Support (type 'message', but not a member chat).
+  if (readId(notification.data, ['support_thread_id'])) return '/support'
   switch (notification.type) {
     case 'match':
       return matchId ? `/chat/${matchId}` : '/matches'

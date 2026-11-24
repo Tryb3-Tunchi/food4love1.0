@@ -55,6 +55,7 @@ const PUSH_SAFE_PATHS = [
   /^\/cook\/[0-9a-f-]{36}$/i,
   /^\/swipe$/,
   /^\/settings$/,
+  /^\/support$/,
 ]
 const NOTIFICATION_ID = /^[0-9a-f-]{36}$/i
 
