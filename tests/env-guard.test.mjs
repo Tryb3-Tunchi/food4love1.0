@@ -716,6 +716,49 @@ test('dev:staging refuses production (override or not), live payment keys, missi
   }
 })
 
+test('dev:staging --prod refuses production before building anything', () => {
+  const dir = tempProject({
+    '.env.staging.local': envText(
+      productionEnv({
+        F4L_ALLOW_PRODUCTION_LOCAL: PRODUCTION_OVERRIDE_VALUE,
+        NEXT_PUBLIC_APP_URL: 'http://localhost:5001',
+      }),
+    ),
+  })
+  try {
+    const r = runScript(
+      'dev-staging.mjs',
+      dir,
+      { F4L_ALLOW_PRODUCTION_LOCAL: PRODUCTION_OVERRIDE_VALUE },
+      ['--prod'],
+    )
+    assert.equal(r.code, 1, r.out)
+    assert.match(r.out, /PRODUCTION/)
+    assert.match(r.out, /Nothing was started/)
+    assert.doesNotMatch(r.out, /building into \.next-staging/)
+  } finally {
+    rmSync(dir, { recursive: true, force: true })
+  }
+})
+
+test('a staging production build can only use its own output folder', () => {
+  const config = readFileSync(join(root, 'next.config.mjs'), 'utf8')
+  assert.match(
+    config,
+    /process\.env\.F4L_NEXT_DIST_DIR === '\.next-staging'\s*\?\s*'\.next-staging'\s*:\s*'\.next'/,
+  )
+  assert.match(
+    readFileSync(join(root, '.gitignore'), 'utf8'),
+    /^\.next-staging\/$/m,
+  )
+  const launcher = readFileSync(join(root, 'scripts/dev-staging.mjs'), 'utf8')
+  // the production-mode branch comes after every refusal check
+  assert.ok(
+    launcher.indexOf("process.argv.includes('--prod')") >
+      launcher.indexOf('NOT STARTING'),
+  )
+})
+
 test('preflight:staging stops on production configuration without contacting anything', () => {
   const dir = tempProject({
     '.env.staging.local': envText(
