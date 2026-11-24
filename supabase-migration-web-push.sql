@@ -477,7 +477,12 @@ begin
     'public.food4love_push_claim(integer)',
     'public.food4love_push_complete(uuid, uuid, text, integer, text)',
     'public.food4love_push_cleanup()',
-    'public.food4love_push_has_due()'
+    'public.food4love_push_has_due()',
+    -- pure helpers too: Supabase's default privileges make every new function executable by
+    -- anon/authenticated, and nothing outside the database needs to call these
+    'public.food4love_notification_category(text, jsonb)',
+    'public.food4love_push_allowed(jsonb, text)',
+    'public.food4love_push_retry_delay(integer)'
   ] loop
     execute format('revoke all on function %s from public, anon, authenticated', f);
   end loop;
