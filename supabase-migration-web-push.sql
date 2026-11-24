@@ -29,9 +29,13 @@ begin
   if to_regclass('public.notifications') is null or to_regclass('public.profiles') is null then
     raise exception 'notifications/profiles missing: wrong database?';
   end if;
-  if has_table_privilege('authenticated', 'public.notifications', 'INSERT')
-     or has_table_privilege('anon', 'public.notifications', 'INSERT')
-     or has_column_privilege('authenticated', 'public.notifications', 'body', 'UPDATE') then
+  -- effective privileges: these include PUBLIC, inherited roles and column-level grants
+  if has_any_column_privilege('authenticated', 'public.notifications', 'INSERT')
+     or has_any_column_privilege('anon', 'public.notifications', 'INSERT')
+     or has_table_privilege('authenticated', 'public.notifications', 'DELETE')
+     or has_column_privilege('authenticated', 'public.notifications', 'body', 'UPDATE')
+     or has_column_privilege('authenticated', 'public.notifications', 'data', 'UPDATE')
+     or has_column_privilege('authenticated', 'public.notifications', 'user_id', 'UPDATE') then
     raise exception 'Run supabase-migration-notifications-write-lockdown.sql first: browser roles can still write notifications';
   end if;
 end;

@@ -72,20 +72,72 @@ create policy notifications_update_read_own
   using (auth.uid() = user_id)
   with check (auth.uid() = user_id);
 
--- 2. table privileges: least privilege for browser roles
-revoke all on public.notifications from anon;
+-- 2. table privileges: least privilege for browser roles. PUBLIC (every role, including any role
+--    created later) is covered too, and so are explicit column-level grants, which a table-level
+--    REVOKE does not always remove.
+revoke all on public.notifications from public, anon;
 revoke insert, update, delete, truncate, references, trigger
   on public.notifications from authenticated;
+do $$
+declare
+  v_cols text;
+begin
+  select string_agg(quote_ident(attname), ', ') into v_cols
+    from pg_attribute
+   where attrelid = 'public.notifications'::regclass and attnum > 0 and not attisdropped;
+  execute format('revoke all (%s) on public.notifications from public, anon, authenticated', v_cols);
+end;
+$$;
 grant select on public.notifications to authenticated;
 grant update (read) on public.notifications to authenticated;
 grant all on public.notifications to service_role;
+
+-- 4. prove the end state, by EVERY route (PUBLIC, inherited role membership, column grants):
+--    has_*_privilege answers "can this role do it", not "was it granted directly".
+--    Any surviving write path aborts the whole transaction, so nothing above is kept.
+do $$
+declare
+  r text;
+  c record;
+begin
+  foreach r in array array['anon', 'authenticated'] loop
+    if has_any_column_privilege(r, 'public.notifications', 'INSERT')
+       or has_table_privilege(r, 'public.notifications', 'DELETE')
+       or has_table_privilege(r, 'public.notifications', 'TRUNCATE')
+       or has_table_privilege(r, 'public.notifications', 'TRIGGER') then
+      raise exception 'lockdown incomplete: % can still insert, delete, truncate or add triggers', r;
+    end if;
+    for c in
+      select attname from pg_attribute
+       where attrelid = 'public.notifications'::regclass and attnum > 0 and not attisdropped
+         and attname <> 'read'
+    loop
+      if has_column_privilege(r, 'public.notifications', c.attname, 'UPDATE') then
+        raise exception 'lockdown incomplete: % can still update column %', r, c.attname;
+      end if;
+    end loop;
+  end loop;
+  if has_any_column_privilege('anon', 'public.notifications', 'SELECT')
+     or has_column_privilege('anon', 'public.notifications', 'read', 'UPDATE') then
+    raise exception 'lockdown incomplete: visitors can still read or update notifications';
+  end if;
+  if not has_table_privilege('authenticated', 'public.notifications', 'SELECT')
+     or not has_column_privilege('authenticated', 'public.notifications', 'read', 'UPDATE') then
+    raise exception 'lockdown would break the feed or mark-as-read';
+  end if;
+  if not has_table_privilege('service_role', 'public.notifications', 'INSERT') then
+    raise exception 'lockdown would break the server-side notification writers';
+  end if;
+end;
+$$;
 
 commit;
 
 -- READ-ONLY CHECKS after running (expected results in brackets):
 --   select policyname, cmd from pg_policies where tablename = 'notifications';
 --       [notifications_select_own SELECT, notifications_update_read_own UPDATE]
---   select has_table_privilege('authenticated', 'public.notifications', 'INSERT');   [false]
+--   (the migration itself already refuses to commit unless all of these hold)
+--   select has_any_column_privilege('authenticated', 'public.notifications', 'INSERT'); [false]
 --   select has_table_privilege('authenticated', 'public.notifications', 'DELETE');   [false]
 --   select has_column_privilege('authenticated', 'public.notifications', 'read', 'UPDATE');  [true]
 --   select has_column_privilege('authenticated', 'public.notifications', 'title', 'UPDATE'); [false]
