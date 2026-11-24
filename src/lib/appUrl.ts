@@ -5,7 +5,15 @@
 // authorised admin made, never from an anonymous visitor.
 export function resolveAppUrl(requestOrigin: string): string {
   const configured = process.env.NEXT_PUBLIC_APP_URL?.trim().replace(/\/+$/, '')
-  return configured || requestOrigin.replace(/\/+$/, '')
+  if (
+    configured &&
+    !(
+      process.env.NODE_ENV === 'production' &&
+      ['localhost', '127.0.0.1', '[::1]'].includes(new URL(configured).hostname)
+    )
+  )
+    return configured
+  return requestOrigin.replace(/\/+$/, '')
 }
 
 // For links sent in response to an ANONYMOUS request (password reset). The request's own origin
