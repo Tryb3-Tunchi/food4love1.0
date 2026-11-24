@@ -23,5 +23,5 @@
     "next.config.mjs",
     "src/types/**/*.d.ts"
   ],
-  "exclude": ["node_modules"]
+  "exclude": ["node_modules", "supabase/functions/push-dispatch/index.ts"]
 }

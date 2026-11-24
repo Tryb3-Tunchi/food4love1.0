@@ -1,6 +1,6 @@
 'use client'
 
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import toast from 'react-hot-toast'
@@ -59,6 +59,19 @@ export function NotificationCenter() {
     markEverythingRead,
   } = useNotifications()
   const hasUnread = notifications.some((notification) => !notification.read)
+
+  // Installed-app icon badge (Android, desktop, iOS 16.4+ Home Screen apps). The database count is
+  // the truth; pushes only set it in between. Unsupported browsers simply skip this.
+  useEffect(() => {
+    const nav = navigator as Navigator & {
+      setAppBadge?: (count?: number) => Promise<void>
+      clearAppBadge?: () => Promise<void>
+    }
+    if (!nav.setAppBadge || !nav.clearAppBadge) return
+    void (
+      unreadCount > 0 ? nav.setAppBadge(unreadCount) : nav.clearAppBadge()
+    ).catch(() => undefined)
+  }, [unreadCount])
 
   const handleMarkAllRead = async () => {
     if (!profile?.id || !hasUnread) return
