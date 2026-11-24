@@ -27,6 +27,7 @@ const buyerNav = [
 const cookNav = [
   { href: '/swipe', icon: Flame, label: 'Discover', id: 'bottom-nav-swipe' },
   { href: '/requests', icon: Inbox, label: 'Requests', id: '' },
+  { href: '/matches', icon: Heart, label: 'Matches', id: 'bottom-nav-matches' },
   { href: '/stories', icon: Film, label: 'Stories', id: '' },
   { href: '/chat', icon: MessageCircle, label: 'Chat', id: 'bottom-nav-chat' },
   { href: '/support', icon: MessageCircle, label: 'Support', id: '' },

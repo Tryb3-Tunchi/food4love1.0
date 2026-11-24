@@ -41,6 +41,7 @@ import { BusinessPanel } from '@/components/cook/BusinessPanel'
 import { CoverPhotoButton } from '@/components/cook/CoverPhotoButton'
 import { ProfilePhotoManager } from '@/components/profile/ProfilePhotoManager'
 import { WalletRewardsCard } from '@/components/profile/WalletRewardsCard'
+import { VerifiedBadge } from '@/components/ui/VerifiedBadge'
 import { AvailabilityText } from '@/components/cook/AvailabilityText'
 import { updateProfile as updateProfileRecord } from '@/services/profiles'
 import { TOUR_SEGMENT_KEY } from '@/components/tour/AppTour'
@@ -301,10 +302,11 @@ export default function ProfilePage() {
           </div>
 
           <h1
-            className="mb-0.5 font-heading text-2xl font-bold"
+            className="mb-0.5 flex items-center gap-1.5 font-heading text-2xl font-bold"
             style={{ color: 'var(--text-1)' }}
           >
-            {profile.full_name}
+            <span className="truncate">{profile.full_name}</span>
+            {profile.is_verified && <VerifiedBadge size="h-5 w-5" />}
           </h1>
           <p
             className="mb-1.5 text-sm font-medium capitalize"

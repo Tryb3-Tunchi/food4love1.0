@@ -3,13 +3,7 @@ import { notFound } from 'next/navigation'
 import Image from 'next/image'
 import Link from 'next/link'
 import { formatNaira } from '@/lib/utils'
-import {
-  Star,
-  MapPin,
-  BadgeCheck,
-  ChefHat,
-  UtensilsCrossed,
-} from 'lucide-react'
+import { Star, MapPin, ChefHat, UtensilsCrossed } from 'lucide-react'
 import type { Metadata } from 'next'
 import type { Post } from '@/types/db'
 import { PostFeed } from '@/components/posts/PostFeed'
@@ -22,6 +16,7 @@ import { BackLink } from '@/components/matching/BackLink'
 import { CookBookingPanel } from '@/components/booking/CookBookingPanel'
 import { generalArea } from '@/lib/discovery/geo'
 import { safeReturnPath } from '@/lib/profileLinks'
+import { VerifiedBadge } from '@/components/ui/VerifiedBadge'
 
 export async function generateMetadata({
   params,
@@ -180,26 +175,16 @@ export default async function CookPublicPage({
                   )}
                 </div>
               </StoryRing>
-              {chef.is_verified && (
-                <div
-                  className="absolute -bottom-1 -right-1 flex h-6 w-6 items-center justify-center rounded-full border-2 border-white"
-                  style={{ background: 'var(--success)' }}
-                >
-                  <BadgeCheck
-                    className="h-3.5 w-3.5 text-white"
-                    strokeWidth={3}
-                  />
-                </div>
-              )}
             </div>
           </div>
 
           <div className="flex items-start justify-between gap-3">
             <h1
-              className="mb-0.5 font-heading text-2xl font-bold"
+              className="mb-0.5 flex min-w-0 items-center gap-1.5 font-heading text-2xl font-bold"
               style={{ color: 'var(--text-1)' }}
             >
-              {chef.full_name}
+              <span className="truncate">{chef.full_name}</span>
+              {chef.is_verified && <VerifiedBadge size="h-5 w-5" />}
             </h1>
             <ReportButton targetType="profile" targetId={chef.id} />
           </div>

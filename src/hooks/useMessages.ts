@@ -21,13 +21,27 @@ const byCreatedAt = (a: Message, b: Message) =>
 
 export function useMessages(matchId: string, userId: string | undefined) {
   const queryClient = useQueryClient()
-  const messagesKey = useMemo(() => ['messages', matchId], [matchId])
+  const messagesKey = useMemo(
+    () => ['messages', matchId, userId],
+    [matchId, userId],
+  )
   const [outbox, setOutbox] = useState<OutboxItem[]>([])
+
+  useEffect(() => {
+    setOutbox([])
+  }, [matchId, userId])
 
   const messagesQuery = useQuery({
     queryKey: messagesKey,
+    enabled: !!userId && !!matchId,
     queryFn: async () => {
-      const { data, error } = await createClient()
+      const supabase = createClient()
+      const {
+        data: { user },
+      } = await supabase.auth.getUser()
+      if (!user || user.id !== userId) throw new Error('Not authenticated')
+
+      const { data, error } = await supabase
         .from('messages')
         .select('*')
         .eq('match_id', matchId)

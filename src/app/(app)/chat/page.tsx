@@ -8,6 +8,7 @@ import { MessageSquare, ChevronRight } from 'lucide-react'
 import Link from 'next/link'
 import Image from 'next/image'
 import { formatDistanceToNow } from 'date-fns'
+import { VerifiedBadge } from '@/components/ui/VerifiedBadge'
 
 export default function ChatIndexPage() {
   const { data: matches, isLoading, error, refetch } = useMatches()
@@ -92,8 +93,11 @@ export default function ChatIndexPage() {
 
             <div className="min-w-0 flex-1">
               <div className="mb-0.5 flex items-center justify-between">
-                <h3 className="truncate font-semibold text-[var(--text-1)]">
-                  {match.other_user?.full_name || 'User'}
+                <h3 className="flex min-w-0 items-center gap-1.5 font-semibold text-[var(--text-1)]">
+                  <span className="truncate">
+                    {match.other_user?.full_name || 'User'}
+                  </span>
+                  {match.other_user?.is_verified && <VerifiedBadge />}
                 </h3>
                 {match.last_message && (
                   <span className="flex-shrink-0 text-xs text-[var(--text-2)]">

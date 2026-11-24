@@ -32,6 +32,29 @@ import { Skeleton } from '@/components/ui/Skeleton'
 type Tab = 'bookings' | 'matches'
 type FilterKey = 'waiting' | 'active' | 'done' | 'cancelled' | 'all'
 
+function RequestsLoadError({ onRetry }: { onRetry: () => void }) {
+  return (
+    <div
+      role="alert"
+      className="f4l-card rounded-2xl p-5 text-center"
+      style={{ color: 'var(--text-2)' }}
+    >
+      <p className="text-sm font-semibold" style={{ color: 'var(--text-1)' }}>
+        These requests could not be loaded.
+      </p>
+      <p className="mt-1 text-xs">Check your connection and try again.</p>
+      <button
+        type="button"
+        onClick={onRetry}
+        className="mt-3 inline-flex min-h-10 items-center justify-center rounded-full px-5 text-sm font-bold text-white"
+        style={{ background: 'var(--accent)' }}
+      >
+        Try again
+      </button>
+    </div>
+  )
+}
+
 const FILTERS: {
   key: FilterKey
   label: string
@@ -85,13 +108,23 @@ export default function RequestsPage() {
   const bookingsKey = ['cook-bookings', cookId]
   const matchesKey = ['match-requests', cookId]
 
-  const { data: bookings = [], isLoading: loadingBookings } = useQuery({
+  const {
+    data: bookings = [],
+    isLoading: loadingBookings,
+    isError: bookingsFailed,
+    refetch: refetchBookings,
+  } = useQuery({
     queryKey: bookingsKey,
     queryFn: () => getMyBookings(cookId!, 'cook'),
     enabled,
     refetchInterval: 20_000,
   })
-  const { data: matchRequests = [], isLoading: loadingMatches } = useQuery({
+  const {
+    data: matchRequests = [],
+    isLoading: loadingMatches,
+    isError: matchRequestsFailed,
+    refetch: refetchMatchRequests,
+  } = useQuery({
     queryKey: matchesKey,
     queryFn: () => getMatchRequests(cookId!),
     enabled,
@@ -330,10 +363,39 @@ export default function RequestsPage() {
           </Link>
         )}
 
+        {activeTab === 'bookings' && bookingsFailed && bookings.length > 0 && (
+          <p
+            role="alert"
+            className="rounded-xl bg-red-500/10 p-3 text-xs text-red-700"
+          >
+            Your latest booking updates could not be refreshed. Showing the last
+            available results.
+          </p>
+        )}
+        {activeTab === 'matches' &&
+          matchRequestsFailed &&
+          matchRequests.length > 0 && (
+            <p
+              role="alert"
+              className="rounded-xl bg-red-500/10 p-3 text-xs text-red-700"
+            >
+              New likes could not be refreshed. Showing the last available
+              results.
+            </p>
+          )}
+
         {loading ? (
           [1, 2, 3].map((i) => (
             <Skeleton key={i} className="h-44 w-full rounded-2xl" />
           ))
+        ) : activeTab === 'bookings' &&
+          bookingsFailed &&
+          bookings.length === 0 ? (
+          <RequestsLoadError onRetry={() => void refetchBookings()} />
+        ) : activeTab === 'matches' &&
+          matchRequestsFailed &&
+          matchRequests.length === 0 ? (
+          <RequestsLoadError onRetry={() => void refetchMatchRequests()} />
         ) : activeTab === 'bookings' ? (
           shownBookings.length === 0 ? (
             <EmptyState
