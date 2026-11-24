@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { createClient } from '@/lib/supabase/client'
+import { useAuthStore } from '@/stores/useAuthStore'
 
 export interface MatchProfile {
   id: string
@@ -34,14 +35,16 @@ const PROFILE_FIELDS = 'id, full_name, avatar_url, role, is_verified'
 
 export function useMatches() {
   const queryClient = useQueryClient()
+  const userId = useAuthStore((state) => state.profile?.id)
   const query = useQuery({
-    queryKey: ['matches'],
+    queryKey: ['matches', userId],
+    enabled: !!userId,
     queryFn: async (): Promise<MatchListItem[]> => {
       const supabase = createClient()
       const {
         data: { user },
       } = await supabase.auth.getUser()
-      if (!user) throw new Error('Not authenticated')
+      if (!user || user.id !== userId) throw new Error('Not authenticated')
 
       const { data, error } = await supabase
         .from('matches')

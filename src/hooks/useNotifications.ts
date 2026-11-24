@@ -64,10 +64,12 @@ export function useNotifications() {
           // Booking updates and verification changes refresh the booking screens too.
           if (kind === 'booking' || kind === 'system') {
             queryClient.invalidateQueries({ queryKey: ['bookings'] })
+            queryClient.invalidateQueries({ queryKey: ['cook-bookings'] })
             queryClient.invalidateQueries({ queryKey: ['booking-status'] })
           }
           if (kind === 'like' || kind === 'match') {
             queryClient.invalidateQueries({ queryKey: ['likes'] })
+            queryClient.invalidateQueries({ queryKey: ['match-requests'] })
             queryClient.invalidateQueries({ queryKey: ['matches'] })
             queryClient.invalidateQueries({ queryKey: ['member-access'] })
           }

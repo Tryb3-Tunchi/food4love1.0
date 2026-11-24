@@ -131,9 +131,11 @@ export async function GET(request: NextRequest) {
       const state = matchId
         ? 'matched'
         : type === 'received'
-          ? answer === 'pass'
-            ? 'passed'
-            : 'pending'
+          ? answer === undefined
+            ? 'pending'
+            : answer === 'pass'
+              ? 'passed'
+              : 'answered'
           : 'waiting'
       return [
         {

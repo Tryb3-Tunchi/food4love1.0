@@ -5,12 +5,12 @@ import {
   MapPin,
   Star,
   Flame,
-  BadgeCheck,
   ChefHat,
   ChevronUp,
   ChevronDown,
 } from 'lucide-react'
 import Image from 'next/image'
+import { VerifiedBadge } from '@/components/ui/VerifiedBadge'
 
 export interface Chef {
   id: string
@@ -134,7 +134,10 @@ export function SwipeCard({ chef }: SwipeCardProps) {
                     {name}
                   </h2>
                   {chef.is_verified && (
-                    <BadgeCheck className="h-6 w-6 flex-shrink-0 fill-[#4ade80] text-[#4ade80] drop-shadow" />
+                    <VerifiedBadge
+                      size="h-6 w-6"
+                      className="text-[#4ade80] drop-shadow"
+                    />
                   )}
                 </div>
                 <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-white/90 drop-shadow">
@@ -214,9 +217,7 @@ export function SwipeCard({ chef }: SwipeCardProps) {
             <h2 className="font-heading text-2xl font-bold text-[var(--text-1)]">
               {name}
             </h2>
-            {chef.is_verified && (
-              <BadgeCheck className="h-5 w-5 flex-shrink-0 fill-[var(--success)] text-[var(--success)]" />
-            )}
+            {chef.is_verified && <VerifiedBadge size="h-5 w-5" />}
             {(chef.streak ?? 0) > 1 && (
               <span className="flex flex-shrink-0 items-center gap-0.5 rounded-full bg-[var(--accent-soft)] px-2 py-0.5 text-xs font-bold text-[var(--accent)]">
                 <Flame className="h-3 w-3" /> {chef.streak}

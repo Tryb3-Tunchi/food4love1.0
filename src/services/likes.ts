@@ -1,6 +1,7 @@
 import type { PersonPreview } from '@/lib/matching/activity'
 
-export type LikeState = 'pending' | 'passed' | 'matched' | 'waiting'
+export type LikeState =
+  'pending' | 'passed' | 'answered' | 'matched' | 'waiting'
 
 export interface LikePerson extends PersonPreview {
   is_verified: boolean | null

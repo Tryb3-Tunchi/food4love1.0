@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { formatDistanceToNow } from 'date-fns'
 import { Clock, Heart, MessageCircle, Star } from 'lucide-react'
 import { Avatar } from '@/components/ui/Avatar'
+import { VerifiedBadge } from '@/components/ui/VerifiedBadge'
 import { LikeBackButton } from '@/components/matching/LikeBackButton'
 import { profileHref } from '@/lib/profileLinks'
 import type { LikeItem } from '@/services/likes'
@@ -11,6 +12,7 @@ import type { LikeItem } from '@/services/likes'
 const STATE_LABEL: Record<LikeItem['state'], string> = {
   pending: 'Liked you',
   passed: 'You passed',
+  answered: 'You replied',
   matched: "It's a match",
   waiting: 'Waiting for a reply',
 }
@@ -32,14 +34,7 @@ export function LikeCard({
   const when = formatDistanceToNow(new Date(item.created_at), {
     addSuffix: true,
   })
-  const avatar = (
-    <Avatar
-      src={person.avatar_url}
-      name={name}
-      size="lg"
-      verified={!!person.is_verified}
-    />
-  )
+  const avatar = <Avatar src={person.avatar_url} name={name} size="lg" />
 
   return (
     <div className="app-card flex flex-wrap items-center gap-3 rounded-2xl p-4">
@@ -59,17 +54,19 @@ export function LikeCard({
         {href ? (
           <Link
             href={href}
-            className="block truncate text-sm font-bold hover:underline"
+            className="inline-flex max-w-full items-center gap-1.5 text-sm font-bold hover:underline"
             style={{ color: 'var(--text-1)' }}
           >
-            {name}
+            <span className="truncate">{name}</span>
+            {person.is_verified && <VerifiedBadge />}
           </Link>
         ) : (
           <span
-            className="block truncate text-sm font-bold"
+            className="inline-flex max-w-full items-center gap-1.5 text-sm font-bold"
             style={{ color: 'var(--text-1)' }}
           >
-            {name}
+            <span className="truncate">{name}</span>
+            {person.is_verified && <VerifiedBadge />}
           </span>
         )}
         <p

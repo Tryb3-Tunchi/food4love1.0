@@ -36,6 +36,7 @@ const buyerLinks = [
 const cookLinks = [
   { href: '/swipe', label: 'Discover', icon: Flame, badge: 'none' },
   { href: '/requests', label: 'Requests', icon: Inbox, badge: 'notifications' },
+  { href: '/matches', label: 'Matches', icon: Users, badge: 'none' },
   { href: '/stories', label: 'Stories', icon: Film, badge: 'none' },
   { href: '/chat', label: 'Chat', icon: MessageCircle, badge: 'notifications' },
   { href: '/profile', label: 'Profile', icon: User, badge: 'none' },
