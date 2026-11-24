@@ -309,6 +309,8 @@ test('every API route that is not a public form or a webhook checks who is calli
     // `Authorization: Bearer $CRON_SECRET` and refuses everyone when that is not set.
     // tests/interest-notifications.test.mjs ("scheduled processing") pins this behaviour.
     'cron/process-notifications',
+    // Campaign dispatcher uses the same CRON_SECRET-only server authentication.
+    'cron/process-email-campaigns',
     // Forgot password. A person who cannot sign in has no session. Protection instead: same-origin
     // only, rate limited, an identical answer for every address, only the configured site address in
     // the email, and a one-time Supabase recovery token. tests/password-recovery.test.mjs pins this.

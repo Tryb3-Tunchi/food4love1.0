@@ -484,3 +484,50 @@ export function adminAnnouncementEmail(input: {
     html: `<main style="font-family:Arial,sans-serif;max-width:600px;margin:32px auto;color:#2f211b;line-height:1.65"><p style="color:#176044;font-size:13px;font-weight:bold;letter-spacing:.08em;text-transform:uppercase">Food4Love</p><h1 style="font-size:24px">${safeSubject}</h1><p>Hello ${safeName},</p><p>${safeMessage}</p><hr style="border:0;border-top:1px solid #e9d6c5;margin:32px 0"><p style="font-size:12px;color:#6e5a52">You receive Food4Love email updates because you opted in. <a href="${safeUnsubscribeUrl}">Unsubscribe</a></p></main>`,
   }
 }
+
+export function supportAlertEmail(input: { appUrl: string }) {
+  const inboxUrl = `${input.appUrl.replace(/\/$/, '')}/admin/live`
+  return {
+    subject: 'A new Food4Love support message needs attention',
+    text: `A new message arrived in Food4Love Support. Open the admin inbox to review and reply: ${inboxUrl}`,
+    html: `<main style="font-family:Arial,sans-serif;max-width:600px;margin:32px auto;color:#2f211b;line-height:1.65"><p style="color:#176044;font-size:13px;font-weight:bold;letter-spacing:.08em;text-transform:uppercase">Food4Love Support</p><h1 style="font-size:22px">A new support message needs attention</h1><p>Open the secure admin inbox to review the conversation and reply.</p><p><a href="${escapeEmailHtml(inboxUrl)}" style="display:inline-block;border-radius:8px;background:#176044;color:#fff;padding:12px 18px;text-decoration:none;font-weight:bold">Open support inbox</a></p><p style="font-size:12px;color:#6e5a52">Message content and visitor contact details are not included in this alert.</p></main>`,
+  }
+}
+
+export function adminCampaignEmail(input: {
+  subject: string
+  previewText: string
+  heading: string
+  message: string
+  name: string
+  accountType: string
+  email?: string
+  unsubscribeUrl: string
+  ctaLabel?: string | null
+  ctaUrl?: string | null
+  testMode?: boolean
+}) {
+  const valueFor = (value: string) =>
+    value
+      .replace(/\{\{\s*first_name\s*\}\}/gi, input.name || 'there')
+      .replace(/\{\{\s*account_type\s*\}\}/gi, input.accountType)
+      .replace(/\{\{\s*email\s*\}\}/gi, input.email ?? '')
+  const safeName = escapeEmailHtml(input.name || 'there')
+  const safeHeading = escapeEmailHtml(valueFor(input.heading))
+  const safeMessage = escapeEmailHtml(valueFor(input.message)).replace(
+    /\n/g,
+    '<br>',
+  )
+  const safeSubject = escapeEmailHtml(input.subject)
+  const safePreview = escapeEmailHtml(valueFor(input.previewText))
+  const safeUnsubscribe = escapeEmailHtml(input.unsubscribeUrl)
+  const cta =
+    input.ctaLabel && input.ctaUrl
+      ? `<p style="margin:24px 0"><a href="${escapeEmailHtml(input.ctaUrl)}" style="display:inline-block;border-radius:8px;background:#176044;color:#fff;padding:12px 18px;text-decoration:none;font-weight:bold">${escapeEmailHtml(input.ctaLabel)}</a></p>`
+      : ''
+  return {
+    subject: input.subject,
+    text: `${input.subject}\n\nHello ${input.name || 'there'},\n\n${valueFor(input.message)}${input.ctaLabel && input.ctaUrl ? `\n\n${input.ctaLabel}: ${input.ctaUrl}` : ''}${input.testMode ? '\n\nThis is a test preview sent only to the administrator.' : `\n\nYou receive Food4Love email updates because you opted in. Unsubscribe: ${input.unsubscribeUrl}`}`,
+    html: `<main style="font-family:Arial,sans-serif;max-width:600px;margin:32px auto;color:#2f211b;line-height:1.65"><div style="display:none;max-height:0;overflow:hidden;opacity:0">${safePreview}</div><p style="color:#176044;font-size:13px;font-weight:bold;letter-spacing:.08em;text-transform:uppercase">Food4Love</p><h1 style="font-size:24px">${safeHeading || safeSubject}</h1><p>Hello ${safeName},</p><p>${safeMessage}</p>${cta}<hr style="border:0;border-top:1px solid #e9d6c5;margin:32px 0"><p style="font-size:12px;color:#6e5a52">${input.testMode ? 'This is a test preview sent only to the administrator.' : `You receive Food4Love email updates because you opted in. <a href="${safeUnsubscribe}">Unsubscribe</a>`}</p></main>`,
+  }
+}
