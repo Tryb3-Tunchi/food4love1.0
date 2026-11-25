@@ -8,8 +8,47 @@ import {
   detectPushSupport,
   platformFromUserAgent,
 } from '@/lib/push/support'
+import { pushPublicKeyFor } from '@/lib/push/publicKeys'
 
-export const VAPID_PUBLIC_KEY = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY ?? ''
+// The project's public key, chosen from the Supabase project this build talks to (see
+// publicKeys.ts). No Vercel setting is involved; an unknown project gets no key (fails closed).
+export const VAPID_PUBLIC_KEY =
+  pushPublicKeyFor(process.env.NEXT_PUBLIC_SUPABASE_URL) ?? ''
+
+// Is this build's public key usable? 'missing' = this build talks to a Supabase project that has
+// no Food4Love push key; 'invalid' = the stored key is not a 65-byte P-256 key.
+export function pushKeyStatus(): 'ok' | 'missing' | 'invalid' {
+  if (!VAPID_PUBLIC_KEY) return 'missing'
+  try {
+    const bytes = base64UrlToUint8Array(VAPID_PUBLIC_KEY)
+    return bytes.length === 65 && bytes[0] === 4 ? 'ok' : 'invalid'
+  } catch {
+    return 'invalid'
+  }
+}
+
+// When the service worker last DISPLAYED a Food4Love push on this device (it records this after
+// showNotification succeeds). This is the only evidence of display the browser gives us; a row in
+// the in-app bell proves nothing about the device.
+export const PUSH_DIAGNOSTICS_CACHE = 'food4love-push-diagnostics'
+export const LAST_SHOWN_PATH = '/__f4l/push-last-shown'
+export async function lastPushShownOnThisDevice(): Promise<{
+  at: string
+  id: string | null
+} | null> {
+  try {
+    if (typeof caches === 'undefined') return null
+    const cache = await caches.open(PUSH_DIAGNOSTICS_CACHE)
+    const hit = await cache.match(LAST_SHOWN_PATH)
+    if (!hit) return null
+    const body = (await hit.json()) as { at?: unknown; id?: unknown }
+    return typeof body.at === 'string'
+      ? { at: body.at, id: typeof body.id === 'string' ? body.id : null }
+      : null
+  } catch {
+    return null
+  }
+}
 // Which account this browser's subscription was registered for, and its device row id.
 const OWNER_KEY = 'food4love-push-owner'
 const DEVICE_KEY = 'food4love-push-device-id'
@@ -90,24 +129,45 @@ async function sendToServer(subscription: PushSubscription) {
   const result = (await response.json().catch(() => ({}))) as {
     id?: string
     error?: string
+    code?: string
   }
   if (!response.ok || !result.id)
-    throw new Error(result.error ?? 'Could not turn on notifications')
+    throw new RegistrationError(
+      result.error ?? 'Could not turn on notifications',
+      result.code ?? `http_${response.status}`,
+    )
   return result.id
+}
+
+class RegistrationError extends Error {
+  code: string
+  constructor(message: string, code: string) {
+    super(message)
+    this.code = code
+  }
 }
 
 export type EnableResult =
   | { ok: true }
   | {
       ok: false
-      reason: 'denied' | 'dismissed' | 'unavailable' | 'failed'
+      reason:
+        | 'denied'
+        | 'dismissed'
+        | 'unavailable'
+        | 'key_missing'
+        | 'key_invalid'
+        | 'not_enrolled'
+        | 'failed'
       message?: string
     }
 
 // MUST be called straight from a click/tap handler: requestPermission() is the first await so the
 // browser still sees the member's gesture (Safari refuses the prompt otherwise).
 export async function enablePush(userId: string): Promise<EnableResult> {
-  if (!VAPID_PUBLIC_KEY) return { ok: false, reason: 'unavailable' }
+  const keyStatus = pushKeyStatus()
+  if (keyStatus === 'missing') return { ok: false, reason: 'key_missing' }
+  if (keyStatus === 'invalid') return { ok: false, reason: 'key_invalid' }
   const permission = await Notification.requestPermission()
   if (permission === 'denied') return { ok: false, reason: 'denied' }
   if (permission !== 'granted') return { ok: false, reason: 'dismissed' }
@@ -130,11 +190,39 @@ export async function enablePush(userId: string): Promise<EnableResult> {
     store(OWNER_KEY, userId)
     return { ok: true }
   } catch (error) {
+    if (error instanceof RegistrationError && error.code === 'not_enrolled')
+      return { ok: false, reason: 'not_enrolled', message: error.message }
     return {
       ok: false,
       reason: 'failed',
       message: error instanceof Error ? error.message : undefined,
     }
+  }
+}
+
+// Re-registers this browser's EXISTING subscription for the signed-in member, without asking for
+// permission again. Used when the server no longer knows this device (it expired and was removed,
+// or it was removed from another device) while the browser still holds a valid subscription.
+export async function resyncThisDevice(userId: string): Promise<boolean> {
+  if (pushKeyStatus() !== 'ok') return false
+  if (
+    typeof Notification === 'undefined' ||
+    Notification.permission !== 'granted'
+  )
+    return false
+  const subscription = await browserSubscription().catch(() => null)
+  if (
+    !subscription ||
+    !sameKey(subscription, base64UrlToUint8Array(VAPID_PUBLIC_KEY))
+  )
+    return false
+  try {
+    const deviceId = await sendToServer(subscription)
+    store(DEVICE_KEY, deviceId)
+    store(OWNER_KEY, userId)
+    return true
+  } catch {
+    return false
   }
 }
 
@@ -165,6 +253,9 @@ export async function dropSubscriptionIfNotOwnedBy(userId: string | null) {
   if (owner === null || owner === userId) return
   const subscription = await browserSubscription().catch(() => null)
   await subscription?.unsubscribe().catch(() => undefined)
+  // the previous account's "last displayed" marker must not show up for the next account
+  if (typeof caches !== 'undefined')
+    await caches.delete(PUSH_DIAGNOSTICS_CACHE).catch(() => false)
   store(DEVICE_KEY, null)
   store(OWNER_KEY, null)
 }

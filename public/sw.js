@@ -87,6 +87,22 @@ function readPush(event) {
   return {}
 }
 
+// Diagnostics: remember when a push was last DISPLAYED on this device (the settings page shows it).
+// Only a notification id and a time are stored, in this device's own cache.
+function recordShown(id) {
+  return caches
+    .open('food4love-push-diagnostics')
+    .then((cache) =>
+      cache.put(
+        '/__f4l/push-last-shown',
+        new Response(JSON.stringify({ at: new Date().toISOString(), id }), {
+          headers: { 'Content-Type': 'application/json' },
+        }),
+      ),
+    )
+    .catch(() => undefined)
+}
+
 self.addEventListener('push', (event) => {
   const data = readPush(event)
   const id =
@@ -112,7 +128,9 @@ self.addEventListener('push', (event) => {
   // without showing one. Open Food4Love windows are also told, so their bell refreshes at once.
   event.waitUntil(
     Promise.all([
-      self.registration.showNotification(title, options),
+      self.registration
+        .showNotification(title, options)
+        .then(() => recordShown(id)),
       badge === null || !nav || !nav.setAppBadge
         ? null
         : (badge > 0 ? nav.setAppBadge(badge) : nav.clearAppBadge()).catch(

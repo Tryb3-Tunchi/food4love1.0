@@ -13,9 +13,9 @@ const subscriptions = await import('../src/app/api/push/subscriptions/route.ts')
 const device = await import('../src/app/api/push/subscriptions/[id]/route.ts')
 const testPush = await import('../src/app/api/push/test/route.ts')
 
-// Most tests run with enrollment open; the pilot gate has its own tests at the end.
+// The old env-variable gate must have no effect any more, even if someone sets it.
 process.env.PUSH_ENROLLMENT = 'open'
-delete process.env.PUSH_PILOT_USER_IDS
+process.env.PUSH_PILOT_USER_IDS = ''
 
 const CUSTOMER = {
   id: '00000000-0000-4000-8000-000000000001',
@@ -28,7 +28,8 @@ const COOK = {
 const P256 = 'B' + 'A'.repeat(86)
 const AUTH = 'A'.repeat(22)
 
-function setup() {
+// By default both test accounts are in the pilot table; the gate tests pass their own list.
+function setup({ pilot } = {}) {
   const db = new FakeSupabase({
     notifications: {
       uniques: [
@@ -75,6 +76,8 @@ function setup() {
     rows.push(...keep)
     return db.rpcHandlers.food4love_push_register(args)
   }
+  for (const id of pilot ?? [CUSTOMER.id, COOK.id])
+    db.rows('push_pilot_members').push({ user_id: id })
   globalThis.__f4lFakeAdmin = db
   return { db, calls }
 }
@@ -165,6 +168,7 @@ test('multiple devices per member; each member lists only their own, without end
       'installed',
       'label',
       'last_success_at',
+      'latest_delivery',
       'platform',
     ])
     assert.ok(!JSON.stringify(d).includes('fcm.googleapis.com'))
@@ -236,22 +240,28 @@ test('test push: needs a device, goes only to the caller, and a double press is 
   assert.equal(rows[0].data.kind, 'push_test')
 })
 
-test('before the migration is applied the routes degrade instead of failing', async () => {
-  const db = new FakeSupabase({ push_subscriptions: { missing: true } })
+test('before the migration is applied the routes degrade and fail closed', async () => {
+  const db = new FakeSupabase({
+    push_subscriptions: { missing: true },
+    push_pilot_members: { missing: true },
+  })
   globalThis.__f4lFakeAdmin = db
   as(CUSTOMER)
-  assert.deepEqual(await (await subscriptions.GET()).json(), {
-    devices: [],
-    enrolled: true,
-  })
-  assert.equal((await post(sub(1))).status, 503)
+  const degraded = await (await subscriptions.GET()).json()
+  assert.deepEqual(degraded.devices, [])
+  assert.equal(degraded.enrolled, false)
+  assert.equal(typeof degraded.server.publicKeyConfigured, 'boolean')
+  const r = await post(sub(1))
+  assert.equal(r.status, 503)
+  assert.equal((await r.json()).code, 'enrollment_unavailable')
   assert.equal((await testPush.POST()).status, 503)
 })
 
-test('pilot gate fails closed: with nothing configured nobody can register a device', async () => {
-  const { db, calls } = setup()
-  delete process.env.PUSH_ENROLLMENT
-  delete process.env.PUSH_PILOT_USER_IDS
+test('pilot gate fails closed: nobody is approved by default, and the old env vars do nothing', async () => {
+  const { db, calls } = setup({ pilot: [] })
+  // even with the retired variables set to their old "open" values
+  process.env.PUSH_ENROLLMENT = 'open'
+  process.env.PUSH_PILOT_USER_IDS = CUSTOMER.id
   try {
     as(CUSTOMER)
     const r = await post(sub(1))
@@ -262,46 +272,131 @@ test('pilot gate fails closed: with nothing configured nobody can register a dev
     assert.equal((await (await subscriptions.GET()).json()).enrolled, false)
   } finally {
     process.env.PUSH_ENROLLMENT = 'open'
+    process.env.PUSH_PILOT_USER_IDS = ''
   }
 })
 
-test('pilot gate: only listed accounts can register; the response never lists other members', async () => {
-  const { db } = setup()
-  delete process.env.PUSH_ENROLLMENT
-  process.env.PUSH_PILOT_USER_IDS = ` ${CUSTOMER.id.toUpperCase()} , not-a-uuid,`
-  try {
-    as(CUSTOMER)
-    assert.equal((await post(sub(1))).status, 200)
-    const mine = await (await subscriptions.GET()).json()
-    assert.equal(mine.enrolled, true)
-    assert.ok(!JSON.stringify(mine).includes(COOK.id))
-    as(COOK)
-    assert.equal((await post(sub(2))).status, 403)
-    assert.equal((await (await subscriptions.GET()).json()).enrolled, false)
-    assert.deepEqual(
-      db.rows('push_subscriptions').map((r) => r.user_id),
-      [CUSTOMER.id],
+test('pilot gate: only accounts in the pilot table can register; nothing lists other members', async () => {
+  const { db } = setup({ pilot: [CUSTOMER.id] })
+  as(CUSTOMER)
+  assert.equal((await post(sub(1))).status, 200)
+  const mine = await (await subscriptions.GET()).json()
+  assert.equal(mine.enrolled, true)
+  assert.ok(!JSON.stringify(mine).includes(COOK.id))
+  as(COOK)
+  assert.equal((await post(sub(2))).status, 403)
+  assert.equal((await (await subscriptions.GET()).json()).enrolled, false)
+  assert.deepEqual(
+    db.rows('push_subscriptions').map((r) => r.user_id),
+    [CUSTOMER.id],
+  )
+})
+
+test('nothing in the request can grant enrollment', async () => {
+  setup({ pilot: [] })
+  as(CUSTOMER)
+  for (const extra of [
+    { enrollment: 'open' },
+    { enrolled: true },
+    { pilot: true },
+    { user_id: COOK.id },
+    { p_user_id: CUSTOMER.id },
+  ])
+    assert.equal(
+      (await post({ ...sub(5), ...extra })).status,
+      403,
+      JSON.stringify(extra),
     )
-  } finally {
-    process.env.PUSH_ENROLLMENT = 'open'
-    delete process.env.PUSH_PILOT_USER_IDS
-  }
 })
 
-test('enrollment cannot be opened from the browser (only the exact server value "open")', async () => {
+test('the database refusal (pilot trigger) is reported as not enrolled', async () => {
+  const { db } = setup({ pilot: [CUSTOMER.id] })
+  db.rpcHandlers.food4love_push_register = () => {
+    throw new Error('unreachable')
+  }
+  db.rpc = async () => ({
+    data: null,
+    error: { code: 'P0001', message: 'not_enrolled' },
+  })
+  as(CUSTOMER)
+  const r = await post(sub(1))
+  assert.equal(r.status, 403)
+  assert.equal((await r.json()).code, 'not_enrolled')
+})
+
+test('device list reports the key status and the latest delivery of each OWN device only', async () => {
+  const { db } = setup()
+  as(CUSTOMER)
+  const mine = (await (await post(sub(1))).json()).id
+  as(COOK)
+  const cooks = (await (await post(sub(2))).json()).id
+  db.rows('notification_push_deliveries').push(
+    {
+      id: 'd1',
+      subscription_id: mine,
+      user_id: CUSTOMER.id,
+      status: 'failed',
+      http_status: 503,
+      error_code: 'http_503',
+      created_at: '2026-11-25T09:00:00Z',
+      sent_at: null,
+    },
+    {
+      id: 'd2',
+      subscription_id: mine,
+      user_id: CUSTOMER.id,
+      status: 'sent',
+      http_status: 201,
+      error_code: null,
+      created_at: '2026-11-25T10:00:00Z',
+      sent_at: '2026-11-25T10:00:01Z',
+    },
+    {
+      id: 'd3',
+      subscription_id: cooks,
+      user_id: COOK.id,
+      status: 'expired',
+      http_status: 410,
+      error_code: 'http_410',
+      created_at: '2026-11-25T11:00:00Z',
+      sent_at: null,
+    },
+  )
+  as(CUSTOMER)
+  const body = await (await subscriptions.GET()).json()
+  assert.equal(body.devices.length, 1)
+  assert.equal(body.devices[0].latest_delivery.status, 'sent')
+  assert.equal(body.devices[0].latest_delivery.http_status, 201)
+  const text = JSON.stringify(body)
+  assert.ok(
+    !text.includes('http_410') && !text.includes(COOK.id),
+    'no deliveries of other members',
+  )
+  assert.ok(!text.includes('fcm.googleapis.com'), 'no endpoints')
+})
+
+test('the server reports a push key only for a known Food4Love Supabase project', async () => {
   setup()
-  delete process.env.PUSH_PILOT_USER_IDS
+  as(CUSTOMER)
+  const saved = process.env.NEXT_PUBLIC_SUPABASE_URL
   try {
-    for (const value of ['OPEN', 'true', 'all', ' yes ', '']) {
-      process.env.PUSH_ENROLLMENT = value
-      as(CUSTOMER)
+    for (const [url, expected] of [
+      ['https://oynhaqpuqzvaymntnzqo.supabase.co', true],
+      ['https://pnqjzlzcvrtkpzhonjft.supabase.co', true],
+      ['https://abcdefghijklmnopqrst.supabase.co', false],
+      ['http://localhost:54321', false],
+      [undefined, false],
+    ]) {
+      if (url === undefined) delete process.env.NEXT_PUBLIC_SUPABASE_URL
+      else process.env.NEXT_PUBLIC_SUPABASE_URL = url
       assert.equal(
-        (await post({ ...sub(5), enrollment: 'open' })).status,
-        403,
-        value,
+        (await (await subscriptions.GET()).json()).server.publicKeyConfigured,
+        expected,
+        String(url),
       )
     }
   } finally {
-    process.env.PUSH_ENROLLMENT = 'open'
+    if (saved === undefined) delete process.env.NEXT_PUBLIC_SUPABASE_URL
+    else process.env.NEXT_PUBLIC_SUPABASE_URL = saved
   }
 })

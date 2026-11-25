@@ -21,24 +21,26 @@ import {
 } from 'lucide-react'
 import { useAuthStore } from '@/stores/useAuthStore'
 import { useNotifications } from '@/hooks/useNotifications'
+import { useNavCounts } from '@/hooks/useNavCounts'
+import { navBadgeFor } from '@/lib/navBadges'
 import { useActiveStories } from '@/hooks/useActiveStories'
 import { RingFrame } from '@/components/stories/StoryRing'
 import { NavBadge } from './NavBadge'
 
 const buyerLinks = [
   { href: '/swipe', label: 'Discover', icon: Flame, badge: 'none' },
-  { href: '/matches', label: 'Matches', icon: Users, badge: 'notifications' },
-  { href: '/chat', label: 'Chat', icon: MessageCircle, badge: 'notifications' },
+  { href: '/matches', label: 'Matches', icon: Users, badge: 'counted' },
+  { href: '/chat', label: 'Chat', icon: MessageCircle, badge: 'counted' },
   { href: '/map', label: 'Map', icon: MapPin, badge: 'none' },
   { href: '/profile', label: 'Profile', icon: User, badge: 'none' },
 ]
 
 const cookLinks = [
   { href: '/swipe', label: 'Discover', icon: Flame, badge: 'none' },
-  { href: '/requests', label: 'Requests', icon: Inbox, badge: 'notifications' },
+  { href: '/requests', label: 'Requests', icon: Inbox, badge: 'counted' },
   { href: '/matches', label: 'Matches', icon: Users, badge: 'none' },
   { href: '/stories', label: 'Stories', icon: Film, badge: 'none' },
-  { href: '/chat', label: 'Chat', icon: MessageCircle, badge: 'notifications' },
+  { href: '/chat', label: 'Chat', icon: MessageCircle, badge: 'counted' },
   { href: '/profile', label: 'Profile', icon: User, badge: 'none' },
 ]
 
@@ -90,7 +92,10 @@ const spring = { type: 'spring', stiffness: 460, damping: 36 } as const
 export function BottomNav() {
   const pathname = usePathname()
   const { profile } = useAuthStore()
-  const { unreadCount } = useNotifications()
+  // Keeps the shared notification Realtime channel alive on every page (live badge refresh).
+  // Its total belongs to the bell only and is NOT shown on these tabs.
+  useNotifications()
+  const navCounts = useNavCounts()
   const reduceMotion = useReducedMotion()
   const isCook = profile?.role === 'cook'
   const links = isCook ? cookLinks : buyerLinks
@@ -118,7 +123,11 @@ export function BottomNav() {
             const isActive =
               pathname === link.href || pathname.startsWith(`${link.href}/`)
             const Icon = link.icon
-            const showBadge = link.badge === 'notifications' && unreadCount > 0
+            const badgeCount =
+              link.badge === 'counted'
+                ? navBadgeFor(link.href, profile?.role, navCounts)
+                : 0
+            const showBadge = badgeCount > 0
             const isProfile = link.href === '/profile'
             const showAvatar = isProfile && !!profile?.avatar_url
             const look = LOOK[link.href]
@@ -200,7 +209,7 @@ export function BottomNav() {
                               style={{ color: isActive ? '#fff' : look.tone }}
                             />
                           )}
-                          {showBadge && <NavBadge count={unreadCount} />}
+                          {showBadge && <NavBadge count={badgeCount} />}
                         </motion.span>
                       </span>
                     </motion.span>

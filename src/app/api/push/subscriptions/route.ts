@@ -3,7 +3,12 @@ import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createLimiter } from '@/lib/rateLimit'
 import { parseSubscriptionInput } from '@/lib/push/subscriptionInput'
-import { isPushSchemaMissing, mayEnrollInPush } from '@/lib/push/server'
+import { pushPublicKeyFor } from '@/lib/push/publicKeys'
+import {
+  isNotEnrolledError,
+  isPushSchemaMissing,
+  pushEnrollmentFor,
+} from '@/lib/push/server'
 
 // This device's Web Push subscription.
 //
@@ -50,7 +55,11 @@ export async function GET() {
   if (error) {
     if (isPushSchemaMissing(error))
       return NextResponse.json(
-        { devices: [], enrolled: mayEnrollInPush(user.id, process.env) },
+        {
+          devices: [],
+          enrolled: false,
+          server: { publicKeyConfigured: serverHasPublicKey() },
+        },
         { headers: noStore },
       )
     return NextResponse.json(
@@ -58,11 +67,46 @@ export async function GET() {
       { status: 500, headers: noStore },
     )
   }
+  // Latest delivery outcome per device, for the settings diagnostics. Own rows only; codes and
+  // times only (no payload, no endpoint, no notification text).
+  const latest = new Map<string, Record<string, unknown>>()
+  const devices = data ?? []
+  if (devices.length > 0) {
+    const { data: deliveries } = await admin
+      .from('notification_push_deliveries')
+      .select(
+        'subscription_id, status, http_status, error_code, created_at, sent_at',
+      )
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: false })
+      .limit(50)
+    for (const d of deliveries ?? [])
+      if (d.subscription_id && !latest.has(d.subscription_id))
+        latest.set(d.subscription_id, {
+          status: d.status,
+          http_status: d.http_status,
+          error_code: d.error_code,
+          created_at: d.created_at,
+          sent_at: d.sent_at,
+        })
+  }
   // enrolled: may this member turn push on (pilot gate). Never says who else is enrolled.
   return NextResponse.json(
-    { devices: data ?? [], enrolled: mayEnrollInPush(user.id, process.env) },
+    {
+      devices: devices.map((device) => ({
+        ...device,
+        latest_delivery: latest.get(device.id) ?? null,
+      })),
+      enrolled: (await pushEnrollmentFor(admin, user.id)) === 'enrolled',
+      server: { publicKeyConfigured: serverHasPublicKey() },
+    },
     { headers: noStore },
   )
+}
+
+// Runtime view of the key, chosen the same way as in the browser (by Supabase project).
+function serverHasPublicKey() {
+  return pushPublicKeyFor(process.env.NEXT_PUBLIC_SUPABASE_URL) !== null
 }
 
 export async function POST(request: NextRequest) {
@@ -72,8 +116,17 @@ export async function POST(request: NextRequest) {
       { error: 'Unauthorized' },
       { status: 401, headers: noStore },
     )
-  // Pilot gate (server-side, fails closed): see pushEnrollment() in src/lib/push/server.ts
-  if (!mayEnrollInPush(user.id, process.env))
+  // Pilot gate (server-side, fails closed): push_pilot_members, see pushEnrollmentFor()
+  const enrollment = await pushEnrollmentFor(createAdminClient(), user.id)
+  if (enrollment === 'unavailable')
+    return NextResponse.json(
+      {
+        error: 'Could not check notification access. Please try again.',
+        code: 'enrollment_unavailable',
+      },
+      { status: 503, headers: noStore },
+    )
+  if (enrollment !== 'enrolled')
     return NextResponse.json(
       {
         error: 'Push notifications are being tested with a small group first',
@@ -121,6 +174,14 @@ export async function POST(request: NextRequest) {
       })
     : await admin.rpc('food4love_push_register', common)
   if (error) {
+    if (isNotEnrolledError(error))
+      return NextResponse.json(
+        {
+          error: 'Push notifications are being tested with a small group first',
+          code: 'not_enrolled',
+        },
+        { status: 403, headers: noStore },
+      )
     if (isPushSchemaMissing(error)) return unavailable()
     console.error(`push registration failed (${error.code ?? 'no code'})`)
     return NextResponse.json(

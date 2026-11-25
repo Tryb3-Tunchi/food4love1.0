@@ -13,6 +13,18 @@ import {
   type Notification,
 } from '@/services/notifications'
 
+// Shared, reference-counted Realtime subscriptions (keyed by member id).
+const liveChannels = new Map<string, { refs: number; remove: () => void }>()
+function releaseLiveChannel(userId: string) {
+  const entry = liveChannels.get(userId)
+  if (!entry) return
+  entry.refs--
+  if (entry.refs <= 0) {
+    entry.remove()
+    liveChannels.delete(userId)
+  }
+}
+
 export function useNotifications() {
   const profile = useAuthStore((s) => s.profile)
   const userId = profile?.id
@@ -38,6 +50,13 @@ export function useNotifications() {
 
   useEffect(() => {
     if (!userId) return
+    // One Realtime channel per signed-in member, however many components use this hook
+    // (the bell, the bottom navigation, the notifications page).
+    const shared = liveChannels.get(userId)
+    if (shared) {
+      shared.refs++
+      return () => releaseLiveChannel(userId)
+    }
 
     const supabase = createClient()
 
@@ -66,6 +85,10 @@ export function useNotifications() {
             queryClient.invalidateQueries({ queryKey: ['bookings'] })
             queryClient.invalidateQueries({ queryKey: ['cook-bookings'] })
             queryClient.invalidateQueries({ queryKey: ['booking-status'] })
+          }
+          // A new chat message: the chat list and the Chat tab badge refresh (both use 'matches').
+          if (kind === 'message') {
+            queryClient.invalidateQueries({ queryKey: ['matches'] })
           }
           if (kind === 'like' || kind === 'match') {
             queryClient.invalidateQueries({ queryKey: ['likes'] })
@@ -102,9 +125,11 @@ export function useNotifications() {
         }
       })
 
-    return () => {
-      void supabase.removeChannel(channel)
-    }
+    liveChannels.set(userId, {
+      refs: 1,
+      remove: () => void supabase.removeChannel(channel),
+    })
+    return () => releaseLiveChannel(userId)
   }, [userId, queryClient])
 
   const refetch = () => {
