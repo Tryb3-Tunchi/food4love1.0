@@ -165,6 +165,7 @@ test('multiple devices per member; each member lists only their own, without end
       'installed',
       'label',
       'last_success_at',
+      'latest_delivery',
       'platform',
     ])
     assert.ok(!JSON.stringify(d).includes('fcm.googleapis.com'))
@@ -240,10 +241,10 @@ test('before the migration is applied the routes degrade instead of failing', as
   const db = new FakeSupabase({ push_subscriptions: { missing: true } })
   globalThis.__f4lFakeAdmin = db
   as(CUSTOMER)
-  assert.deepEqual(await (await subscriptions.GET()).json(), {
-    devices: [],
-    enrolled: true,
-  })
+  const degraded = await (await subscriptions.GET()).json()
+  assert.deepEqual(degraded.devices, [])
+  assert.equal(degraded.enrolled, true)
+  assert.equal(typeof degraded.server.publicKeyConfigured, 'boolean')
   assert.equal((await post(sub(1))).status, 503)
   assert.equal((await testPush.POST()).status, 503)
 })
@@ -303,5 +304,68 @@ test('enrollment cannot be opened from the browser (only the exact server value 
     }
   } finally {
     process.env.PUSH_ENROLLMENT = 'open'
+  }
+})
+
+test('device list reports the key status and the latest delivery of each OWN device only', async () => {
+  const { db } = setup()
+  process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY = 'B' + 'A'.repeat(86)
+  try {
+    as(CUSTOMER)
+    const mine = (await (await post(sub(1))).json()).id
+    as(COOK)
+    const cooks = (await (await post(sub(2))).json()).id
+    const rows = db.rows('notification_push_deliveries')
+    rows.push(
+      {
+        id: 'd1',
+        subscription_id: mine,
+        user_id: CUSTOMER.id,
+        status: 'failed',
+        http_status: 503,
+        error_code: 'http_503',
+        created_at: '2026-11-25T09:00:00Z',
+        sent_at: null,
+      },
+      {
+        id: 'd2',
+        subscription_id: mine,
+        user_id: CUSTOMER.id,
+        status: 'sent',
+        http_status: 201,
+        error_code: null,
+        created_at: '2026-11-25T10:00:00Z',
+        sent_at: '2026-11-25T10:00:01Z',
+      },
+      {
+        id: 'd3',
+        subscription_id: cooks,
+        user_id: COOK.id,
+        status: 'expired',
+        http_status: 410,
+        error_code: 'http_410',
+        created_at: '2026-11-25T11:00:00Z',
+        sent_at: null,
+      },
+    )
+    as(CUSTOMER)
+    const body = await (await subscriptions.GET()).json()
+    assert.equal(body.server.publicKeyConfigured, true)
+    assert.equal(body.devices.length, 1)
+    assert.equal(body.devices[0].latest_delivery.status, 'sent')
+    assert.equal(body.devices[0].latest_delivery.http_status, 201)
+    const text = JSON.stringify(body)
+    assert.ok(
+      !text.includes('http_410') && !text.includes(COOK.id),
+      'no deliveries of other members',
+    )
+    assert.ok(!text.includes('fcm.googleapis.com'), 'no endpoints')
+    delete process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY
+    assert.equal(
+      (await (await subscriptions.GET()).json()).server.publicKeyConfigured,
+      false,
+    )
+  } finally {
+    delete process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY
   }
 })

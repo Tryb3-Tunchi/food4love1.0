@@ -50,7 +50,11 @@ export async function GET() {
   if (error) {
     if (isPushSchemaMissing(error))
       return NextResponse.json(
-        { devices: [], enrolled: mayEnrollInPush(user.id, process.env) },
+        {
+          devices: [],
+          enrolled: mayEnrollInPush(user.id, process.env),
+          server: { publicKeyConfigured: serverHasPublicKey() },
+        },
         { headers: noStore },
       )
     return NextResponse.json(
@@ -58,11 +62,47 @@ export async function GET() {
       { status: 500, headers: noStore },
     )
   }
+  // Latest delivery outcome per device, for the settings diagnostics. Own rows only; codes and
+  // times only (no payload, no endpoint, no notification text).
+  const latest = new Map<string, Record<string, unknown>>()
+  const devices = data ?? []
+  if (devices.length > 0) {
+    const { data: deliveries } = await admin
+      .from('notification_push_deliveries')
+      .select(
+        'subscription_id, status, http_status, error_code, created_at, sent_at',
+      )
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: false })
+      .limit(50)
+    for (const d of deliveries ?? [])
+      if (d.subscription_id && !latest.has(d.subscription_id))
+        latest.set(d.subscription_id, {
+          status: d.status,
+          http_status: d.http_status,
+          error_code: d.error_code,
+          created_at: d.created_at,
+          sent_at: d.sent_at,
+        })
+  }
   // enrolled: may this member turn push on (pilot gate). Never says who else is enrolled.
   return NextResponse.json(
-    { devices: data ?? [], enrolled: mayEnrollInPush(user.id, process.env) },
+    {
+      devices: devices.map((device) => ({
+        ...device,
+        latest_delivery: latest.get(device.id) ?? null,
+      })),
+      enrolled: mayEnrollInPush(user.id, process.env),
+      server: { publicKeyConfigured: serverHasPublicKey() },
+    },
     { headers: noStore },
   )
+}
+
+// Runtime view of the key. The browser bundle gets the key at BUILD time, so the settings page
+// compares both: "set at runtime but missing in the bundle" means the site must be redeployed.
+function serverHasPublicKey() {
+  return (process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY ?? '').trim().length > 0
 }
 
 export async function POST(request: NextRequest) {

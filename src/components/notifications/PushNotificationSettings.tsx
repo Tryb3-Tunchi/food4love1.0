@@ -9,6 +9,7 @@ import { DEFAULT_NOTIFICATION_PREFERENCES } from '@/services/notifications'
 import { useAuthStore } from '@/stores/useAuthStore'
 import { usePushNotifications } from '@/hooks/usePushNotifications'
 import { PUSH_SUPPORT_MESSAGE } from '@/lib/push/support'
+import { PushDiagnosticsPanel } from '@/components/notifications/PushDiagnosticsPanel'
 import type { PushPreferences } from '@/types/db'
 
 type PushKey = Exclude<keyof PushPreferences, 'enabled'>
@@ -102,9 +103,13 @@ export function PushNotificationSettings() {
         ? PUSH_SUPPORT_MESSAGE.denied
         : result.reason === 'dismissed'
           ? 'Notifications were not turned on.'
-          : result.reason === 'unavailable'
-            ? 'Push notifications are not available yet. Please try again later.'
-            : (result.message ?? 'Could not turn on notifications')
+          : result.reason === 'not_enrolled'
+            ? 'Notifications are being tested with a small group first. Your account is not in it yet.'
+            : result.reason === 'key_missing' || result.reason === 'key_invalid'
+              ? 'Notifications are not set up on this version of Food4Love yet. See "Check this device" below.'
+              : result.reason === 'unavailable'
+                ? 'The Food4Love background service is not ready on this device. Close every Food4Love tab and open it again.'
+                : (result.message ?? 'Could not turn on notifications')
     toast.error(message)
   }
 
@@ -113,7 +118,7 @@ export function PushNotificationSettings() {
     if (error) toast.error(error)
     else
       toast.success(
-        'Test sent. It can take a few seconds, and your device decides how it is shown.',
+        'Test sent. Follow its progress under "Check this device" below.',
       )
   }
 
@@ -147,7 +152,7 @@ export function PushNotificationSettings() {
           <p className="text-xs text-[var(--text-3)]" role="status">
             Checking this device…
           </p>
-        ) : !push.onHere && !push.devicesLoading && !push.enrolled ? (
+        ) : !push.onHere && push.enrolledKnown && !push.enrolled ? (
           <p className="rounded-xl bg-[var(--bg-2)] p-3 text-xs leading-5 text-[var(--text-2)]">
             Push notifications are being tested with a small group of members
             first. You will still see every update in the app.
@@ -258,6 +263,11 @@ export function PushNotificationSettings() {
           allowed.
         </p>
       </div>
+
+      <PushDiagnosticsPanel
+        input={push.diagnostics}
+        onRefresh={() => void push.refresh()}
+      />
 
       {/* connected devices */}
       <div className="border-t border-[var(--border)] px-5 py-4">
