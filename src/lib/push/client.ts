@@ -8,14 +8,15 @@ import {
   detectPushSupport,
   platformFromUserAgent,
 } from '@/lib/push/support'
+import { pushPublicKeyFor } from '@/lib/push/publicKeys'
 
-// Trimmed: a value pasted into Vercel with a stray space or newline must not break subscribe().
-export const VAPID_PUBLIC_KEY = (
-  process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY ?? ''
-).trim()
+// The project's public key, chosen from the Supabase project this build talks to (see
+// publicKeys.ts). No Vercel setting is involved; an unknown project gets no key (fails closed).
+export const VAPID_PUBLIC_KEY =
+  pushPublicKeyFor(process.env.NEXT_PUBLIC_SUPABASE_URL) ?? ''
 
-// Is this build's public key usable? 'missing' = NEXT_PUBLIC_VAPID_PUBLIC_KEY was not set when the
-// app was BUILT (Vercel inlines it at build time); 'invalid' = set, but not a 65-byte P-256 key.
+// Is this build's public key usable? 'missing' = this build talks to a Supabase project that has
+// no Food4Love push key; 'invalid' = the stored key is not a 65-byte P-256 key.
 export function pushKeyStatus(): 'ok' | 'missing' | 'invalid' {
   if (!VAPID_PUBLIC_KEY) return 'missing'
   try {

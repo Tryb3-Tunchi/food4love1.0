@@ -94,7 +94,7 @@ if (process.argv.includes('--prod')) {
   env.F4L_NEXT_DIST_DIR = '.next-staging'
   console.log(
     `[staging] --prod: building into .next-staging, then serving on port ${port}.\n` +
-      `[staging] Web Push public key: ${env.NEXT_PUBLIC_VAPID_PUBLIC_KEY ? 'set' : 'NOT set (the notifications button will say push is unavailable)'}.\n`,
+      `[staging] Web Push public key: chosen automatically from the Supabase project (src/lib/push/publicKeys.ts).\n`,
   )
   const build = spawnSync(process.execPath, [next, 'build'], {
     cwd,

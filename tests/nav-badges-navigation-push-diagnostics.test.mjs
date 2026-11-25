@@ -219,11 +219,11 @@ test('diagnostics: each break in the chain is named', () => {
   )
   assert.match(
     stage({ keyInApp: 'missing', keyOnServer: false }, 'key').detail,
-    /NEXT_PUBLIC_VAPID_PUBLIC_KEY is not configured/,
+    /Supabase project without a Food4Love push key/,
   )
   assert.match(
     stage({ keyInApp: 'missing', keyOnServer: true }, 'key').detail,
-    /redeployed/,
+    /older version of Food4Love/,
   )
   assert.match(
     stage({ keyInApp: 'invalid', keyOnServer: false }, 'key').detail,

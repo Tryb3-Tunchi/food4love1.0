@@ -1,4 +1,5 @@
-// Small server-side helpers for the push routes (no imports: unit-testable).
+// Small server-side helpers for the push routes (type-only imports: unit-testable).
+import type { SupabaseClient } from '@supabase/supabase-js'
 
 // The push migration has not been applied to this database (table or function missing).
 export function isPushSchemaMissing(
@@ -10,35 +11,36 @@ export function isPushSchemaMissing(
 export const UUID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
-// Who may register a device for Web Push. FAILS CLOSED:
-//   PUSH_ENROLLMENT=open        every signed-in member may opt in (each still opts in per device)
-//   anything else / unset       only the account ids listed in PUSH_PILOT_USER_IDS
-//                               (comma-separated UUIDs); an empty or missing list means nobody
-// Server-only variables, so the decision cannot be changed from the browser.
-export type PushEnrollment = 'open' | 'pilot'
+// Who may register a device for Web Push: accounts listed in public.push_pilot_members
+// (supabase-migration-push-pilot-allowlist.sql), managed by the team in Supabase. Nobody by default.
+// Looked up with the service-role client for the SIGNED-IN user's own id only; nothing the browser
+// sends can change the answer. FAILS CLOSED: any error means "not enrolled".
+// The old PUSH_ENROLLMENT / PUSH_PILOT_USER_IDS environment variables are no longer read.
+export type EnrollmentResult = 'enrolled' | 'not_enrolled' | 'unavailable'
 
-export function pushEnrollment(env: Record<string, string | undefined>): {
-  mode: PushEnrollment
-  pilot: Set<string>
-} {
-  const pilot = new Set(
-    (env.PUSH_PILOT_USER_IDS ?? '')
-      .split(',')
-      .map((id) => id.trim().toLowerCase())
-      .filter((id) => UUID_PATTERN.test(id)),
-  )
-  return {
-    mode: env.PUSH_ENROLLMENT?.trim() === 'open' ? 'open' : 'pilot',
-    pilot,
+export async function pushEnrollmentFor(
+  admin: Pick<SupabaseClient, 'from'>,
+  userId: string,
+): Promise<EnrollmentResult> {
+  if (!UUID_PATTERN.test(userId)) return 'not_enrolled'
+  try {
+    const { data, error } = await admin
+      .from('push_pilot_members')
+      .select('user_id')
+      .eq('user_id', userId)
+      .maybeSingle()
+    if (error) return 'unavailable'
+    return data ? 'enrolled' : 'not_enrolled'
+  } catch {
+    return 'unavailable'
   }
 }
 
-export function mayEnrollInPush(
-  userId: string,
-  env: Record<string, string | undefined>,
+// The database refuses a device for a non-pilot account (trigger): recognise that answer.
+export function isNotEnrolledError(
+  error: { message?: string | null } | null | undefined,
 ): boolean {
-  const { mode, pilot } = pushEnrollment(env)
-  return mode === 'open' || pilot.has(userId.toLowerCase())
+  return /not_enrolled/.test(error?.message ?? '')
 }
 
 // One test push per member per minute; the event key makes a double press a no-op.

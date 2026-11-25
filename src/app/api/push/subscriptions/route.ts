@@ -3,7 +3,12 @@ import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createLimiter } from '@/lib/rateLimit'
 import { parseSubscriptionInput } from '@/lib/push/subscriptionInput'
-import { isPushSchemaMissing, mayEnrollInPush } from '@/lib/push/server'
+import { pushPublicKeyFor } from '@/lib/push/publicKeys'
+import {
+  isNotEnrolledError,
+  isPushSchemaMissing,
+  pushEnrollmentFor,
+} from '@/lib/push/server'
 
 // This device's Web Push subscription.
 //
@@ -52,7 +57,7 @@ export async function GET() {
       return NextResponse.json(
         {
           devices: [],
-          enrolled: mayEnrollInPush(user.id, process.env),
+          enrolled: false,
           server: { publicKeyConfigured: serverHasPublicKey() },
         },
         { headers: noStore },
@@ -92,17 +97,16 @@ export async function GET() {
         ...device,
         latest_delivery: latest.get(device.id) ?? null,
       })),
-      enrolled: mayEnrollInPush(user.id, process.env),
+      enrolled: (await pushEnrollmentFor(admin, user.id)) === 'enrolled',
       server: { publicKeyConfigured: serverHasPublicKey() },
     },
     { headers: noStore },
   )
 }
 
-// Runtime view of the key. The browser bundle gets the key at BUILD time, so the settings page
-// compares both: "set at runtime but missing in the bundle" means the site must be redeployed.
+// Runtime view of the key, chosen the same way as in the browser (by Supabase project).
 function serverHasPublicKey() {
-  return (process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY ?? '').trim().length > 0
+  return pushPublicKeyFor(process.env.NEXT_PUBLIC_SUPABASE_URL) !== null
 }
 
 export async function POST(request: NextRequest) {
@@ -112,8 +116,17 @@ export async function POST(request: NextRequest) {
       { error: 'Unauthorized' },
       { status: 401, headers: noStore },
     )
-  // Pilot gate (server-side, fails closed): see pushEnrollment() in src/lib/push/server.ts
-  if (!mayEnrollInPush(user.id, process.env))
+  // Pilot gate (server-side, fails closed): push_pilot_members, see pushEnrollmentFor()
+  const enrollment = await pushEnrollmentFor(createAdminClient(), user.id)
+  if (enrollment === 'unavailable')
+    return NextResponse.json(
+      {
+        error: 'Could not check notification access. Please try again.',
+        code: 'enrollment_unavailable',
+      },
+      { status: 503, headers: noStore },
+    )
+  if (enrollment !== 'enrolled')
     return NextResponse.json(
       {
         error: 'Push notifications are being tested with a small group first',
@@ -161,6 +174,14 @@ export async function POST(request: NextRequest) {
       })
     : await admin.rpc('food4love_push_register', common)
   if (error) {
+    if (isNotEnrolledError(error))
+      return NextResponse.json(
+        {
+          error: 'Push notifications are being tested with a small group first',
+          code: 'not_enrolled',
+        },
+        { status: 403, headers: noStore },
+      )
     if (isPushSchemaMissing(error)) return unavailable()
     console.error(`push registration failed (${error.code ?? 'no code'})`)
     return NextResponse.json(

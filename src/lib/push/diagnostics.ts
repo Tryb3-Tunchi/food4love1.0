@@ -85,10 +85,10 @@ export function pushDiagnostics(input: PushDiagnosticInput): Stage[] {
       'Notifications are set up in this version of Food4Love',
       'fail',
       input.keyOnServer
-        ? 'The key is configured but this version of the site was built before it was added: the site must be redeployed.'
+        ? 'This device is running an older version of Food4Love. Close every Food4Love tab (or the installed app) and open it again.'
         : input.keyInApp === 'invalid'
-          ? 'The configured push key is not a valid key. Check NEXT_PUBLIC_VAPID_PUBLIC_KEY.'
-          : 'NEXT_PUBLIC_VAPID_PUBLIC_KEY is not configured for this deployment.',
+          ? 'The stored push key is not a valid key. Check src/lib/push/publicKeys.ts.'
+          : 'This deployment talks to a Supabase project without a Food4Love push key, so notifications are off here.',
     )
 
   // 3. pilot enrollment (server-side, fails closed)
