@@ -17,6 +17,7 @@ import { fileURLToPath } from 'node:url'
 
 import * as rules from '../src/lib/invitations/rules.ts'
 import * as tokens from '../src/lib/invitations/token.ts'
+import { resolveAppUrl } from '../src/lib/appUrl.ts'
 import { testerInvitationEmail } from '../src/lib/email/templates.ts'
 import {
   FakeSupabase,
@@ -33,6 +34,37 @@ const root = join(dirname(fileURLToPath(import.meta.url)), '..')
 const read = (p) => readFileSync(join(root, p), 'utf8')
 
 // ================================================================== 1. pure rules
+test('production app links ignore localhost configuration but preserve local development', () => {
+  const previousNodeEnv = process.env.NODE_ENV
+  const previousAppUrl = process.env.NEXT_PUBLIC_APP_URL
+  try {
+    process.env.NODE_ENV = 'production'
+    process.env.NEXT_PUBLIC_APP_URL = 'http://localhost:3000'
+    assert.equal(
+      resolveAppUrl('https://food4love.app'),
+      'https://food4love.app',
+    )
+
+    process.env.NEXT_PUBLIC_APP_URL = 'https://configured.example'
+    assert.equal(
+      resolveAppUrl('https://food4love.app'),
+      'https://configured.example',
+    )
+
+    process.env.NODE_ENV = 'development'
+    process.env.NEXT_PUBLIC_APP_URL = 'http://localhost:3000'
+    assert.equal(
+      resolveAppUrl('http://localhost:5000'),
+      'http://localhost:3000',
+    )
+  } finally {
+    if (previousNodeEnv === undefined) delete process.env.NODE_ENV
+    else process.env.NODE_ENV = previousNodeEnv
+    if (previousAppUrl === undefined) delete process.env.NEXT_PUBLIC_APP_URL
+    else process.env.NEXT_PUBLIC_APP_URL = previousAppUrl
+  }
+})
+
 test('every access type maps to a profile role and none is an admin type', () => {
   const keys = rules.ACCESS_TYPES.map((t) => t.key)
   assert.deepEqual(keys, [
