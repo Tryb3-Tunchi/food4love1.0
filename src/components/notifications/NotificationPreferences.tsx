@@ -7,9 +7,13 @@ import { updateProfile } from '@/services/profiles'
 import { DEFAULT_NOTIFICATION_PREFERENCES } from '@/services/notifications'
 import { useAuthStore } from '@/stores/useAuthStore'
 import type { NotificationPreferences as Preferences } from '@/types/db'
+import { PushNotificationSettings } from '@/components/notifications/PushNotificationSettings'
+
+// In-app feed switches (the Web Push switches live in PushNotificationSettings)
+type FeedKey = Exclude<keyof Preferences, 'push'>
 
 const preferenceOptions: Array<{
-  key: keyof Preferences
+  key: FeedKey
   title: string
   description: string
 }> = [
@@ -39,14 +43,14 @@ export function NotificationPreferences() {
   const profile = useAuthStore((state) => state.profile)
   const updateStore = useAuthStore((state) => state.updateProfile)
   const authLoading = useAuthStore((state) => state.loading)
-  const [saving, setSaving] = useState<keyof Preferences | null>(null)
+  const [saving, setSaving] = useState<FeedKey | null>(null)
   const [savingEmail, setSavingEmail] = useState(false)
   const preferences = {
     ...DEFAULT_NOTIFICATION_PREFERENCES,
     ...profile?.notification_preferences,
   }
 
-  const updatePreference = async (key: keyof Preferences, checked: boolean) => {
+  const updatePreference = async (key: FeedKey, checked: boolean) => {
     if (!profile || saving) return
 
     const nextPreferences = { ...preferences, [key]: checked }
@@ -144,6 +148,7 @@ export function NotificationPreferences() {
           <Switch.Thumb className="block h-5 w-5 translate-x-0.5 rounded-full bg-white shadow transition-transform data-[state=checked]:translate-x-[22px]" />
         </Switch.Root>
       </div>
+      <PushNotificationSettings />
     </div>
   )
 }

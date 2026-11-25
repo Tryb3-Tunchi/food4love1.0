@@ -5,7 +5,7 @@
 // normal .env file defines but staging does not define to an EMPTY string (Next never overrides a
 // variable that is already set, even to ""), so no real Resend, payment or AI key can leak in, and
 // (3) refuses to start if the result could touch production. It prints names, never values.
-import { spawn } from 'node:child_process'
+import { spawn, spawnSync } from 'node:child_process'
 import { existsSync } from 'node:fs'
 import {
   assessSupabaseEnv,
@@ -85,13 +85,38 @@ if (process.argv.includes('--check')) {
 }
 
 const port = env.STAGING_PORT || '5001'
-const child = spawn(
-  process.execPath,
-  ['node_modules/next/dist/bin/next', 'dev', '-p', port],
-  {
+const next = 'node_modules/next/dist/bin/next'
+
+// --prod: a PRODUCTION build served locally against staging (the service worker, and so Web Push,
+// only registers in production builds). Same isolated environment as above; it builds into
+// .next-staging so a staging-baked bundle can never be served by a plain `npm start`.
+if (process.argv.includes('--prod')) {
+  env.F4L_NEXT_DIST_DIR = '.next-staging'
+  console.log(
+    `[staging] --prod: building into .next-staging, then serving on port ${port}.\n` +
+      `[staging] Web Push public key: ${env.NEXT_PUBLIC_VAPID_PUBLIC_KEY ? 'set' : 'NOT set (the notifications button will say push is unavailable)'}.\n`,
+  )
+  const build = spawnSync(process.execPath, [next, 'build'], {
     cwd,
     env,
     stdio: 'inherit',
-  },
-)
-child.on('exit', (code) => process.exit(code ?? 0))
+  })
+  if (build.status !== 0) {
+    console.error('\n[staging] build failed: nothing was started.\n')
+    process.exit(build.status ?? 1)
+  }
+  const server = spawn(process.execPath, [next, 'start', '-p', port], {
+    cwd,
+    env,
+    stdio: 'inherit',
+  })
+  server.on('exit', (code) => process.exit(code ?? 0))
+} else {
+  delete env.F4L_NEXT_DIST_DIR
+  const child = spawn(process.execPath, [next, 'dev', '-p', port], {
+    cwd,
+    env,
+    stdio: 'inherit',
+  })
+  child.on('exit', (code) => process.exit(code ?? 0))
+}

@@ -26,6 +26,12 @@ export const securityHeaders = [
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  // `npm run dev:staging -- --prod` builds into its own folder, so a staging-baked production build
+  // can never be served by a later plain `npm start`. Only that exact value is honoured.
+  distDir:
+    process.env.F4L_NEXT_DIST_DIR === '.next-staging'
+      ? '.next-staging'
+      : '.next',
   // Do not advertise the framework version in a response header.
   poweredByHeader: false,
   async headers() {

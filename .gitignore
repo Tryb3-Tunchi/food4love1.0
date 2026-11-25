@@ -1,6 +1,7 @@
 .DS_Store
 node_modules/
 .next/
+.next-staging/
 .env.local
 .env*.local
 out/
@@ -18,3 +19,6 @@ yarn-error.log*
 *.tsbuildinfo
 .env.staging.local
 .env.staging.example
+
+# Supabase CLI local cache (project ref, CLI version)
+supabase/.temp/

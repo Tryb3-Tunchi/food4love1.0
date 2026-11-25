@@ -6,6 +6,7 @@ import { useState } from 'react'
 import { Toaster } from 'react-hot-toast'
 import { AuthProvider } from '@/components/providers/AuthProvider'
 import { PwaProvider } from '@/components/pwa/PwaProvider'
+import { PushSessionGuard } from '@/components/notifications/PushSessionGuard'
 
 export function Providers({ children }: { children: React.ReactNode }) {
   const [queryClient] = useState(
@@ -29,6 +30,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
       >
         <PwaProvider>
           <AuthProvider>
+            <PushSessionGuard />
             {children}
             <Toaster
               position="top-center"
