@@ -16,3 +16,4 @@ yarn-error.log*
 *.tsbuildinfo
 # TypeScript incremental compiler cache
 *.tsbuildinfo
+.env.staging.example
