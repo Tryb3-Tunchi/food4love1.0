@@ -259,3 +259,21 @@ export async function dropSubscriptionIfNotOwnedBy(userId: string | null) {
   store(DEVICE_KEY, null)
   store(OWNER_KEY, null)
 }
+
+// Once a day at most, when the signed-in OWNER of this browser's subscription opens Food4Love:
+// re-send the existing subscription so the server keeps the device marked as in use (cleanup
+// removes devices unseen for 120 days) and re-registers it if the server no longer knows it.
+// Never prompts, never subscribes a browser that has not opted in, never acts for another account.
+const REFRESHED_KEY = 'food4love-push-refreshed-at'
+export async function refreshOwnDevice(userId: string | null): Promise<void> {
+  if (!userId) return
+  try {
+    if (window.localStorage.getItem(OWNER_KEY) !== userId) return
+    const last = Number(window.localStorage.getItem(REFRESHED_KEY) ?? 0)
+    if (Date.now() - last < 24 * 60 * 60 * 1000) return
+    if (await resyncThisDevice(userId))
+      window.localStorage.setItem(REFRESHED_KEY, String(Date.now()))
+  } catch {
+    // best effort: the settings page still shows the device state
+  }
+}
