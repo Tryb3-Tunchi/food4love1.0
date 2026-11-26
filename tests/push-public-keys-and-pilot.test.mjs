@@ -145,3 +145,37 @@ test('the pilot migration keeps the list closed to browsers and enforces it in t
   assert.match(sql, /^begin;/m)
   assert.match(sql, /^commit;/m)
 })
+
+test('opt-in migration: switch starts at pilot, is closed to browsers, keeps in-use devices', () => {
+  const sql = read('supabase-migration-push-general-opt-in.sql')
+  assert.match(sql, /enrollment text not null default 'pilot'/)
+  assert.match(
+    sql,
+    /revoke all on public\.push_settings from public, anon, authenticated/,
+  )
+  assert.doesNotMatch(sql, /create policy/i)
+  assert.doesNotMatch(
+    sql.replace(/^--.*$/gm, ''),
+    /update public\.push_settings set enrollment = 'open'/,
+    'the migration never opens enrollment itself',
+  )
+  assert.match(
+    sql,
+    /greatest\(last_seen_at, coalesce\(last_success_at, last_seen_at\)\)/,
+  )
+})
+
+test('the app refreshes only its OWN device registration, at most daily, without prompting', () => {
+  const client = read('src/lib/push/client.ts')
+  assert.match(client, /export async function refreshOwnDevice/)
+  assert.match(client, /getItem\(OWNER_KEY\) !== userId\) return/)
+  assert.match(client, /24 \* 60 \* 60 \* 1000/)
+  const fn = client.slice(
+    client.indexOf('export async function refreshOwnDevice'),
+  )
+  assert.doesNotMatch(fn, /requestPermission|pushManager\.subscribe/)
+  assert.match(
+    read('src/components/notifications/PushSessionGuard.tsx'),
+    /refreshOwnDevice\(/,
+  )
+})

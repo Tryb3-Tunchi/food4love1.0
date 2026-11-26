@@ -4,7 +4,10 @@ import { useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useQueryClient } from '@tanstack/react-query'
 import { createClient } from '@/lib/supabase/client'
-import { dropSubscriptionIfNotOwnedBy } from '@/lib/push/client'
+import {
+  dropSubscriptionIfNotOwnedBy,
+  refreshOwnDevice,
+} from '@/lib/push/client'
 import { markAsRead } from '@/services/notifications'
 import { useAuthStore } from '@/stores/useAuthStore'
 import { safePushUrl } from '../../../supabase/functions/_shared/push-core'
@@ -36,7 +39,9 @@ export function PushSessionGuard() {
         event === 'SIGNED_IN' ||
         event === 'INITIAL_SESSION'
       )
-        void dropSubscriptionIfNotOwnedBy(session?.user?.id ?? null)
+        void dropSubscriptionIfNotOwnedBy(session?.user?.id ?? null).then(() =>
+          refreshOwnDevice(session?.user?.id ?? null),
+        )
     })
     return () => subscription.unsubscribe()
   }, [])

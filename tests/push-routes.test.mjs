@@ -400,3 +400,37 @@ test('the server reports a push key only for a known Food4Love Supabase project'
     else process.env.NEXT_PUBLIC_SUPABASE_URL = saved
   }
 })
+
+test('general opt-in: when the switch is open, any signed-in member can register their OWN device', async () => {
+  const { db, calls } = setup({ pilot: [] })
+  db.rows('push_settings').push({ id: true, enrollment: 'open' })
+  as(COOK)
+  const r = await post({ ...sub(7), user_id: CUSTOMER.id })
+  assert.equal(r.status, 200)
+  assert.equal(
+    calls.at(-1).args.p_user_id,
+    COOK.id,
+    'always the signed-in account',
+  )
+  assert.equal((await (await subscriptions.GET()).json()).enrolled, true)
+})
+
+test('general opt-in: pilot mode (or an unexpected value) keeps non-members out', async () => {
+  for (const enrollment of ['pilot', 'OPEN', 'yes', null]) {
+    const { db } = setup({ pilot: [] })
+    db.rows('push_settings').push({ id: true, enrollment })
+    as(CUSTOMER)
+    assert.equal((await post(sub(8))).status, 403, String(enrollment))
+  }
+})
+
+test('general opt-in: before the switch exists, pilot members still work (no regression)', async () => {
+  const db = new FakeSupabase({ push_settings: { missing: true } })
+  db.rows('push_pilot_members').push({ user_id: CUSTOMER.id })
+  db.rpcHandlers.food4love_push_register = () => crypto.randomUUID()
+  globalThis.__f4lFakeAdmin = db
+  as(CUSTOMER)
+  assert.equal((await post(sub(9))).status, 200)
+  as(COOK)
+  assert.equal((await post(sub(10))).status, 403)
+})

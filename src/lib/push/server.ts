@@ -11,7 +11,8 @@ export function isPushSchemaMissing(
 export const UUID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
-// Who may register a device for Web Push: accounts listed in public.push_pilot_members
+// Who may register a device for Web Push: everyone signed in once public.push_settings is 'open';
+// until then, accounts listed in public.push_pilot_members
 // (supabase-migration-push-pilot-allowlist.sql), managed by the team in Supabase. Nobody by default.
 // Looked up with the service-role client for the SIGNED-IN user's own id only; nothing the browser
 // sends can change the answer. FAILS CLOSED: any error means "not enrolled".
@@ -24,6 +25,21 @@ export async function pushEnrollmentFor(
 ): Promise<EnrollmentResult> {
   if (!UUID_PATTERN.test(userId)) return 'not_enrolled'
   try {
+    // 1. general opt-in switch (supabase-migration-push-general-opt-in.sql). Missing table = the
+    //    switch is not installed yet = pilot only (today's behaviour). Any other error fails closed.
+    const settings = await admin
+      .from('push_settings')
+      .select('enrollment')
+      .eq('id', true)
+      .maybeSingle()
+    if (settings.error && !isPushSchemaMissing(settings.error))
+      return 'unavailable'
+    if (
+      !settings.error &&
+      (settings.data as { enrollment?: string } | null)?.enrollment === 'open'
+    )
+      return 'enrolled'
+    // 2. pilot membership of the SIGNED-IN user only
     const { data, error } = await admin
       .from('push_pilot_members')
       .select('user_id')
