@@ -22,6 +22,7 @@ function loadWorker({ windows = [] } = {}) {
   const opened = []
   const fetched = []
   const badges = []
+  const cached = []
   const self = {
     location: { origin: 'https://food4love.test' },
     addEventListener: (type, fn) => (listeners[type] = fn),
@@ -51,7 +52,13 @@ function loadWorker({ windows = [] } = {}) {
   }
   const context = vm.createContext({
     self,
-    caches: { open: async () => ({}), keys: async () => [] },
+    caches: {
+      open: async (name) => ({
+        put: async (path, response) =>
+          cached.push({ name, path, body: await response.text() }),
+      }),
+      keys: async () => [],
+    },
     fetch: async (url, init) => fetched.push({ url, init }),
     URL,
     Response,
@@ -66,7 +73,7 @@ function loadWorker({ windows = [] } = {}) {
     await listeners[type]({ ...event, waitUntil: (p) => (pending = p) })
     await pending
   }
-  return { listeners, shown, opened, fetched, badges, fire, context }
+  return { listeners, shown, opened, fetched, badges, cached, fire, context }
 }
 
 const pushEvent = (payload) => ({
@@ -245,7 +252,7 @@ test('an open window is told about new pushes so the bell refreshes', async () =
   ])
 })
 
-test('a rotated subscription is re-registered with the old endpoint for the swap', async () => {
+test('a rotated subscription: recorded for the app first, then a verifiable swap with NO account id', async () => {
   const w = loadWorker()
   await w.fire('pushsubscriptionchange', {
     oldSubscription: {
@@ -253,13 +260,32 @@ test('a rotated subscription is re-registered with the old endpoint for the swap
       options: { applicationServerKey: new Uint8Array([4]) },
     },
   })
+  const marker = w.cached.find((c) => c.path === '/__f4l/push-renewal')
+  assert.ok(marker, 'the rotation is recorded so the app can finish it')
+  assert.equal(marker.name, 'food4love-push-diagnostics')
+  assert.equal(
+    JSON.parse(marker.body).oldEndpoint,
+    'https://fcm.googleapis.com/fcm/send/old',
+  )
   assert.equal(w.fetched.length, 1)
   assert.equal(w.fetched[0].url, '/api/push/subscriptions')
   assert.equal(w.fetched[0].init.credentials, 'same-origin')
+  const body = JSON.parse(w.fetched[0].init.body)
+  assert.equal(body.oldEndpoint, 'https://fcm.googleapis.com/fcm/send/old')
   assert.equal(
-    JSON.parse(w.fetched[0].init.body).oldEndpoint,
-    'https://fcm.googleapis.com/fcm/send/old',
+    'expectedUserId' in body,
+    false,
+    'the worker never claims an account: the server verifies the old endpoint',
   )
+})
+
+test('a rotation the worker cannot verify (no old subscription) is left to the app', async () => {
+  const w = loadWorker()
+  await w.fire('pushsubscriptionchange', { oldSubscription: null })
+  assert.equal(w.fetched.length, 0, 'nothing is registered in the background')
+  const marker = w.cached.find((c) => c.path === '/__f4l/push-renewal')
+  assert.ok(marker)
+  assert.equal(JSON.parse(marker.body).oldEndpoint, null)
 })
 
 test('the badge icon the worker precaches exists (a missing file would break install)', () => {

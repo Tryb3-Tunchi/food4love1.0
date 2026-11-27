@@ -117,3 +117,26 @@ export function parseSubscriptionInput(
     },
   }
 }
+
+// Who vouches that this registration belongs to the signed-in account?
+//  'page'     the app sent expectedUserId and it IS the session's account (a tap, or the app's own
+//             recovery for the account that owns this browser's subscription);
+//  'mismatch' it sent another account's id: the session changed under it -> refuse;
+//  'renewal'  no id (the service worker renewing a rotated subscription in the background): allowed
+//             ONLY as a swap of an old endpoint the session's account already owns (route checks).
+// A browser-supplied id is never trusted on its own: it must equal the authenticated session.
+export type RegistrationAuthority = 'page' | 'mismatch' | 'renewal'
+export function registrationAuthority(
+  body: unknown,
+  sessionUserId: string,
+): RegistrationAuthority {
+  const expected =
+    body && typeof body === 'object'
+      ? (body as Record<string, unknown>).expectedUserId
+      : undefined
+  if (expected === undefined || expected === null) return 'renewal'
+  return expected === sessionUserId ? 'page' : 'mismatch'
+}
+export function isAccountMismatch(body: unknown, sessionUserId: string) {
+  return registrationAuthority(body, sessionUserId) === 'mismatch'
+}

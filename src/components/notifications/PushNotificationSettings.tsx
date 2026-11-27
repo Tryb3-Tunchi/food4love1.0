@@ -1,6 +1,7 @@
 'use client'
 
 import * as Switch from '@radix-ui/react-switch'
+import { activationMessage } from '@/lib/push/activation'
 import { useState } from 'react'
 import toast from 'react-hot-toast'
 import { BellRing, Laptop, Smartphone, Trash2 } from 'lucide-react'
@@ -98,19 +99,12 @@ export function PushNotificationSettings() {
       if (!allowed) await savePush('enabled', true)
       return
     }
-    const message =
+    if (result.reason === 'in_progress') return // the first tap is still running
+    toast.error(
       result.reason === 'denied'
         ? PUSH_SUPPORT_MESSAGE.denied
-        : result.reason === 'dismissed'
-          ? 'Notifications were not turned on.'
-          : result.reason === 'not_enrolled'
-            ? 'Notifications are being tested with a small group first. Your account is not in it yet.'
-            : result.reason === 'key_missing' || result.reason === 'key_invalid'
-              ? 'Notifications are not set up on this version of Food4Love yet. See "Check this device" below.'
-              : result.reason === 'unavailable'
-                ? 'The Food4Love background service is not ready on this device. Close every Food4Love tab and open it again.'
-                : (result.message ?? 'Could not turn on notifications')
-    toast.error(message)
+        : activationMessage(result),
+    )
   }
 
   const sendTest = async () => {
@@ -191,7 +185,11 @@ export function PushNotificationSettings() {
             className="inline-flex min-h-10 items-center gap-2 rounded-xl bg-[var(--accent)] px-4 text-sm font-semibold text-white disabled:opacity-60"
           >
             <BellRing className="h-4 w-4" aria-hidden="true" />
-            {push.busy ? 'Turning on…' : 'Turn on notifications on this device'}
+            {push.busy
+              ? push.busyStage === 'permission'
+                ? 'Waiting for your answer…'
+                : 'Turning on…'
+              : 'Turn on notifications on this device'}
           </button>
         )}
       </div>
