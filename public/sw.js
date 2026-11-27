@@ -177,28 +177,60 @@ self.addEventListener('notificationclick', (event) => {
 // with the same key and tell the server to swap the old endpoint for the new one. The request is
 // same-origin, so it carries the member's session cookie; without a session it is refused and
 // the old row is purged on its first 410.
+// The push service rotated (or expired) this browser's subscription. The worker cannot know which
+// Food4Love account opted in here, so it never decides that itself:
+//  1. it records the rotation (Cache API, readable by the page) BEFORE anything else;
+//  2. it re-subscribes and offers the server a SWAP of the old endpoint. The server accepts that only
+//     if the old endpoint is already the signed-in account's device (otherwise 409 renewal_deferred);
+//  3. the next time Food4Love is open, the page finishes the renewal for the account that owns this
+//     browser's subscription (recoverRenewedSubscription), without a permission prompt.
+const RENEWAL_PATH = '/__f4l/push-renewal'
+function recordRenewal(oldEndpoint) {
+  return caches
+    .open('food4love-push-diagnostics')
+    .then((cache) =>
+      cache.put(
+        RENEWAL_PATH,
+        new Response(
+          JSON.stringify({ oldEndpoint, at: new Date().toISOString() }),
+          { headers: { 'Content-Type': 'application/json' } },
+        ),
+      ),
+    )
+    .catch(() => undefined)
+}
+
 self.addEventListener('pushsubscriptionchange', (event) => {
   const oldSubscription = event.oldSubscription
+  const oldEndpoint =
+    oldSubscription && typeof oldSubscription.endpoint === 'string'
+      ? oldSubscription.endpoint
+      : null
   const key =
     oldSubscription && oldSubscription.options
       ? oldSubscription.options.applicationServerKey
       : null
-  if (!key) return
   event.waitUntil(
-    self.registration.pushManager
-      .subscribe({ userVisibleOnly: true, applicationServerKey: key })
-      .then((subscription) =>
-        fetch('/api/push/subscriptions', {
-          method: 'POST',
-          credentials: 'same-origin',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            subscription: subscription.toJSON(),
-            oldEndpoint: oldSubscription.endpoint,
-            label: 'Renewed device',
-          }),
-        }),
-      )
+    recordRenewal(oldEndpoint)
+      .then(() => {
+        // without the old endpoint and key there is nothing the server could verify: the page does it
+        if (!key || !oldEndpoint) return undefined
+        return self.registration.pushManager
+          .subscribe({ userVisibleOnly: true, applicationServerKey: key })
+          .then((subscription) =>
+            fetch('/api/push/subscriptions', {
+              method: 'POST',
+              credentials: 'same-origin',
+              headers: { 'Content-Type': 'application/json' },
+              // deliberately no account id: the server verifies ownership of oldEndpoint instead
+              body: JSON.stringify({
+                subscription: subscription.toJSON(),
+                oldEndpoint,
+                label: 'Renewed device',
+              }),
+            }),
+          )
+      })
       .catch(() => undefined),
   )
 })

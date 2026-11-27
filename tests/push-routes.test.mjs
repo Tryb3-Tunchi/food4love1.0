@@ -82,11 +82,17 @@ function setup({ pilot } = {}) {
   return { db, calls }
 }
 const as = (user) => (globalThis.__f4lCurrentUser = user)
-const post = (body) =>
+// The app names the account that tapped (expectedUserId); { asWorker: true } sends what the
+// service worker sends when renewing in the background: no account id.
+const post = (body, { asWorker = false } = {}) =>
   subscriptions.POST(
     new NextRequest('http://localhost/api/push/subscriptions', {
       method: 'POST',
-      body: JSON.stringify(body),
+      body: JSON.stringify(
+        asWorker || body === null || typeof body !== 'object'
+          ? body
+          : { expectedUserId: globalThis.__f4lCurrentUser?.id, ...body },
+      ),
       headers: { 'content-type': 'application/json' },
     }),
   )
@@ -433,4 +439,68 @@ test('general opt-in: before the switch exists, pilot members still work (no reg
   assert.equal((await post(sub(9))).status, 200)
   as(COOK)
   assert.equal((await post(sub(10))).status, 403)
+})
+
+// ---- background renewal (service worker) and account switching ----
+const EP = (n) => `https://fcm.googleapis.com/fcm/send/device-${n}`
+
+test('worker renewal: swaps an old endpoint the signed-in account owns', async () => {
+  const { db } = setup()
+  as(CUSTOMER)
+  await post(sub(1))
+  const r = await post({ ...sub(7), oldEndpoint: EP(1) }, { asWorker: true })
+  assert.equal(r.status, 200)
+  assert.deepEqual(
+    db.rows('push_subscriptions').map((x) => [x.endpoint, x.user_id]),
+    [[EP(7), CUSTOMER.id]],
+  )
+})
+
+test('worker renewal after an account switch is deferred: nothing moves to the new account', async () => {
+  const { db } = setup()
+  as(CUSTOMER)
+  await post(sub(1))
+  as(COOK) // the cook signed in on the customer's browser; the customer's subscription rotates
+  const r = await post({ ...sub(7), oldEndpoint: EP(1) }, { asWorker: true })
+  assert.equal(r.status, 409)
+  assert.equal((await r.json()).code, 'renewal_deferred')
+  assert.deepEqual(
+    db.rows('push_subscriptions').map((x) => [x.endpoint, x.user_id]),
+    [[EP(1), CUSTOMER.id]],
+  )
+})
+
+test('worker renewal that cannot be verified is deferred (unknown old endpoint, or none)', async () => {
+  const { db } = setup()
+  as(CUSTOMER)
+  for (const body of [{ ...sub(7), oldEndpoint: EP(99) }, sub(7)]) {
+    const r = await post(body, { asWorker: true })
+    assert.equal(r.status, 409)
+    assert.equal((await r.json()).code, 'renewal_deferred')
+  }
+  assert.equal(db.rows('push_subscriptions').length, 0)
+})
+
+test("an account id that is not the session's is refused before anything is written", async () => {
+  const { db } = setup()
+  as(COOK)
+  const r = await post({ ...sub(1), expectedUserId: CUSTOMER.id })
+  assert.equal(r.status, 409)
+  assert.equal((await r.json()).code, 'account_changed')
+  assert.equal(db.rows('push_subscriptions').length, 0)
+})
+
+test('app recovery: the owner finishes a renewal, the old row is swapped (no duplicate)', async () => {
+  const { db } = setup()
+  as(CUSTOMER)
+  await post(sub(1))
+  const r = await post({ ...sub(7), oldEndpoint: EP(1) })
+  assert.equal(r.status, 200)
+  assert.equal(db.rows('push_subscriptions').length, 1)
+  const again = await post({ ...sub(7), oldEndpoint: EP(1) })
+  assert.equal(
+    (await again.json()).id,
+    (await r.json()).id,
+    'retrying is idempotent',
+  )
 })

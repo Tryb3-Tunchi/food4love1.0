@@ -2,7 +2,10 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createLimiter } from '@/lib/rateLimit'
-import { parseSubscriptionInput } from '@/lib/push/subscriptionInput'
+import {
+  parseSubscriptionInput,
+  registrationAuthority,
+} from '@/lib/push/subscriptionInput'
 import { pushPublicKeyFor } from '@/lib/push/publicKeys'
 import {
   isNotEnrolledError,
@@ -116,6 +119,27 @@ export async function POST(request: NextRequest) {
       { error: 'Unauthorized' },
       { status: 401, headers: noStore },
     )
+  let body: unknown
+  try {
+    body = await request.json()
+  } catch {
+    return NextResponse.json(
+      { error: 'Invalid request' },
+      { status: 400, headers: noStore },
+    )
+  }
+  // The page says which account tapped "Turn on". If the session that arrived is another account
+  // (signed out / switched while the request was slow), register nothing: the endpoint is unique
+  // and food4love_push_register would otherwise move this browser to the account now signed in.
+  const authority = registrationAuthority(body, user.id)
+  if (authority === 'mismatch')
+    return NextResponse.json(
+      {
+        error: 'You are signed in with a different account now.',
+        code: 'account_changed',
+      },
+      { status: 409, headers: noStore },
+    )
   // Pilot gate (server-side, fails closed): push_pilot_members, see pushEnrollmentFor()
   const enrollment = await pushEnrollmentFor(createAdminClient(), user.id)
   if (enrollment === 'unavailable')
@@ -140,15 +164,6 @@ export async function POST(request: NextRequest) {
       { status: 429, headers: noStore },
     )
 
-  let body: unknown
-  try {
-    body = await request.json()
-  } catch {
-    return NextResponse.json(
-      { error: 'Invalid request' },
-      { status: 400, headers: noStore },
-    )
-  }
   const parsed = parseSubscriptionInput(body)
   if (!parsed.ok)
     return NextResponse.json(
@@ -158,6 +173,26 @@ export async function POST(request: NextRequest) {
 
   const v = parsed.value
   const admin = createAdminClient()
+  // Background renewal (service worker, no account named): only a swap of an endpoint that is
+  // ALREADY this account's device. Anything else waits for the app, which knows the account that
+  // opted in on this browser and finishes the renewal then (see recoverRenewedSubscription).
+  if (authority === 'renewal') {
+    const owner = v.oldEndpoint
+      ? await admin
+          .from('push_subscriptions')
+          .select('user_id')
+          .eq('endpoint', v.oldEndpoint)
+          .maybeSingle()
+      : null
+    if (!owner || owner.error || owner.data?.user_id !== user.id)
+      return NextResponse.json(
+        {
+          error: 'Open Food4Love to finish renewing notifications.',
+          code: 'renewal_deferred',
+        },
+        { status: 409, headers: noStore },
+      )
+  }
   const common = {
     p_user_id: user.id,
     p_endpoint: v.endpoint,

@@ -12,6 +12,7 @@ import {
   lastPushShownOnThisDevice,
   pushKeyStatus,
   pushSupport,
+  PUSH_REGISTERED_EVENT,
   resyncThisDevice,
 } from '@/lib/push/client'
 import type { PushSupport } from '@/lib/push/support'
@@ -72,6 +73,9 @@ export function usePushNotifications() {
   >(null)
   const [lastShownAt, setLastShownAt] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
+  const [busyStage, setBusyStage] = useState<
+    'permission' | 'setting_up' | null
+  >(null)
   const resyncTried = useRef(false)
 
   const refreshLocal = useCallback(async () => {
@@ -142,17 +146,30 @@ export function usePushNotifications() {
     reloadDevices,
   ])
 
+  // A subscription that finished after its time limit was registered in the background
+  // (see runActivation): show the new state without a reload.
+  useEffect(() => {
+    const onRegistered = () => {
+      void refreshLocal()
+      void reloadDevices()
+    }
+    window.addEventListener(PUSH_REGISTERED_EVENT, onRegistered)
+    return () => window.removeEventListener(PUSH_REGISTERED_EVENT, onRegistered)
+  }, [refreshLocal, reloadDevices])
+
   // Keep this call synchronous up to enablePush(): the permission prompt needs the tap.
+  // Every step inside enablePush() is time-limited; the button is released as soon as the result
+  // is known, and the settings refresh runs in the background so it can never hold the button.
   const turnOn = async (): Promise<EnableResult> => {
     if (!userId) return { ok: false, reason: 'failed' }
     setBusy(true)
     try {
-      const result = await enablePush(userId)
-      await refreshLocal()
-      await reloadDevices()
-      return result
+      return await enablePush(userId, setBusyStage)
     } finally {
       setBusy(false)
+      setBusyStage(null)
+      void refreshLocal().catch(() => undefined)
+      void reloadDevices()
     }
   }
 
@@ -217,6 +234,7 @@ export function usePushNotifications() {
     support,
     onHere,
     busy,
+    busyStage,
     devices: serverDevices ?? [],
     devicesError: devices.isError,
     // false until the server says this member is in the push pilot (fails closed)

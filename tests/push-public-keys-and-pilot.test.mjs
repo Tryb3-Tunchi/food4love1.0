@@ -168,7 +168,11 @@ test('opt-in migration: switch starts at pilot, is closed to browsers, keeps in-
 test('the app refreshes only its OWN device registration, at most daily, without prompting', () => {
   const client = read('src/lib/push/client.ts')
   assert.match(client, /export async function refreshOwnDevice/)
-  assert.match(client, /getItem\(OWNER_KEY\) !== userId\) return/)
+  assert.match(client, /if \(!mayRecoverFor\(userId\)\) return/)
+  assert.match(
+    client,
+    /owner === userId \|\| \(owner === null && pending === userId\)/,
+  )
   assert.match(client, /24 \* 60 \* 60 \* 1000/)
   const fn = client.slice(
     client.indexOf('export async function refreshOwnDevice'),
